@@ -750,10 +750,21 @@ const parseInventory = (text) => {
 
 // Data Access Object (DAO)
 export const db = {
+    sb: sb, // Expose for realtime
     getUsers: async () => {
-        const { data, error } = await sb.from('users').select('*');
+        const { data, error } = await sb.from('users').select('*').order('name', { ascending: true });
         if (error) { console.error(error); return []; }
-        return data;
+        return data.map(u => ({
+            ...u,
+            isActive: u.is_active !== false // Default to true if null/undefined
+        }));
+    },
+
+    updateUserStatus: async (userId, isActive) => {
+        const { error } = await sb.from('users')
+            .update({ is_active: isActive })
+            .eq('id', userId);
+        return !error;
     },
 
     getUserByUsername: async (username) => {
@@ -763,7 +774,13 @@ export const db = {
             .maybeSingle(); // Use maybeSingle to avoid 406 error if not found
 
         if (error) { console.error(error); return null; }
-        return data;
+        if (data) {
+            return {
+                ...data,
+                isActive: data.is_active !== false
+            };
+        }
+        return null;
     },
 
     getInventory: async () => {
@@ -810,10 +827,12 @@ export const db = {
             sheet: r.sheet,
             code: r.product_code,
             name: r.product_name,
+            productName: r.product_name,
             quantity: r.quantity,
             total: r.total,
             reason: r.reason,
-            evidence: r.evidence
+            evidence: r.evidence,
+            timestamp: r.created_at
         }));
     },
 
@@ -865,10 +884,12 @@ export const db = {
             sheet: r.sheet,
             code: r.product_code,
             name: r.product_name,
+            productName: r.product_name,
             quantity: r.quantity,
             total: r.total,
             reason: r.reason,
-            evidence: r.evidence
+            evidence: r.evidence,
+            timestamp: r.created_at
         }));
     },
 

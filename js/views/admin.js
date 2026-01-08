@@ -27,6 +27,29 @@ export const renderAdminDashboard = (container, user) => {
         cache.lastFetch = Date.now();
     };
 
+    // --- REALTIME SUBSCRIPTION ---
+    const setupRealtime = () => {
+        if (!db.sb) return;
+
+        const channel = db.sb.channel('realtime-returns')
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'return_items'
+            }, async (payload) => {
+                console.log('¡Nueva devolución detectada!', payload);
+                // Option: Partial update or full fetch
+                // Given the app structure, full fetch is safest for UI consistency
+                await fetchData();
+                await render(true);
+            })
+            .subscribe();
+
+        return channel;
+    };
+
+    const realtimeChannel = setupRealtime();
+
     const render = async (skipFetch = false) => {
         if (!skipFetch && cache.lastFetch === 0) {
             await fetchData();
@@ -157,7 +180,7 @@ export const renderAdminDashboard = (container, user) => {
                                             <th style="padding: 16px; text-align: left;">Producto / Factura</th>
                                             <th style="padding: 16px; text-align: left;">Motivo</th>
                                             <th style="padding: 16px; text-align: right;">Total</th>
-                                            <th style="padding: 16px; text-align: center;">Acción</th>
+                                            <th style="padding: 16px; text-align: center;">Evidencia</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -166,7 +189,7 @@ export const renderAdminDashboard = (container, user) => {
             const auxName = route ? route.userName : 'Desconocido';
             return `
                                                 <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.2s;">
-                                                    <td style="padding: 16px; color: var(--text-light);">${new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                                    <td style="padding: 16px; color: var(--text-light);">${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                                                     <td style="padding: 16px;">
                                                         <div style="font-weight: 500;">${auxName}</div>
                                                     </td>
@@ -179,7 +202,7 @@ export const renderAdminDashboard = (container, user) => {
                                                     </td>
                                                     <td style="padding: 16px; text-align: right; font-weight: 600;">$ ${r.total.toLocaleString()}</td>
                                                     <td style="padding: 16px; text-align: center;">
-                                                         ${r.hasPhoto ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: none; border: none; color: var(--accent-color); cursor: pointer;"><span class="material-icons-round">image</span></button>` : '—'}
+                                                         ${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: none; border: none; color: var(--accent-color); cursor: pointer;"><span class="material-icons-round">image</span></button>` : '—'}
                                                     </td>
                                                 </tr>
                                             `;
@@ -224,15 +247,23 @@ export const renderAdminDashboard = (container, user) => {
                                     <th style="padding: 16px; text-align: left;">Nombre Completo</th>
                                     <th style="padding: 16px; text-align: left;">Cédula / Usuario</th>
                                     <th style="padding: 16px; text-align: center;">Estado</th>
+                                    <th style="padding: 16px; text-align: center;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${users.map(u => `
-                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <tr style="border-bottom: 1px solid #f1f5f9; opacity: ${u.isActive ? '1' : '0.6'}">
                                         <td style="padding: 16px; font-weight: 500;">${u.name}</td>
                                         <td style="padding: 16px; color: var(--text-secondary);">${u.username}</td>
                                         <td style="padding: 16px; text-align: center;">
-                                            <span style="background: rgba(74, 222, 128, 0.1); color: var(--success-color); padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600;">Activo</span>
+                                            <span style="background: ${u.isActive ? 'rgba(74, 222, 128, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${u.isActive ? 'var(--success-color)' : 'var(--danger-color)'}; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600;">
+                                                ${u.isActive ? 'Activo' : 'Inactivo'}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 16px; text-align: center;">
+                                            <button class="toggle-user-btn btn-icon" data-user-id="${u.id}" data-active="${u.isActive}" style="background: none; border: 1px solid #ddd; border-radius: 8px; padding: 6px; cursor: pointer; color: ${u.isActive ? 'var(--danger-color)' : 'var(--success-color)'};">
+                                                <span class="material-icons-round" style="font-size: 20px;">${u.isActive ? 'block' : 'check_circle'}</span>
+                                            </button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -375,6 +406,28 @@ export const renderAdminDashboard = (container, user) => {
                 }, 300);
             });
         }
+
+        if (activeSection === 'auxiliares') {
+            document.querySelectorAll('.toggle-user-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userId;
+                    const currentlyActive = btn.dataset.active === 'true';
+                    const newStatus = !currentlyActive;
+
+                    if (confirm(`¿Estás seguro de que deseas ${newStatus ? 'activar' : 'inactivar'} a este auxiliar?`)) {
+                        const success = await db.updateUserStatus(userId, newStatus);
+                        if (success) {
+                            // Update local cache and re-render
+                            const userToUpdate = cache.users.find(u => u.id === userId);
+                            if (userToUpdate) userToUpdate.isActive = newStatus;
+                            await render(true);
+                        } else {
+                            alert("Error al actualizar el estado del usuario.");
+                        }
+                    }
+                });
+            });
+        }
     };
 
 
@@ -496,4 +549,9 @@ export const renderAdminDashboard = (container, user) => {
     };
 
     render();
+
+    // Export a cleanup function if needed, but for this SPA simple closure works
+    window.onDisposeAdmin = () => {
+        if (realtimeChannel) db.sb.removeChannel(realtimeChannel);
+    };
 };
