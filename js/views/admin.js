@@ -4,13 +4,37 @@ import { auth } from '../auth.js';
 export const renderAdminDashboard = (container, user) => {
     let activeSection = 'dashboard';
 
-    const render = () => {
-        const routes = db.getRoutes();
-        const returns = db.getReturns();
-        const users = db.getUsers().filter(u => u.role === 'auxiliar');
+    // Cache data to prevent re-fetching on every tab switch
+    let cache = {
+        routes: [],
+        returns: [],
+        users: [],
+        lastFetch: 0
+    };
+
+    const fetchData = async () => {
+        if (cache.lastFetch === 0) {
+            container.innerHTML = '<div style="padding:40px; text-align:center;">Cargando datos...</div>';
+        }
+        const [routes, returns, users] = await Promise.all([
+            db.getRoutes(),
+            db.getReturns(),
+            db.getUsers()
+        ]);
+        cache.routes = routes;
+        cache.returns = returns;
+        cache.users = users.filter(u => u.role === 'auxiliar');
+        cache.lastFetch = Date.now();
+    };
+
+    const render = async (skipFetch = false) => {
+        if (!skipFetch && cache.lastFetch === 0) {
+            await fetchData();
+        }
+
+        const { routes, returns, users } = cache;
         const activeRoutes = routes.filter(r => r.date === new Date().toISOString().split('T')[0]);
         const totalValue = returns.reduce((sum, r) => sum + r.total, 0);
-        const products = db.getInventory();
         const productSearchTerm = '';
 
         const getSidebarLinkClass = (section) => {
@@ -25,7 +49,7 @@ export const renderAdminDashboard = (container, user) => {
                 <div style="padding: 24px; border-bottom: 1px solid rgba(255,255,255,0.1);">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
                         <span class="material-icons-round" style="color: var(--accent-color); font-size: 28px;">local_shipping</span>
-                        <h2 style="color: white; font-size: 18px; margin: 0;">Logística Pro</h2>
+                        <h2 style="color: white; font-size: 18px; margin: 0;">DevolucionesApp</h2>
                     </div>
                     <small style="color: rgba(255,255,255,0.6);">TAT DISTRIBUCIONES</small>
                 </div>
@@ -72,7 +96,10 @@ export const renderAdminDashboard = (container, user) => {
                             <p>Gestión de Devoluciones y Registro Fotográfico</p>
                         </div>
                         <div style="display: flex; gap: 16px;">
-                            <!-- Header buttons removed as requested -->
+                            <button id="refreshBtn" class="btn btn-secondary" style="height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; color: var(--primary-color); padding: 0 20px; font-weight: 600; cursor: pointer;">
+                                <span class="material-icons-round">refresh</span>
+                                Actualizar Datos
+                            </button>
                         </div>
                     </header>
 
@@ -144,7 +171,7 @@ export const renderAdminDashboard = (container, user) => {
                                                         <div style="font-weight: 500;">${auxName}</div>
                                                     </td>
                                                     <td style="padding: 16px;">
-                                                        <div style="font-weight: 500;">${r.productName}</div>
+                                                        <div style="font-weight: 500;">${r.product_name || r.productName || 'N/A'}</div>
                                                         <div style="font-size: 12px; color: var(--text-light);">Doc: ${r.invoice}</div>
                                                     </td>
                                                     <td style="padding: 16px;">
@@ -216,7 +243,7 @@ export const renderAdminDashboard = (container, user) => {
                     <header class="mb-lg" style="display: flex; justify-content: space-between; align-items: flex-end;">
                         <div>
                             <h1 style="color: var(--primary-color);">Catálogo de Productos</h1>
-                            <p>Inventario de TAT DISTRIBUCIONES</p>
+                            <p>Inventario de TAT DISTRIBUCIONES - Búsqueda Rápida</p>
                         </div>
                         <div style="width: 300px;">
                             <div class="input-group" style="margin: 0;">
@@ -226,7 +253,10 @@ export const renderAdminDashboard = (container, user) => {
                     </header>
                     <div class="card" style="padding: 0;">
                          <div id="productTableContainer">
-                            ${renderProductTable(products)}
+                             <div style="padding: 40px; text-align: center; color: var(--text-light);">
+                                <span class="material-icons-round" style="font-size: 48px; opacity: 0.5;">search</span>
+                                <p>Ingresa un término para buscar productos.</p>
+                             </div>
                          </div>
                     </div>
                 ` : `
@@ -266,19 +296,39 @@ export const renderAdminDashboard = (container, user) => {
 
         // Sidebar Navigation
         document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.addEventListener('click', (e) => {
+            link.addEventListener('click', async (e) => {
                 e.preventDefault();
                 activeSection = link.dataset.section;
-                render();
+                // Use cache for instant switching
+                await render(true);
             });
         });
 
         if (activeSection === 'dashboard') {
+            // Refresh Button
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', async () => {
+                    const originalHTML = refreshBtn.innerHTML;
+                    refreshBtn.innerHTML = '<span class="material-icons-round spin">refresh</span>...';
+                    refreshBtn.style.opacity = '0.5';
+                    refreshBtn.disabled = true;
+
+                    await fetchData();
+                    await render(true); // Re-render with new data from cache
+                });
+            }
+            // Updated to be async compatible, though simpler here
+
             // Individual Print Buttons
             document.querySelectorAll('.print-route-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     const routeId = btn.getAttribute('data-route-id');
-                    generatePrintReport(routes, returns, routeId);
+                    // Add loading state to button
+                    const originalContent = btn.innerHTML;
+                    btn.innerHTML = '...';
+                    await generatePrintReport(routes, routeId);
+                    btn.innerHTML = originalContent;
                 });
             });
 
@@ -312,15 +362,21 @@ export const renderAdminDashboard = (container, user) => {
 
         if (activeSection === 'productos') {
             const searchInput = document.getElementById('productSearch');
+            let debounceTimer;
+
             searchInput.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                const filtered = db.getInventory().filter(p =>
-                    p.name.toLowerCase().includes(term) || p.code.includes(term)
-                );
-                document.getElementById('productTableContainer').innerHTML = renderProductTable(filtered);
+                const term = e.target.value;
+                if (term.length < 2) return;
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    const results = await db.searchProducts(term);
+                    document.getElementById('productTableContainer').innerHTML = renderProductTable(results);
+                }, 300);
             });
         }
     };
+
 
     const renderProductTable = (products) => {
         return `
@@ -346,33 +402,36 @@ export const renderAdminDashboard = (container, user) => {
         `;
     };
 
-    const renderWithSection = (section) => {
+    const renderWithSection = async (section) => {
         activeSection = section;
-        render();
+        await render();
     };
     window.renderWithSection = renderWithSection; // Make it accessible locally for buttons
 
-    const generatePrintReport = (routes, returns, specificRouteId = null) => {
+    const generatePrintReport = async (routes, specificRouteId) => {
         const printArea = document.getElementById('printArea');
         printArea.classList.remove('hidden');
-        const today = new Date().toISOString().split('T')[0];
-        let activeRoutesToday = routes.filter(r => r.date === today);
 
-        if (specificRouteId) {
-            activeRoutesToday = activeRoutesToday.filter(r => r.id === specificRouteId);
-        }
-
-        if (activeRoutesToday.length === 0) {
-            alert("No hay rutas activas hoy para imprimir.");
+        const route = routes.find(r => r.id === specificRouteId);
+        if (!route) {
+            alert("Error: Ruta no encontrada.");
             return;
         }
 
-        let html = '';
-        activeRoutesToday.forEach(route => {
-            const routeReturns = returns.filter(r => r.routeId === route.id);
-            const totalValue = routeReturns.reduce((sum, r) => sum + r.total, 0);
+        // FETCH COMPLETE DATA FOR THIS SPECIFIC ROUTE
+        // This fixes the bug where returns were missing due to limits or filtering
+        const routeReturns = await db.getRouteReturns(specificRouteId);
 
-            html += `
+        if (routeReturns.length === 0) {
+            alert("Esta ruta no tiene devoluciones registradas.");
+            printArea.classList.add('hidden');
+            return;
+        }
+
+        const planilla = routeReturns[0]?.sheet || 'N/A';
+        const totalValue = routeReturns.reduce((sum, r) => sum + r.total, 0);
+
+        let html = `
                 <div class="print-header page-break">
                     <div style="border: 2px solid #000; padding: 20px; max-width: 800px; margin: 0 auto; box-sizing: border-box;">
                         <div style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; text-align: center;">
@@ -380,10 +439,14 @@ export const renderAdminDashboard = (container, user) => {
                             <h3 style="margin: 5px 0 0; font-size: 16px; font-weight: 600;">TAT DISTRIBUCIONES</h3>
                             <p style="margin: 5px 0 0; font-size: 12px; color: #444;">Control Operativo y Logístico</p>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; border: 1px solid #000; padding: 10px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; border: 1px solid #000; padding: 10px;">
                             <div>
                                 <div style="font-size: 11px; font-weight: bold;">Auxiliar / Ruta:</div>
                                 <div style="font-size: 14px; font-weight: bold;">${route.userName.toUpperCase()}</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 11px; font-weight: bold;">Planilla N°:</div>
+                                <div style="font-size: 16px; font-weight: 900;">${planilla}</div>
                             </div>
                             <div style="text-align: right;">
                                 <div style="font-size: 11px; font-weight: bold;">Fecha:</div>
@@ -403,7 +466,7 @@ export const renderAdminDashboard = (container, user) => {
                                 ${routeReturns.map(r => `
                                     <tr>
                                         <td style="padding: 5px; border: 1px solid #000;">${r.invoice}</td>
-                                        <td style="padding: 5px; border: 1px solid #000;">${r.productName}</td>
+                                        <td style="padding: 5px; border: 1px solid #000;">${r.product_name || r.name || 'N/A'}</td>
                                         <td style="padding: 5px; border: 1px solid #000; text-align: center;">${r.quantity}</td>
                                         <td style="padding: 5px; border: 1px solid #000; text-align: right;">$ ${r.total.toLocaleString()}</td>
                                     </tr>
@@ -423,7 +486,6 @@ export const renderAdminDashboard = (container, user) => {
                     </div>
                 </div>
             `;
-        });
 
         printArea.innerHTML = html;
         window.print();

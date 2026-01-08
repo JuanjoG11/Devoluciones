@@ -1,35 +1,47 @@
 import { initializeData } from './data.js';
 import { auth } from './auth.js';
 import { renderLogin } from './views/login.js';
-import { renderAuxiliarDashboard } from './views/auxiliar.js';
 import { renderAdminDashboard } from './views/admin.js';
-
-// Initialize DB
-initializeData();
+import { renderAuxiliarDashboard } from './views/auxiliar.js';
 
 const app = document.getElementById('app');
 
-const router = () => {
+const init = async () => {
+    await initializeData();
+    checkAuthAndRender();
+};
+
+const checkAuthAndRender = () => {
+    // Show Loading Spinner immediately to prevent UI freeze/ghosting
+    app.innerHTML = `
+        <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+            <div style="text-align: center;">
+                <div style="width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+                <h3 style="color: var(--primary-color); margin: 0;">Cargando...</h3>
+            </div>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+        </div>
+    `;
+
     const user = auth.getCurrentUser();
-
     if (!user) {
+        app.classList.remove('admin-mode'); // Ensure admin-mode is off if not logged in
         renderLogin(app);
-        return;
-    }
-
-    if (user.role === 'auxiliar') {
-        app.classList.remove('admin-mode');
-        renderAuxiliarDashboard(app, user);
-    } else if (user.role === 'admin') {
-        app.classList.add('admin-mode');
-        renderAdminDashboard(app, user);
+    } else {
+        if (user.role === 'admin') {
+            app.classList.add('admin-mode');
+            renderAdminDashboard(app, user);
+        } else { // user.role === 'auxiliar'
+            app.classList.remove('admin-mode');
+            renderAuxiliarDashboard(app, user);
+        }
     }
 };
 
-// Global Event Bus for Navigation
-window.addEventListener('navigate', () => {
-    router();
+// Event Listener for Navigation
+window.addEventListener('navigate', (e) => {
+    checkAuthAndRender();
 });
 
 // Initial Load
-router();
+init();

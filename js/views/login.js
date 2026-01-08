@@ -6,7 +6,7 @@ export const renderLogin = (container) => {
             <div class="card glass-card text-center" style="width: 100%; max-width: 400px;">
                 <div style="margin-bottom: 32px;">
                     <span class="material-icons-round" style="font-size: 48px; color: var(--accent-color);">local_shipping</span>
-                    <h1 style="color: var(--primary-color); margin-top: 16px;">Control de Devoluciones</h1>
+                    <h1 style="color: var(--primary-color); margin-top: 16px;">DevolucionesApp</h1>
                     <p>Ingresa para comenzar tu ruta</p>
                 </div>
 
@@ -54,23 +54,27 @@ export const renderLogin = (container) => {
     });
 
     const form = document.getElementById('loginForm');
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const user = usernameInput.value.trim();
+        const username = document.getElementById('username').value;
+        const passwordField = document.getElementById('password');
+        // If password field is hidden (for auxiliar), use default '123'
+        const password = (!passwordField.parentElement.classList.contains('hidden'))
+            ? passwordField.value
+            : '123';
 
-        // Logic: Auxiliares use '123' as password (hardcoded in data.js for all IDs)
-        // Admin uses the password typed in the field
-        let pass = '123';
-        if (user.toLowerCase() === 'admin') {
-            pass = passwordInput.value;
-        }
-
-        const result = auth.login(user, pass);
-
-        if (result) {
-            window.dispatchEvent(new Event('navigate'));
-        } else {
-            document.getElementById('loginError').classList.remove('hidden');
+        try {
+            const user = await auth.login(username, password);
+            if (user) {
+                // Dispatch navigation event
+                const event = new CustomEvent('navigate', { detail: { view: 'dashboard' } });
+                window.dispatchEvent(event);
+            } else {
+                alert('Credenciales incorrectas');
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            alert("Error al intentar iniciar sesión. Revisa tu conexión.");
         }
     });
 };

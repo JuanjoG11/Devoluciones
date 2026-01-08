@@ -127,4 +127,28 @@
     border: none;
     cursor: pointer;
     z-index: 100;
+    z-index: 100;
+}
+
+@media (max-width: 640px) {
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .app-header>* {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Fix header button spacing */
+    .app-header button {
+        margin-left: auto;
+    }
+
+    .input-group.flex.gap-md {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
 }

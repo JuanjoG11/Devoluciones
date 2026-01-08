@@ -1,36 +1,34 @@
 import { db } from '../data.js';
 import { auth } from '../auth.js';
 
-export const renderAuxiliarDashboard = (container, user) => {
+export const renderAuxiliarDashboard = async (container, user) => {
+    // Removed: const products = await db.getInventory(); 
+    // Optimization: Do NOT fetch inventory upfront.
+
+    // Optimized: Fetch only THIS user's route for today
+    const myRoute = await db.getTodaysRoute(user.id);
+
     let state = {
         view: 'dashboard', // dashboard | form
-        routeStarted: false,
-        products: db.getInventory(),
-        currentRouteId: null
+        routeStarted: !!myRoute,
+        products: [], // Will load async on search
+        currentRouteId: myRoute ? myRoute.id : null
     };
 
-    // Check if route exists for today
-    const checkRoute = () => {
-        const today = new Date().toISOString().split('T')[0];
-        const routes = db.getRoutes();
-        const myRoute = routes.find(r => r.userId === user.username && r.date === today);
-        if (myRoute) {
-            state.routeStarted = true;
-            state.currentRouteId = myRoute.id;
+    const render = async () => {
+        let myReturns = [];
+        if (state.currentRouteId) {
+            myReturns = await db.getRouteReturns(state.currentRouteId);
         }
-    };
-    checkRoute();
 
-    const render = () => {
         if (state.view === 'dashboard') {
-            renderDashboard();
+            renderDashboard(myReturns, myRoute);
         } else if (state.view === 'form') {
             renderForm();
         }
     };
 
-    const renderDashboard = () => {
-        const returns = db.getReturns().filter(r => r.routeId === state.currentRouteId);
+    const renderDashboard = (returns, currentRoute) => {
         const totalValue = returns.reduce((sum, r) => sum + r.total, 0);
 
         container.innerHTML = `
@@ -79,12 +77,12 @@ export const renderAuxiliarDashboard = (container, user) => {
                             ${returns.map(r => `
                                 <div class="list-item">
                                     <div>
-                                        <div style="font-weight: 600;">${r.productName.substring(0, 25)}...</div>
+                                        <div style="font-weight: 600;">${r.name ? r.name.substring(0, 25) : 'Producto'}...</div>
                                         <small>${r.reason} • Cant: ${r.quantity}</small>
                                     </div>
                                     <div style="text-align: right;">
-                                        <div style="font-weight: 600;">$ ${r.total.toLocaleString()}</div>
-                                        ${r.hasPhoto ? '<span class="material-icons-round" style="font-size: 16px; color: var(--accent-color);">photo_camera</span>' : ''}
+                                        <div style="font-weight: 600;">$ ${(r.total || 0).toLocaleString()}</div>
+                                        ${r.evidence ? '<span class="material-icons-round" style="font-size: 16px; color: var(--accent-color);">photo_camera</span>' : ''}
                                     </div>
                                 </div>
                             `).join('')}
@@ -99,55 +97,64 @@ export const renderAuxiliarDashboard = (container, user) => {
         `;
 
         if (!state.routeStarted) {
-            document.getElementById('startRouteBtn').addEventListener('click', () => {
+            document.getElementById('startRouteBtn').addEventListener('click', async () => {
                 const newRoute = {
-                    id: Date.now().toString(),
-                    userId: user.username,
+                    userId: user.id, // ADDED THIS
+                    username: user.username,
                     userName: user.name,
-                    date: new Date().toISOString().split('T')[0],
-                    startTime: new Date().toLocaleTimeString()
+                    startTime: new Date().toLocaleTimeString(),
+                    date: new Date().toISOString().split('T')[0]
                 };
-                db.addRoute(newRoute);
-                state.routeStarted = true;
-                state.currentRouteId = newRoute.id;
-                state.currentRouteId = newRoute.id;
-                render();
+                const createdRoute = await db.addRoute(newRoute);
+                if (createdRoute) {
+                    state.routeStarted = true;
+                    state.currentRouteId = createdRoute.id;
+                    window.location.reload();
+                } else {
+                    alert("Error al iniciar ruta. Intente nuevamente.");
+                }
             });
         } else {
-            const myRoute = db.getRoutes().find(r => r.id === state.currentRouteId);
-            if (myRoute && myRoute.status !== 'completed') {
-                container.querySelector('.app-header').insertAdjacentHTML('beforeend', `
-                    <button id="endRouteBtn" style="background: rgba(255,255,255,0.2); border: none; color: white; margin-right: 12px; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
-                        FINALIZAR
-                    </button>
-                `);
+            if (currentRoute && currentRoute.status !== 'completed') {
+                const header = container.querySelector('.app-header');
+                if (header) {
+                    header.insertAdjacentHTML('beforeend', `
+                            <button id="endRouteBtn" style="background: rgba(255,255,255,0.2); border: none; color: white; margin-right: 12px; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                                FINALIZAR
+                            </button>
+                        `);
 
-                document.getElementById('endRouteBtn').addEventListener('click', () => {
-                    if (confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.")) {
-                        const now = new Date().toLocaleTimeString();
-                        db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now });
-                        alert("Jornada finalizada correctamente.");
-                        window.location.reload();
-                    }
-                });
-            } else if (myRoute && myRoute.status === 'completed') {
-                container.querySelector('.app-header').insertAdjacentHTML('beforeend', `
-                    <div style="background: var(--success-color); color: white; margin-right: 12px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                        FINALIZADO
-                    </div>
-                `);
-
-                // Hide actions if completed
+                    document.getElementById('endRouteBtn').addEventListener('click', async () => {
+                        if (confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.")) {
+                            const now = new Date().toLocaleTimeString();
+                            const success = await db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now });
+                            if (success) {
+                                alert("Jornada finalizada correctamente.");
+                                window.location.reload();
+                            } else {
+                                alert("Error al finalizar. Intente de nuevo.");
+                            }
+                        }
+                    });
+                }
+            } else if (currentRoute && currentRoute.status === 'completed') {
+                const header = container.querySelector('.app-header');
+                if (header) {
+                    header.insertAdjacentHTML('beforeend', `
+                            <div style="background: var(--success-color); color: white; margin-right: 12px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                                FINALIZADO
+                            </div>
+                        `);
+                }
                 const addBtn = document.getElementById('addReturnBtn');
                 if (addBtn) addBtn.style.display = 'none';
             }
 
-            // Only allow adding return if not completed
             const addBtn = document.getElementById('addReturnBtn');
-            if (addBtn && (!myRoute || myRoute.status !== 'completed')) {
-                addBtn.addEventListener('click', () => {
+            if (addBtn && (!currentRoute || currentRoute.status !== 'completed')) {
+                addBtn.addEventListener('click', async () => {
                     state.view = 'form';
-                    render();
+                    await render();
                 });
             }
         }
@@ -155,6 +162,15 @@ export const renderAuxiliarDashboard = (container, user) => {
         document.getElementById('logoutBtn').addEventListener('click', () => {
             auth.logout();
         });
+
+        if (state.view === 'form') {
+            // We need to defer setup to ensure DOM is ready? 
+            // Note: in previous code render was async, here it is too.
+            // But we are in renderDashboard which is sync called by render.
+            // So we cannot await here.
+            // Actually, renderDashboard puts HTML, then we attach listeners.
+            // Wait, renderForm below puts HTML too.
+        }
     };
 
     const renderForm = () => {
@@ -179,12 +195,27 @@ export const renderAuxiliarDashboard = (container, user) => {
                         <input type="text" name="sheet" class="input-field" placeholder="001" required>
                     </div>
 
-                    <div class="input-group">
+                    <div class="input-group" style="position: relative;">
                         <label class="input-label">Producto (Buscar por nombre o código)</label>
-                        <input type="text" id="productSearch" list="productList" class="input-field" placeholder="Escribe para buscar..." required autocomplete="off">
-                        <datalist id="productList">
-                            ${state.products.map(p => `<option value="${p.code} - ${p.name}" data-price="${p.price}"></option>`).join('')}
-                        </datalist>
+                        <input type="text" id="productSearch" class="input-field" placeholder="Escribe para buscar..." required autocomplete="off">
+                        <!-- Custom Search Results Dropdown instead of Datalist -->
+                        <ul id="searchResults" style="
+                            display: none;
+                            position: absolute;
+                            top: 100%;
+                            left: 0;
+                            right: 0;
+                            background: white;
+                            border: 1px solid #ddd;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                            z-index: 10;
+                            max-height: 200px;
+                            overflow-y: auto;
+                            list-style: none;
+                            padding: 0;
+                            margin: 4px 0 0 0;
+                        "></ul>
                     </div>
 
                     <div class="flex gap-md">
@@ -224,11 +255,16 @@ export const renderAuxiliarDashboard = (container, user) => {
                             <span id="evidenceText">Tomar Foto</span>
                         </label>
                         <input type="file" id="evidence" accept="image/*" capture="environment" class="hidden">
+                        <img id="evidencePreview" src="" alt="Preview" style="max-width: 100%; margin-top: 10px; display: none;">
                     </div>
 
                     <button type="submit" class="btn btn-primary mt-md">
                         <span class="material-icons-round">save</span>
                         Guardar Devolución
+                    </button>
+                    <button type="button" id="cancelBtn" class="btn btn-secondary mt-sm">
+                        <span class="material-icons-round">cancel</span>
+                        Cancelar
                     </button>
                 </form>
             </div>
@@ -236,13 +272,16 @@ export const renderAuxiliarDashboard = (container, user) => {
 
         // Logic for Form
         const productInput = document.getElementById('productSearch');
+        const searchResults = document.getElementById('searchResults');
         const priceInput = document.getElementById('price');
         const qtyInput = document.getElementById('qty');
         const totalSpan = document.getElementById('totalValue');
         const evidenceInput = document.getElementById('evidence');
         const evidenceText = document.getElementById('evidenceText');
+        const evidencePreview = document.getElementById('evidencePreview');
 
         let selectedProduct = null;
+        let debounceTimer;
 
         const calculate = () => {
             if (selectedProduct) {
@@ -252,22 +291,59 @@ export const renderAuxiliarDashboard = (container, user) => {
             }
         };
 
+        // Async Search with Debounce
         productInput.addEventListener('input', (e) => {
-            const val = e.target.value;
-            // Try to find the product in the list based on the input string "CODE - NAME"
-            // This is a bit tricky with datalist as it only gives the value.
-            // We can search our products array.
-            const code = val.split(' - ')[0];
-            const found = state.products.find(p => p.code === code);
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
 
-            if (found) {
-                selectedProduct = found;
-                priceInput.value = '$ ' + found.price.toLocaleString();
-                calculate();
-            } else {
+            // Allow manual clearing
+            if (query === '') {
+                searchResults.style.display = 'none';
                 selectedProduct = null;
-                priceInput.value = '';
-                totalSpan.textContent = '0';
+                calculate();
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                const results = await db.searchProducts(query);
+                renderSearchResults(results);
+            }, 300); // 300ms debounce
+        });
+
+        const renderSearchResults = (results) => {
+            searchResults.innerHTML = '';
+            if (results.length === 0) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            results.forEach(p => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;';
+                li.innerHTML = `
+                    <div style="font-weight: 600;">${p.code} - ${p.name}</div>
+                    <div style="font-size: 12px; color: #666;">$ ${p.price.toLocaleString()}</div>
+                `;
+                li.addEventListener('click', () => {
+                    selectProduct(p);
+                });
+                searchResults.appendChild(li);
+            });
+            searchResults.style.display = 'block';
+        };
+
+        const selectProduct = (p) => {
+            selectedProduct = p;
+            productInput.value = `${p.code} - ${p.name}`;
+            priceInput.value = '$ ' + p.price.toLocaleString();
+            searchResults.style.display = 'none';
+            calculate();
+        };
+
+        // Hide search if clicked outside
+        document.addEventListener('click', (e) => {
+            if (e.target !== productInput && e.target !== searchResults) {
+                searchResults.style.display = 'none';
             }
         });
 
@@ -284,47 +360,63 @@ export const renderAuxiliarDashboard = (container, user) => {
                     evidenceText.textContent = "Foto Capturada ✓";
                     evidenceText.style.color = "var(--success-color)";
                     evidenceText.parentElement.style.borderColor = "var(--success-color)";
+                    evidencePreview.src = capturedPhoto;
+                    evidencePreview.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        document.getElementById('returnForm').addEventListener('submit', (e) => {
+        document.getElementById('returnForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!selectedProduct) {
-                alert("Por favor selecciona un producto válido de la lista");
+                alert("Por favor selecciona un producto válido de la búsqueda");
                 return;
             }
 
             const formData = new FormData(e.target);
+            const invoice = formData.get('invoice');
+            const sheet = formData.get('sheet');
+            const quantity = qtyInput.value;
+            const reason = formData.get('reason');
+            const total = selectedProduct.price * parseInt(quantity);
 
             const returnData = {
-                id: Date.now().toString(),
                 routeId: state.currentRouteId,
-                invoice: formData.get('invoice'),
-                sheet: formData.get('sheet'),
+                invoice,
+                sheet,
                 productCode: selectedProduct.code,
                 productName: selectedProduct.name,
                 price: selectedProduct.price,
-                quantity: parseInt(qtyInput.value),
-                total: selectedProduct.price * parseInt(qtyInput.value),
-                reason: formData.get('reason'),
-                evidence: capturedPhoto, // Store full base64
-                hasPhoto: !!capturedPhoto, // flag for icon
+                quantity: parseInt(quantity),
+                total,
+                reason,
+                evidence: capturedPhoto,
+                hasPhoto: !!capturedPhoto,
                 timestamp: new Date().toISOString()
             };
 
-            db.addReturn(returnData);
-            alert("Devolución registrada exitosamente");
-            state.view = 'dashboard';
-            render();
+            const success = await db.addReturn(returnData);
+
+            if (success) {
+                alert("Devolución registrada exitosamente");
+                state.view = 'dashboard';
+                await render();
+            } else {
+                alert("Error al guardar la devolución");
+            }
         });
 
-        document.getElementById('backBtn').addEventListener('click', () => {
+        document.getElementById('backBtn').addEventListener('click', async () => {
             state.view = 'dashboard';
-            render();
+            await render();
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', async () => {
+            state.view = 'dashboard';
+            await render();
         });
     };
 
-    render();
+    await render();
 };

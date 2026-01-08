@@ -662,12 +662,32 @@ const RAW_INVENTORY = RAW_INVENTORY_PARTS.join('');
 // For this prototype, I will use a larger block if needed, but this demonstrates the logic.
 
 // Initialize Data
-export const initializeData = () => {
-    // Always parse and save inventory on init to ensure latest data is used
-    const products = parseInventory(RAW_INVENTORY);
-    localStorage.setItem('inventory', JSON.stringify(products));
+import { sb } from './supabase.js';
 
-    // Force update users to ensure new list is loaded
+// ... (RAW_INVENTORY string remains here usually, but we will seed it if needed) ...
+// We can keep RAW_INVENTORY for fallback or initial seeding
+
+export const initializeData = async () => {
+    try {
+        // Check Users
+        const { count: userCount } = await sb.from('users').select('*', { count: 'exact', head: true });
+        if (userCount === 0) {
+            console.log("Seeding initial users...");
+            await seedUsers();
+        }
+
+        // Check Products independently
+        const { count: productCount } = await sb.from('products').select('*', { count: 'exact', head: true });
+        if (productCount === 0) {
+            console.log("Seeding initial products...");
+            await seedProducts();
+        }
+    } catch (e) {
+        console.error("Error checking DB:", e);
+    }
+};
+
+const seedUsers = async () => {
     const users = [
         { username: 'admin', password: '123', role: 'admin', name: 'Administrador' },
         // Auxiliaries TAT DISTRIBUCIONES
@@ -688,14 +708,23 @@ export const initializeData = () => {
         { username: '1060506540', password: '123', role: 'auxiliar', name: 'YENIFER ANDREA SOTO GARZON' },
         { username: '1060586518', password: '123', role: 'auxiliar', name: 'NELLY YURANNY SALDARRIAGA CAÑAS' }
     ];
-    localStorage.setItem('users', JSON.stringify(users));
+    const { error } = await sb.from('users').insert(users);
+    if (error) console.error("Error seeding users:", error);
+};
 
-    if (!localStorage.getItem('routes')) {
-        localStorage.setItem('routes', JSON.stringify([]));
-    }
-
-    if (!localStorage.getItem('returns')) {
-        localStorage.setItem('returns', JSON.stringify([]));
+const seedProducts = async () => {
+    try {
+        const products = parseInventory(RAW_INVENTORY);
+        console.log(`Seeding ${products.length} products...`);
+        // Insert in chunks to avoid payload limits
+        const chunkSize = 100;
+        for (let i = 0; i < products.length; i += chunkSize) {
+            const chunk = products.slice(i, i + chunkSize);
+            const { error } = await sb.from('products').insert(chunk);
+            if (error) console.error(`Error seeding chunk ${i}:`, error);
+        }
+    } catch (e) {
+        console.error("Error processing inventory for seed:", e);
     }
 };
 
@@ -713,7 +742,7 @@ const parseInventory = (text) => {
             if (priceStr !== '' && priceStr !== '-') {
                 price = parseInt(priceStr);
             }
-            return { code, name, price, searchString: `${code} ${name}`.toLowerCase() };
+            return { code, name, price, search_string: `${code} ${name}`.toLowerCase() };
         }
         return null;
     }).filter(item => item !== null);
@@ -721,32 +750,174 @@ const parseInventory = (text) => {
 
 // Data Access Object (DAO)
 export const db = {
-    getUsers: () => JSON.parse(localStorage.getItem('users') || '[]'),
-    getInventory: () => JSON.parse(localStorage.getItem('inventory') || '[]'),
-    getRoutes: () => JSON.parse(localStorage.getItem('routes') || '[]'),
-    getReturns: () => JSON.parse(localStorage.getItem('returns') || '[]'),
-
-    addRoute: (route) => {
-        const routes = db.getRoutes();
-        routes.push(route);
-        localStorage.setItem('routes', JSON.stringify(routes));
+    getUsers: async () => {
+        const { data, error } = await sb.from('users').select('*');
+        if (error) { console.error(error); return []; }
+        return data;
     },
 
-    updateRoute: (routeId, updates) => {
-        const routes = db.getRoutes();
-        const index = routes.findIndex(r => r.id === routeId);
-        if (index !== -1) {
-            routes[index] = { ...routes[index], ...updates };
-            localStorage.setItem('routes', JSON.stringify(routes));
-            return true;
+    getUserByUsername: async (username) => {
+        const { data, error } = await sb.from('users')
+            .select('*')
+            .eq('username', username)
+            .maybeSingle(); // Use maybeSingle to avoid 406 error if not found
+
+        if (error) { console.error(error); return null; }
+        return data;
+    },
+
+    getInventory: async () => {
+        // Warning: This can be slow if inventory is large. Use searchProducts for UI.
+        const { data, error } = await sb.from('products').select('*').limit(100); // Optimization check
+        if (error) { console.error(error); return []; }
+        return data;
+    },
+
+    searchProducts: async (query) => {
+        if (!query || query.length < 2) return [];
+        const { data, error } = await sb.from('products')
+            .select('*')
+            .ilike('search_string', `%${query.toLowerCase()}%`)
+            .limit(10); // Limit to 10 results for performance
+
+        if (error) { console.error(error); return []; }
+        return data;
+    },
+
+    async getTodaysRoute(userId) {
+        const today = new Date().toISOString().split('T')[0];
+        // First try by user_id
+        const { data, error } = await sb.from('routes')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('date', today)
+            .maybeSingle();
+
+        if (data) return this._mapRoute(data);
+        return null;
+    },
+
+    async getRouteReturns(routeId) {
+        const { data, error } = await sb.from('return_items')
+            .select('*')
+            .eq('route_id', routeId);
+
+        if (error) { console.error(error); return []; }
+        return data.map(r => ({
+            id: r.id,
+            routeId: r.route_id,
+            invoice: r.invoice,
+            sheet: r.sheet,
+            code: r.product_code,
+            name: r.product_name,
+            quantity: r.quantity,
+            total: r.total,
+            reason: r.reason,
+            evidence: r.evidence
+        }));
+    },
+
+    _mapRoute(r) {
+        return {
+            id: r.id,
+            userId: r.user_id,
+            username: r.username,
+            userName: r.user_name,
+            date: r.date,
+            startTime: r.start_time,
+            endTime: r.end_time,
+            status: r.status
+        };
+    },
+
+    getRoutes: async () => {
+        // Admin usage mostly - fetch recent 100 for performance?
+        const { data, error } = await sb.from('routes')
+            .select('*')
+            .order('date', { ascending: false })
+            .limit(50); // Optimization: Limit to last 50 routes
+
+        if (error) return [];
+        return data.map(r => ({
+            id: r.id,
+            userId: r.user_id,
+            username: r.username,
+            userName: r.user_name,
+            date: r.date,
+            startTime: r.start_time,
+            endTime: r.end_time,
+            status: r.status
+        }));
+    },
+
+    getReturns: async () => {
+        // Admin usage mostly
+        const { data, error } = await sb.from('return_items')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(200); // Optimization: Limit to last 200 returns
+
+        if (error) return [];
+        return data.map(r => ({
+            id: r.id,
+            routeId: r.route_id,
+            invoice: r.invoice,
+            sheet: r.sheet,
+            code: r.product_code,
+            name: r.product_name,
+            quantity: r.quantity,
+            total: r.total,
+            reason: r.reason,
+            evidence: r.evidence
+        }));
+    },
+
+    addRoute: async (routeData) => {
+        const { data, error } = await sb.from('routes').insert([{
+            user_id: routeData.userId, // ADDED THIS
+            username: routeData.username,
+            user_name: routeData.userName,
+            start_time: routeData.startTime,
+            date: routeData.date,
+            status: 'active'
+        }]).select().single();
+
+        if (error) console.error(error);
+        if (data) {
+            return {
+                id: data.id,
+                userId: data.user_id,
+                userName: data.user_name,
+                startTime: data.start_time,
+                status: data.status,
+                date: data.date
+            };
         }
-        return false;
+        return null;
     },
 
-    addReturn: (returnData) => {
-        const returns = db.getReturns();
-        returns.push(returnData);
-        localStorage.setItem('returns', JSON.stringify(returns));
+    updateRoute: async (routeId, updates) => {
+        const dbUpdates = {};
+        if (updates.status) dbUpdates.status = updates.status;
+        if (updates.endTime) dbUpdates.end_time = updates.endTime;
+
+        const { error } = await sb.from('routes').update(dbUpdates).eq('id', routeId);
+        return !error;
+    },
+
+    addReturn: async (returnData) => {
+        const { error } = await sb.from('return_items').insert([{
+            route_id: returnData.routeId,
+            invoice: returnData.invoice,
+            sheet: returnData.sheet,
+            product_code: returnData.productCode, // Fixed
+            product_name: returnData.productName, // Fixed
+            quantity: returnData.quantity,
+            total: returnData.total,
+            reason: returnData.reason,
+            evidence: returnData.evidence
+        }]);
+        return !error;
     },
 
     importInventory: (text) => {

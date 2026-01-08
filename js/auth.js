@@ -1,10 +1,12 @@
 import { db } from './data.js';
 
 export const auth = {
-    login: (username, password) => {
-        const users = db.getUsers();
-        const user = users.find(u => u.username === username && u.password === password);
-        if (user) {
+    login: async (username, password) => {
+        // Optimized: Fetch only the specific user
+        const user = await db.getUserByUsername(username);
+
+        // Simple plain text password check (legacy)
+        if (user && user.password === password) {
             localStorage.setItem('currentUser', JSON.stringify(user));
             return user;
         }
@@ -23,8 +25,9 @@ export const auth = {
 
     requireRole: (role) => {
         const user = auth.getCurrentUser();
-        if (!user) return false;
-        if (role && user.role !== role) return false;
+        if (!user || user.role !== role) {
+            return false;
+        }
         return true;
     }
 };
