@@ -1,0 +1,164 @@
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* App Container - Dynamic Layout */
+.app-container {
+    height: 100%;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+    background-color: var(--bg-color);
+    overflow-y: auto;
+}
+
+/* Default Mobile Mode (Auxiliar) */
+.app-container:not(.admin-mode) {
+    max-width: 600px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    background: white;
+}
+
+/* Desktop Admin Mode */
+.app-container.admin-mode {
+    max-width: 100%;
+    display: flex;
+    /* Enable Sidebar Layout */
+    background-color: #f3f4f6;
+}
+
+/* Admin Specific Layout Classes */
+.admin-sidebar {
+    width: 260px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    height: 100vh;
+    flex-shrink: 0;
+    overflow-y: auto;
+    display: none;
+    /* Hidden by default on mobile */
+}
+
+.admin-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 32px;
+}
+
+@media (min-width: 1024px) {
+    .app-container.admin-mode .admin-sidebar {
+        display: block;
+    }
+}
+
+/* Utilities */
+.hidden {
+    display: none !important;
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-sm {
+    gap: var(--spacing-sm);
+}
+
+.gap-md {
+    gap: var(--spacing-md);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.mt-md {
+    margin-top: var(--spacing-md);
+}
+
+.mb-md {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Typography */
+h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: -0.5px;
+}
+
+h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: inherit;
+    /* Allow inheritance or use a dark slate */
+}
+
+p {
+    color: var(--text-secondary);
+}
+
+small {
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+}
+
+/* Custom Scrollbar for Admin */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
