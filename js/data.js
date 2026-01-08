@@ -777,8 +777,8 @@ export const db = {
         if (!query || query.length < 2) return [];
         const { data, error } = await sb.from('products')
             .select('*')
-            .ilike('search_string', `%${query.toLowerCase()}%`)
-            .limit(10); // Limit to 10 results for performance
+            .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
+            .limit(15);
 
         if (error) { console.error(error); return []; }
         return data;

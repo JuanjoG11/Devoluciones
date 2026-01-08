@@ -132,19 +132,24 @@
 
 @media (max-width: 640px) {
     .app-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .app-header>* {
-        width: 100%;
+        flex-direction: row;
+        /* Force row layout */
         justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
     }
 
-    /* Fix header button spacing */
-    .app-header button {
-        margin-left: auto;
+    .app-header h3 {
+        font-size: 16px;
+        margin: 0;
+        max-width: none;
+        /* Allow more space */
+    }
+
+    .app-header small {
+        display: block;
+        font-size: 11px;
     }
 
     .input-group.flex.gap-md {

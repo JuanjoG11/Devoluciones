@@ -33,9 +33,9 @@ export const renderAuxiliarDashboard = async (container, user) => {
 
         container.innerHTML = `
             <header class="app-header">
-                <div style="color: white;">
-                    <h3 style="color: white; margin: 0;">Hola, ${(user.name || 'Auxiliar').split(' ')[0]}</h3>
-                    <small style="opacity: 0.8;">${new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}</small>
+                <div style="color: white; overflow: hidden;">
+                    <h3 style="color: white; margin: 0; font-size: 1.1rem;">${(user.name || 'Auxiliar').split(' ')[0]}</h3>
+                    <small style="opacity: 0.8; display: block; white-space: nowrap;">${new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</small>
                 </div>
                 <button id="logoutBtn" style="background:none; border:none; color:white;">
                     <span class="material-icons-round">logout</span>
@@ -305,6 +305,8 @@ export const renderAuxiliarDashboard = async (container, user) => {
             }
 
             debounceTimer = setTimeout(async () => {
+                searchResults.innerHTML = '<li style="padding: 12px; color: #666;">Buscando...</li>';
+                searchResults.style.display = 'block';
                 const results = await db.searchProducts(query);
                 renderSearchResults(results);
             }, 300); // 300ms debounce
@@ -313,17 +315,20 @@ export const renderAuxiliarDashboard = async (container, user) => {
         const renderSearchResults = (results) => {
             searchResults.innerHTML = '';
             if (results.length === 0) {
-                searchResults.style.display = 'none';
+                searchResults.innerHTML = '<li style="padding: 12px; color: #666;">No se encontraron productos</li>';
+                searchResults.style.display = 'block';
                 return;
             }
 
             results.forEach(p => {
                 const li = document.createElement('li');
-                li.style.cssText = 'padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;';
+                li.style.cssText = 'padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;';
                 li.innerHTML = `
-                    <div style="font-weight: 600;">${p.code} - ${p.name}</div>
+                    <div style="font-weight: 600; color: var(--primary-color);">${p.code} - ${p.name}</div>
                     <div style="font-size: 12px; color: #666;">$ ${p.price.toLocaleString()}</div>
                 `;
+                li.addEventListener('mouseover', () => { li.style.background = '#f1f5f9'; });
+                li.addEventListener('mouseout', () => { li.style.background = 'white'; });
                 li.addEventListener('click', () => {
                     selectProduct(p);
                 });
