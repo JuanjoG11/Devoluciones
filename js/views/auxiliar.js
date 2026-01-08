@@ -56,7 +56,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 </div>
             </header>
 
-            <div style="padding: 20px; padding-bottom: 80px;">
+            <div class="main-content" style="padding: 16px 12px; padding-bottom: 100px;">
                 ${!state.routeStarted ? `
                     <div class="card text-center" style="margin-top: 40px;">
                         <span class="material-icons-round" style="font-size: 64px; color: var(--primary-light); opacity: 0.5;">commute</span>
@@ -68,15 +68,15 @@ export const renderAuxiliarDashboard = async (container, user) => {
                         </button>
                     </div>
                 ` : `
-                    <div class="card" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; margin-bottom: 24px;">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <small style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">Valor en Devoluciones</small>
-                                <h2 style="color: white; font-size: 32px; margin: 4px 0;">$ ${totalValue.toLocaleString()}</h2>
+                    <div class="card" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; margin-bottom: 24px; padding: 20px 16px;">
+                        <div class="flex justify-between items-center" style="gap: 12px;">
+                            <div style="flex: 1; min-width: 0;">
+                                <small style="opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Valor en Devoluciones</small>
+                                <h2 style="color: white; font-size: 26px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">$ ${totalValue.toLocaleString()}</h2>
                             </div>
-                            <div style="text-align: right; background: rgba(255,255,255,0.2); padding: 12px; border-radius: 12px; backdrop-filter: blur(4px);">
-                                <div style="font-size: 24px; font-weight: 800; color: var(--accent-color);">${returns.length}</div>
-                                <small style="color: white; font-weight: 600;">Items</small>
+                            <div style="text-align: right; background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 12px; backdrop-filter: blur(4px); flex-shrink: 0;">
+                                <div style="font-size: 20px; font-weight: 800; color: var(--accent-color); line-height: 1;">${returns.length}</div>
+                                <small style="color: white; font-weight: 600; font-size: 10px;">Items</small>
                             </div>
                         </div>
                     </div>
@@ -89,14 +89,14 @@ export const renderAuxiliarDashboard = async (container, user) => {
                     ` : `
                         <div class="flex flex-col gap-sm">
                             ${returns.map(r => `
-                                <div class="list-item">
-                                    <div>
-                                        <div style="font-weight: 600;">${r.name ? r.name.substring(0, 25) : 'Producto'}...</div>
-                                        <small>${r.reason} • Cant: ${r.quantity}</small>
+                                <div class="list-item" style="padding: 12px;">
+                                    <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                        <div style="font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.productName || r.name || 'Producto'}</div>
+                                        <small style="font-size: 11px;">${r.reason} • Cant: ${r.quantity}</small>
                                     </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-weight: 600;">$ ${(r.total || 0).toLocaleString()}</div>
-                                        ${r.evidence ? '<span class="material-icons-round" style="font-size: 16px; color: var(--accent-color);">photo_camera</span>' : ''}
+                                    <div style="text-align: right; flex-shrink: 0;">
+                                        <div style="font-weight: 600; font-size: 14px;">$ ${(r.total || 0).toLocaleString()}</div>
+                                        ${r.evidence ? '<span class="material-icons-round" style="font-size: 14px; color: var(--accent-color);">photo_camera</span>' : ''}
                                     </div>
                                 </div>
                             `).join('')}
