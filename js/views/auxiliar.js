@@ -33,13 +33,27 @@ export const renderAuxiliarDashboard = async (container, user) => {
 
         container.innerHTML = `
             <header class="app-header">
-                <div style="color: white; overflow: hidden;">
-                    <h3 style="color: white; margin: 0; font-size: 1.1rem;">${(user.name || 'Auxiliar').split(' ')[0]}</h3>
-                    <small style="opacity: 0.8; display: block; white-space: nowrap;">${new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</small>
+                <div style="flex: 1; min-width: 0;">
+                    <h3 style="color: white; margin: 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${(user.name || 'Auxiliar').split(' ')[0]}
+                    </h3>
+                    <small style="opacity: 0.8; display: block;">${new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</small>
                 </div>
-                <button id="logoutBtn" style="background:none; border:none; color:white;">
-                    <span class="material-icons-round">logout</span>
-                </button>
+                <div class="header-actions">
+                    ${currentRoute && currentRoute.status !== 'completed' ? `
+                        <button id="endRouteBtn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap;">
+                            FINALIZAR
+                        </button>
+                    ` : ''}
+                    ${currentRoute && currentRoute.status === 'completed' ? `
+                        <div style="background: var(--success-color); color: white; padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 800; white-space: nowrap;">
+                            FINALIZADO
+                        </div>
+                    ` : ''}
+                    <button id="logoutBtn" onclick="auth.logout()" style="background:none; border:none; color:white; padding: 4px; display: flex; align-items: center;">
+                        <span class="material-icons-round">logout</span>
+                    </button>
+                </div>
             </header>
 
             <div style="padding: 20px; padding-bottom: 80px;">
@@ -99,7 +113,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
         if (!state.routeStarted) {
             document.getElementById('startRouteBtn').addEventListener('click', async () => {
                 const newRoute = {
-                    userId: user.id, // ADDED THIS
+                    userId: user.id,
                     username: user.username,
                     userName: user.name,
                     startTime: new Date().toLocaleTimeString(),
@@ -115,61 +129,34 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 }
             });
         } else {
-            if (currentRoute && currentRoute.status !== 'completed') {
-                const header = container.querySelector('.app-header');
-                if (header) {
-                    header.insertAdjacentHTML('beforeend', `
-                            <button id="endRouteBtn" style="background: rgba(255,255,255,0.2); border: none; color: white; margin-right: 12px; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
-                                FINALIZAR
-                            </button>
-                        `);
-
-                    document.getElementById('endRouteBtn').addEventListener('click', async () => {
-                        if (confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.")) {
-                            const now = new Date().toLocaleTimeString();
-                            const success = await db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now });
-                            if (success) {
-                                alert("Jornada finalizada correctamente.");
-                                window.location.reload();
-                            } else {
-                                alert("Error al finalizar. Intente de nuevo.");
-                            }
+            const endBtn = document.getElementById('endRouteBtn');
+            if (endBtn) {
+                endBtn.addEventListener('click', async () => {
+                    if (confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.")) {
+                        const now = new Date().toLocaleTimeString();
+                        const success = await db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now });
+                        if (success) {
+                            alert("Jornada finalizada correctamente.");
+                            window.location.reload();
+                        } else {
+                            alert("Error al finalizar. Intente de nuevo.");
                         }
-                    });
-                }
-            } else if (currentRoute && currentRoute.status === 'completed') {
-                const header = container.querySelector('.app-header');
-                if (header) {
-                    header.insertAdjacentHTML('beforeend', `
-                            <div style="background: var(--success-color); color: white; margin-right: 12px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                                FINALIZADO
-                            </div>
-                        `);
-                }
-                const addBtn = document.getElementById('addReturnBtn');
-                if (addBtn) addBtn.style.display = 'none';
-            }
-
-            const addBtn = document.getElementById('addReturnBtn');
-            if (addBtn && (!currentRoute || currentRoute.status !== 'completed')) {
-                addBtn.addEventListener('click', async () => {
-                    state.view = 'form';
-                    await render();
+                    }
                 });
             }
-        }
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            auth.logout();
-        });
-
-        if (state.view === 'form') {
-            // We need to defer setup to ensure DOM is ready? 
-            // Note: in previous code render was async, here it is too.
-            // But we are in renderDashboard which is sync called by render.
-            // So we cannot await here.
-            // Actually, renderDashboard puts HTML, then we attach listeners.
-            // Wait, renderForm below puts HTML too.
+            if (currentRoute && currentRoute.status === 'completed') {
+                const addBtn = document.getElementById('addReturnBtn');
+                if (addBtn) addBtn.style.display = 'none';
+            } else {
+                const addBtn = document.getElementById('addReturnBtn');
+                if (addBtn) {
+                    addBtn.addEventListener('click', async () => {
+                        state.view = 'form';
+                        await render();
+                    });
+                }
+            }
         }
     };
 

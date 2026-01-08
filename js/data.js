@@ -668,20 +668,23 @@ import { sb } from './supabase.js';
 // We can keep RAW_INVENTORY for fallback or initial seeding
 
 export const initializeData = async () => {
+    // Optimization: Skip if initialized in this session
+    if (sessionStorage.getItem('db_initialized')) return;
+
     try {
-        // Check Users
         const { count: userCount } = await sb.from('users').select('*', { count: 'exact', head: true });
         if (userCount === 0) {
             console.log("Seeding initial users...");
             await seedUsers();
         }
 
-        // Check Products independently
         const { count: productCount } = await sb.from('products').select('*', { count: 'exact', head: true });
         if (productCount === 0) {
             console.log("Seeding initial products...");
             await seedProducts();
         }
+
+        sessionStorage.setItem('db_initialized', 'true');
     } catch (e) {
         console.error("Error checking DB:", e);
     }
@@ -869,12 +872,12 @@ export const db = {
         }));
     },
 
-    getReturns: async () => {
+    getReturns: async (limit = 200) => {
         // Admin usage mostly
         const { data, error } = await sb.from('return_items')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(200); // Optimization: Limit to last 200 returns
+            .limit(limit); // Use parameter limit
 
         if (error) return [];
         return data.map(r => ({

@@ -7,6 +7,7 @@ import { renderAuxiliarDashboard } from './views/auxiliar.js';
 const app = document.getElementById('app');
 
 const init = async () => {
+    window.auth = auth;
     await initializeData();
     checkAuthAndRender();
 };
