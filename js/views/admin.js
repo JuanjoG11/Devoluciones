@@ -180,20 +180,24 @@ export const renderAdminDashboard = (container, user) => {
     };
 
     const renderDashboard = (activeRoutes, returns, routes, users, stats) => `
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
-            <div><h1 style="color: var(--primary-color);">Panel TAT DISTRIBUCIONES</h1><p>Gestión de Devoluciones y Registro Fotográfico</p></div>
-            <div style="display: flex; gap: 12px;">
-                <button id="exportCsvBtn" class="btn btn-primary" style="height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 8px; font-weight: 600;">
-                    <span class="material-icons-round">file_download</span> Exportar Excel (Hoy)
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; background: var(--grad-electric); padding: 32px; border-radius: 24px; color: white; box-shadow: var(--shadow-blue); border-bottom: 4px solid var(--secondary-accent); position: relative; overflow: hidden;">
+            <div style="position: absolute; right: -20px; top: -20px; opacity: 0.1;"><span class="material-icons-round" style="font-size: 150px;">analytics</span></div>
+            <div style="position: relative; z-index: 1;">
+                <h1 style="color: white; margin: 0; font-size: 32px; letter-spacing: -1px; font-weight: 900;">CENTRO DE CONTROL TAT</h1>
+                <p style="color: rgba(255,255,255,0.8); font-weight: 500; margin: 4px 0 0;">Gestión Inteligente de Devoluciones y Logística</p>
+            </div>
+            <div style="display: flex; gap: 16px; position: relative; z-index: 1;">
+                <button id="exportCsvBtn" class="btn btn-primary" style="height: 52px; border-radius: 14px; padding: 0 24px; font-weight: 700; border: 2px solid rgba(255,255,255,0.2);">
+                    <span class="material-icons-round">file_download</span> Exportar Excel
                 </button>
-                <button id="refreshBtn" class="btn btn-secondary" style="height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; color: var(--primary-color); padding: 0 20px; font-weight: 600; cursor: pointer;">
-                    <span class="material-icons-round">refresh</span> Actualizar
+                <button id="refreshBtn" class="btn btn-secondary" style="height: 52px; border-radius: 14px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); color: white; padding: 0 24px; font-weight: 700; cursor: pointer;">
+                    <span class="material-icons-round">refresh</span>
                 </button>
             </div>
         </header>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px;">
             ${renderStatCard('Rutas Activas', `${stats.active_routes_count} / ${users.length}`, 'local_shipping', 'var(--primary-color)')}
-            ${renderStatCard('Valor Devoluciones', `$ ${Number(stats.total_returns_value).toLocaleString()}`, 'payments', 'var(--accent-color)')}
+            ${renderStatCard('Valor Devoluciones', `$ ${Number(stats.total_returns_value).toLocaleString()}`, 'payments', 'var(--secondary-accent)')}
             ${renderStatCard('Items Recibidos', stats.total_returns_count, 'shopping_bag', 'var(--success-color)')}
         </div>
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
@@ -201,26 +205,29 @@ export const renderAdminDashboard = (container, user) => {
                 <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; background: white;"><h3 style="margin: 0;">Últimas Devoluciones</h3></div>
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
-                        <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                        <thead style="background: rgba(0,34,77,0.03); color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
                             <tr>
-                                <th style="padding: 16px; text-align: left;">Hora</th>
-                                <th style="padding: 16px; text-align: left;">Auxiliar</th>
-                                <th style="padding: 16px; text-align: left;">Producto / Factura</th>
-                                <th style="padding: 16px; text-align: left;">Motivo</th>
-                                <th style="padding: 16px; text-align: right;">Total</th>
-                                <th style="padding: 16px; text-align: center;">Evidencia</th>
+                                <th style="padding: 12px 16px; text-align: left;">Hora</th>
+                                <th style="padding: 12px 16px; text-align: left;">Auxiliar</th>
+                                <th style="padding: 12px 16px; text-align: left;">Producto / Factura</th>
+                                <th style="padding: 12px 16px; text-align: left;">Motivo</th>
+                                <th style="padding: 12px 16px; text-align: right;">Total</th>
+                                <th style="padding: 12px 16px; text-align: center;">Evidencia</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${returns.map(r => {
         const route = routes.find(rt => rt.id === r.routeId);
         return `<tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 16px; color: var(--text-light);">${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                                    <td style="padding: 16px; font-weight: 500;">${route ? route.userName : 'Desconocido'}</td>
-                                    <td style="padding: 16px;"><div style="font-weight: 600;">${r.productName || 'N/A'}</div><small style="color: var(--text-light);">Doc: ${r.invoice}</small></td>
-                                    <td style="padding: 16px;"><span style="background: #f1f5f9; color: var(--text-secondary); padding: 4px 8px; border-radius: 6px; font-size: 11px;">${r.reason}</span></td>
-                                    <td style="padding: 16px; text-align: right; font-weight: 600;">$ ${r.total.toLocaleString()}</td>
-                                    <td style="padding: 16px; text-align: center;">${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: none; border: none; color: var(--accent-color); cursor: pointer;"><span class="material-icons-round">image</span></button>` : '—'}</td>
+                                    <td style="padding: 12px 16px; color: var(--text-light); font-size: 11px;">${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                                    <td style="padding: 12px 16px; font-weight: 600; font-size: 12px;">${route ? route.userName : 'Desconocido'}</td>
+                                    <td style="padding: 12px 16px;">
+                                        <div style="font-weight: 700; font-size: 12px; color: var(--primary-color);">${r.productName || 'N/A'}</div>
+                                        <small style="color: var(--text-light); font-size: 11px;">Doc: ${r.invoice}</small>
+                                    </td>
+                                    <td style="padding: 12px 16px;"><span style="background: rgba(0,34,77,0.05); color: var(--text-secondary); padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">${r.reason}</span></td>
+                                    <td style="padding: 12px 16px; text-align: right; font-weight: 700; font-size: 13px; color: var(--primary-color);">$ ${r.total.toLocaleString()}</td>
+                                    <td style="padding: 12px 16px; text-align: center;">${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: rgba(0,174,239,0.1); border: none; color: var(--accent-color); padding: 6px; border-radius: 8px; cursor: pointer;"><span class="material-icons-round" style="font-size: 18px;">image</span></button>` : '—'}</td>
                                 </tr>`;
     }).join('')}
                         </tbody>
@@ -262,11 +269,18 @@ export const renderAdminDashboard = (container, user) => {
     `;
 
     const renderStatCard = (title, val, icon, color) => `
-        <div class="card" style="border-top: 4px solid ${color};">
-            <div class="flex items-center gap-md">
-                <div style="background: ${color}22; padding: 16px; border-radius: 12px; color: ${color};"><span class="material-icons-round" style="font-size: 32px;">${icon}</span></div>
-                <div><h2 style="font-size: 24px; margin:0;">${val}</h2><p style="margin: 0; font-weight: 500; font-size: 14px; color: var(--text-light);">${title}</p></div>
+        <div class="card" style="position: relative; overflow: hidden; border: none; padding: 32px; background: white; box-shadow: var(--shadow-premium);">
+            <div style="position: absolute; right: -15px; bottom: -15px; color: ${color}; opacity: 0.05;"><span class="material-icons-round" style="font-size: 100px;">${icon}</span></div>
+            <div class="flex items-center gap-md" style="position: relative; z-index: 1;">
+                <div style="background: ${color}; width: 64px; height: 64px; border-radius: 20px; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px ${color}44;">
+                    <span class="material-icons-round" style="font-size: 32px;">${icon}</span>
+                </div>
+                <div>
+                    <h2 style="font-size: 28px; margin:0; font-weight: 900; color: var(--primary-color); letter-spacing: -1px;">${val}</h2>
+                    <p style="margin: 0; font-weight: 700; font-size: 12px; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px;">${title}</p>
+                </div>
             </div>
+            <div style="position: absolute; left: 0; bottom: 0; width: 100%; height: 4px; background: ${color};"></div>
         </div>
     `;
 

@@ -1,21 +1,22 @@
-/* Buttons */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 12px 24px;
-    border-radius: var(--radius-md);
-    font-weight: 600;
+    border-radius: 14px;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
     font-size: var(--font-size-base);
-    gap: 8px;
+    gap: 10px;
     width: 100%;
+    position: relative;
+    overflow: hidden;
 }
 
 .btn:active {
-    transform: scale(0.98);
+    transform: scale(0.96);
 }
 
 .icon-btn {
@@ -36,13 +37,31 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    background: var(--grad-electric);
     color: var(--text-on-primary);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    box-shadow: var(--shadow-blue);
+    position: relative;
+    z-index: 1;
+}
+
+.btn-primary:after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--grad-lava);
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: -1;
+    border-radius: inherit;
 }
 
 .btn-primary:hover {
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    box-shadow: var(--shadow-orange);
+    transform: translateY(-3px) scale(1.02);
+}
+
+.btn-primary:hover:after {
+    opacity: 1;
 }
 
 .btn-secondary {
@@ -72,48 +91,56 @@
 
 .input-field {
     width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #e2e8f0;
-    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
     font-size: var(--font-size-base);
-    transition: all 0.2s;
+    transition: all 0.3s;
     background: var(--surface-color);
 }
 
 .input-field:focus {
     outline: none;
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 4px rgba(0, 174, 239, 0.15);
 }
 
 /* Cards */
 .card {
-    background: var(--surface-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: var(--shadow-premium);
+    border: 1px solid var(--glass-border);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.2);
+    border-color: var(--accent-color);
 }
 
 .glass-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 /* Header */
 .app-header {
-    background: var(--primary-color);
+    background: var(--grad-electric);
     color: white;
-    padding: calc(var(--spacing-sm) + var(--safe-top)) var(--spacing-md) var(--spacing-sm);
+    padding: calc(var(--spacing-sm) + 8px) var(--spacing-md);
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: var(--shadow-md);
-    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0, 59, 145, 0.2);
+    border-bottom: 2px solid var(--secondary-accent);
 }
 
 .header-actions {
@@ -137,21 +164,41 @@
 /* Floating Action Button */
 .fab {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--accent-color);
+    bottom: 32px;
+    right: 32px;
+    width: 64px;
+    height: 64px;
+    border-radius: 24px;
+    background: var(--grad-primary);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 15px 30px rgba(0, 59, 145, 0.3);
     border: none;
     cursor: pointer;
     z-index: 100;
-    z-index: 100;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: fabPulse 2s infinite;
+}
+
+.fab:hover {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 20px 40px rgba(0, 59, 145, 0.4);
+}
+
+@keyframes fabPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 59, 145, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 15px rgba(0, 59, 145, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 59, 145, 0);
+    }
 }
 
 @media (max-width: 640px) {

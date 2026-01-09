@@ -30,7 +30,7 @@
 }
 
 .toast.error {
-    border-left-color: #ef4444;
+    border-left-color: var(--danger-color);
 }
 
 .toast-icon {
@@ -42,7 +42,7 @@
 }
 
 .toast.error .toast-icon {
-    color: #ef4444;
+    color: var(--danger-color);
 }
 
 .toast-message {
@@ -109,8 +109,8 @@
 .modal-icon {
     width: 64px;
     height: 64px;
-    background: #f1f5f9;
-    color: var(--primary-color);
+    background: rgba(0, 174, 239, 0.1);
+    color: var(--accent-color);
     border-radius: 50%;
     display: flex;
     align-items: center;

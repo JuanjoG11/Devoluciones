@@ -88,8 +88,8 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 </div>
                 <div class="header-actions">
                     ${currentRoute && currentRoute.status !== 'completed' ? `
-                        <button id="endRouteBtn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap;">
-                            FINALIZAR
+                        <button id="endRouteBtn" style="background: var(--secondary-accent); border: none; color: white; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 900; box-shadow: 0 4px 12px var(--secondary-glow); text-transform: uppercase; letter-spacing: 0.5px;">
+                            FINALIZAR RUTA
                         </button>
                     ` : ''}
                     ${currentRoute && currentRoute.status === 'completed' ? `
@@ -120,15 +120,16 @@ export const renderAuxiliarDashboard = async (container, user) => {
                         Sin conexión. Guardando de forma local.
                     </div>
 
-                    <div class="card" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; margin-bottom: 24px; padding: 20px 16px;">
-                        <div class="flex justify-between items-center" style="gap: 12px;">
+                    <div class="card" style="background: var(--grad-electric); color: white; margin-bottom: 32px; padding: 32px 24px; border: none; box-shadow: var(--shadow-blue); position: relative; overflow: hidden; border-bottom: 6px solid var(--secondary-accent); border-radius: 28px;">
+                        <div style="position: absolute; right: -20px; top: -20px; opacity: 0.1;"><span class="material-icons-round" style="font-size: 120px;">payments</span></div>
+                        <div class="flex justify-between items-center" style="gap: 16px; position: relative; z-index: 1;">
                             <div style="flex: 1; min-width: 0;">
-                                <small style="opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Valor en Devoluciones</small>
-                                <h2 style="color: white; font-size: 26px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">$ ${totalValue.toLocaleString()}</h2>
+                                <small style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; font-size: 10px;">VALOR DEVOLUCIONES</small>
+                                <h2 style="color: white; font-size: 32px; margin: 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; letter-spacing: -1.5px;">$ ${totalValue.toLocaleString()}</h2>
                             </div>
-                            <div style="text-align: right; background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 12px; backdrop-filter: blur(4px); flex-shrink: 0;">
-                                <div style="font-size: 20px; font-weight: 800; color: var(--accent-color); line-height: 1;">${returns.length}</div>
-                                <small style="color: white; font-weight: 600; font-size: 10px;">Items</small>
+                            <div style="text-align: right; background: var(--grad-lava); padding: 12px 16px; border-radius: 20px; box-shadow: var(--shadow-orange); flex-shrink: 0; min-width: 70px;">
+                                <div style="font-size: 24px; font-weight: 900; color: white; line-height: 1;">${returns.length}</div>
+                                <small style="color: rgba(255,255,255,0.9); font-weight: 800; font-size: 10px; text-transform: uppercase;">Items</small>
                             </div>
                         </div>
                     </div>

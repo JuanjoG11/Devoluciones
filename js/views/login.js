@@ -3,12 +3,15 @@ import { Alert } from '../utils/ui.js';
 
 export const renderLogin = (container) => {
     container.innerHTML = `
-        <div class="flex items-center justify-center" style="height: 100vh; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px;">
-            <div class="card glass-card text-center" style="width: 100%; max-width: 400px;">
-                <div style="margin-bottom: 32px;">
-                    <span class="material-icons-round" style="font-size: 48px; color: var(--accent-color);">local_shipping</span>
-                    <h1 style="color: var(--primary-color); margin-top: 16px;">DevolucionesApp</h1>
-                    <p>Ingresa para comenzar tu ruta</p>
+        <div class="flex items-center justify-center anim-fade-in" style="height: 100vh; background: var(--grad-mesh); padding: 20px; position: relative; overflow: hidden;">
+            <div style="position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(247, 148, 29, 0.15) 0%, transparent 70%);"></div>
+            <div class="card glass-card text-center" style="width: 100%; max-width: 420px; position: relative; z-index: 10; padding: 48px 32px; border-radius: 32px; border: 1px solid var(--secondary-accent);">
+                <div style="margin-bottom: 40px;">
+                    <div style="width: 90px; height: 90px; background: white; border-radius: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 15px 35px var(--secondary-glow); border: 2px solid var(--secondary-accent);">
+                        <span class="material-icons-round" style="font-size: 52px; color: var(--primary-color);">local_shipping</span>
+                    </div>
+                    <h1 style="color: var(--primary-color); margin-top: 16px; font-size: 32px; letter-spacing: -1.5px; font-weight: 900;">TIENDAS & MARCAS</h1>
+                    <p style="font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-size: 12px;">Sistema de Devoluciones Inteligente</p>
                 </div>
 
                 <form id="loginForm">
