@@ -4,6 +4,7 @@ import { auth } from '../auth.js';
 export const renderAdminDashboard = (container, user) => {
     container.classList.add('admin-mode');
     let activeSection = 'dashboard';
+    let sidebarOpen = false;
     let cache = { routes: [], returns: [], users: [], lastFetch: 0 };
     let filters = { auxiliares: '', products: '' };
 
@@ -38,61 +39,97 @@ export const renderAdminDashboard = (container, user) => {
     const realtimeChannel = setupRealtime();
 
     const render = async (skipFetch = false) => {
-        if (!document.getElementById('admin-layout')) {
-            renderShell();
+        try {
+            if (!document.getElementById('admin-layout')) {
+                renderShell();
+            }
+            if (!skipFetch && cache.lastFetch === 0) {
+                await fetchData();
+            }
+            renderSection();
+        } catch (err) {
+            console.error("Critical error in Admin Render:", err);
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ef4444;">
+                <span class="material-icons-round" style="font-size: 48px;">error_outline</span>
+                <h2>Error al cargar el panel</h2>
+                <p>${err.message}</p>
+                <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">Reintentar</button>
+            </div>`;
         }
-        if (!skipFetch && cache.lastFetch === 0) {
-            await fetchData();
-        }
-        renderSection();
     };
 
     const renderShell = () => {
         container.innerHTML = `
-            <div id="admin-layout" style="display: grid; grid-template-columns: 280px 1fr; width: 100%; height: 100vh; background: #f8fafc;">
-                <aside class="admin-sidebar" style="display: flex; flex-direction: column; background: #0f172a; border-right: 1px solid rgba(255,255,255,0.1);">
-                    <div style="padding: 24px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                            <span class="material-icons-round" style="color: var(--accent-color); font-size: 28px;">local_shipping</span>
-                            <h2 style="color: white; font-size: 18px; margin: 0;">DevolucionesApp</h2>
-                        </div>
-                        <small style="color: rgba(255,255,255,0.6);">TAT DISTRIBUCIONES</small>
-                    </div>
-                    <nav id="admin-nav" style="flex-grow: 1; padding: 24px 12px;">
-                        ${renderNavLinks()}
-                    </nav>
-                    <div style="padding: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 40px; height: 40px; background: var(--accent-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">${user.name.charAt(0)}</div>
-                            <div style="overflow: hidden;">
-                                <div style="color: white; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${user.name}</div>
-                                <div style="color: rgba(255,255,255,0.5); font-size: 12px;">Administrador</div>
+            <div id="admin-layout" class="admin-shell">
+                <!-- Mobile Header -->
+                <header class="admin-mobile-header">
+                    <button id="menuToggle" class="icon-btn">
+                        <span class="material-icons-round">menu</span>
+                    </button>
+                    <div class="mobile-logo">DevolucionesApp</div>
+                </header>
+
+                <div class="admin-main-wrapper">
+                    <aside class="admin-sidebar ${sidebarOpen ? 'mobile-open' : ''}">
+                        <div class="sidebar-header">
+                            <div class="sidebar-logo">
+                                <span class="material-icons-round">local_shipping</span>
+                                <h2>DevolucionesApp</h2>
                             </div>
+                            <small>TAT DISTRIBUCIONES</small>
                         </div>
-                        <button id="logoutBtn" onclick="auth.logout()" class="btn" style="margin-top: 20px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); height: 44px; width: 100%; font-size: 13px;">
-                            <span class="material-icons-round">logout</span> Cerrar Sesión
-                        </button>
-                    </div>
-                </aside>
-                <main id="admin-content" style="overflow-y: auto; padding: 40px;"></main>
+                        <nav id="admin-nav">
+                            ${renderNavLinks()}
+                        </nav>
+                        <div class="sidebar-footer">
+                            <div class="user-profile">
+                                <div class="user-avatar">${(user.name || 'A').charAt(0)}</div>
+                                <div class="user-info">
+                                    <div class="user-name">${user.name || 'Administrador'}</div>
+                                    <div class="user-role">Administrador</div>
+                                </div>
+                            </div>
+                            <button id="logoutBtn" onclick="auth.logout()" class="btn-logout">
+                                <span class="material-icons-round">logout</span> Cerrar Sesión
+                            </button>
+                        </div>
+                    </aside>
+                    
+                    <div id="sidebarOverlay" class="sidebar-overlay ${sidebarOpen ? 'active' : ''}"></div>
+
+                    <main id="admin-content" class="admin-content"></main>
+                </div>
             </div>
-            <style>
-                .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: rgba(255,255,255,0.7); border-radius: 8px; margin-bottom: 8px; text-decoration: none; transition: 0.2s; font-weight: 500; }
-                .sidebar-link:hover { background: rgba(255,255,255,0.05); color: white; }
-                .sidebar-link.active { color: white; background: rgba(99, 102, 241, 0.2); border-left: 3px solid var(--accent-color); }
-                .sidebar-link .material-icons-round { font-size: 20px; }
-                .spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top: 3px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            </style>
         `;
         document.getElementById('admin-nav').addEventListener('click', (e) => {
             const link = e.target.closest('[data-section]');
             if (link) {
                 activeSection = link.dataset.section;
-                document.getElementById('admin-nav').innerHTML = renderNavLinks();
+                sidebarOpen = false; // Close on navigation
                 renderSection();
+                updateSidebarUI();
             }
         });
+
+        document.getElementById('menuToggle')?.addEventListener('click', () => {
+            sidebarOpen = !sidebarOpen;
+            updateSidebarUI();
+        });
+
+        document.getElementById('sidebarOverlay')?.addEventListener('click', () => {
+            sidebarOpen = false;
+            updateSidebarUI();
+        });
+    };
+
+    const updateSidebarUI = () => {
+        const sidebar = document.querySelector('.admin-sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+        const nav = document.getElementById('admin-nav');
+
+        if (sidebar) sidebar.classList.toggle('mobile-open', sidebarOpen);
+        if (overlay) overlay.classList.toggle('active', sidebarOpen);
+        if (nav) nav.innerHTML = renderNavLinks();
     };
 
     const renderNavLinks = () => `
@@ -114,8 +151,8 @@ export const renderAdminDashboard = (container, user) => {
         const contentArea = document.getElementById('admin-content');
         if (!contentArea) return;
         const { routes, returns, users } = cache;
-        const activeRoutes = routes.filter(r => r.date === new Date().toISOString().split('T')[0]);
-        const totalValue = returns.reduce((sum, r) => sum + r.total, 0);
+        const activeRoutes = (routes || []).filter(r => r.date === new Date().toISOString().split('T')[0]);
+        const totalValue = (returns || []).reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
         contentArea.innerHTML = `
             ${activeSection === 'dashboard' ? renderDashboard(activeRoutes, returns, routes, users, totalValue) :
@@ -394,12 +431,13 @@ export const renderAdminDashboard = (container, user) => {
         const route = routes.find(r => r.id === id);
         const returns = await db.getRouteReturns(id);
 
+        // FORCED ISOLATION: Always ensure printArea is a direct child of body and clear it
         let printArea = document.getElementById('printArea');
-        if (!printArea) {
-            printArea = document.createElement('div');
-            printArea.id = 'printArea';
-            document.body.appendChild(printArea);
-        }
+        if (printArea) printArea.remove();
+
+        printArea = document.createElement('div');
+        printArea.id = 'printArea';
+        document.body.appendChild(printArea);
 
         const totalValue = returns.reduce((sum, r) => sum + (r.total || 0), 0);
         const totalItems = returns.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
@@ -408,78 +446,81 @@ export const renderAdminDashboard = (container, user) => {
 
         printArea.innerHTML = `
             <div class="print-main-container">
-                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif;">
+                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 30px;">
                     
-                    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 12px; margin-bottom: 15px;">
-                        <h1 style="margin: 0; font-size: 16pt; font-weight: 800; text-transform: uppercase;">CONCENTRADO DE DEVOLUCIONES</h1>
-                        <h2 style="margin: 5px 0 0; font-size: 12pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
-                        <p style="margin: 2px 0 0; font-size: 8.5pt; color: #555;">Control Operativo y Logístico</p>
+                    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 20px; margin-bottom: 25px;">
+                        <h1 style="margin: 0; font-size: 18pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">CONCENTRADO DE DEVOLUCIONES</h1>
+                        <h2 style="margin: 8px 0 0; font-size: 13pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
+                        <p style="margin: 4px 0 0; font-size: 9pt; color: #333; letter-spacing: 1px;">Control Operativo y Logístico</p>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; border-bottom: 1px solid black; padding: 10px 0; margin-bottom: 15px;">
-                        <div style="font-size: 9pt;">
-                            <span style="font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #666; display: block;">Auxiliar / Ruta</span>
-                            <span style="font-weight: 700; font-size: 10pt;">${route.userName.toUpperCase()}</span>
+                    <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; border-bottom: 1.5px solid black; padding: 15px 0; margin-bottom: 25px;">
+                        <div style="font-size: 10pt;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 8pt; color: #555; display: block; margin-bottom: 4px;">Auxiliar / Ruta</span>
+                            <span style="font-weight: 700; font-size: 11pt;">${route.userName.toUpperCase()}</span>
                         </div>
-                        <div style="text-align: center; font-size: 9pt;">
-                            <span style="font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #666; display: block;">Planilla Nº</span>
-                            <span style="font-weight: 700; font-size: 10pt;">${planilla}</span>
+                        <div style="text-align: center; font-size: 10pt;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 8pt; color: #555; display: block; margin-bottom: 4px;">Planilla Nº</span>
+                            <span style="font-weight: 700; font-size: 11pt;">${planilla}</span>
                         </div>
-                        <div style="text-align: right; font-size: 9pt;">
-                            <span style="font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #666; display: block;">Fecha</span>
-                            <span style="font-weight: 700; font-size: 10pt;">${route.date || today}</span>
+                        <div style="text-align: right; font-size: 10pt;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 8pt; color: #555; display: block; margin-bottom: 4px;">Fecha</span>
+                            <span style="font-weight: 700; font-size: 11pt;">${route.date || today}</span>
                         </div>
                     </div>
 
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                         <thead>
-                            <tr style="background: #f0f0f0;">
-                                <th style="border: 1px solid black; padding: 8px; text-align: left; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">FACTURA</th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: left; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">PRODUCTO</th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">CANT</th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: right; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">TOTAL</th>
+                            <tr style="background: #f4f4f4;">
+                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: left; font-size: 9pt; font-weight: 800; text-transform: uppercase;">FACTURA</th>
+                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: left; font-size: 9pt; font-weight: 800; text-transform: uppercase;">PRODUCTO</th>
+                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: center; font-size: 9pt; font-weight: 800; text-transform: uppercase;">CANT</th>
+                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: right; font-size: 9pt; font-weight: 800; text-transform: uppercase;">TOTAL</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${returns.map(r => `
                                 <tr>
-                                    <td style="border: 1px solid black; padding: 6px; font-size: 9pt; font-weight: 700;">${r.invoice}</td>
-                                    <td style="border: 1px solid black; padding: 6px; font-size: 9pt;">${(r.product_name || r.name || 'N/A').toUpperCase()}</td>
-                                    <td style="border: 1px solid black; padding: 6px; text-align: center; font-size: 9pt; font-weight: 700;">${r.quantity}</td>
-                                    <td style="border: 1px solid black; padding: 6px; text-align: right; font-size: 9pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
+                                    <td style="border: 1px solid black; padding: 10px 8px; font-size: 10pt; font-weight: 700;">${r.invoice}</td>
+                                    <td style="border: 1px solid black; padding: 10px 8px; font-size: 10pt;">${(r.product_name || r.name || 'N/A').toUpperCase()}</td>
+                                    <td style="border: 1px solid black; padding: 10px 8px; text-align: center; font-size: 10pt; font-weight: 700;">${r.quantity}</td>
+                                    <td style="border: 1px solid black; padding: 10px 8px; text-align: right; font-size: 10pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
                                 </tr>
                             `).join('')}
                             <tr style="background: #f9f9f9;">
-                                <td colspan="2" style="border: 1px solid black; padding: 10px; text-align: right; font-size: 9.5pt; font-weight: 800;">TOTAL DEVOLUCIÓN:</td>
-                                <td style="border: 1px solid black; padding: 10px; text-align: center; font-size: 10pt; font-weight: 800;">${totalItems}</td>
-                                <td style="border: 1px solid black; padding: 10px; text-align: right; font-size: 10pt; font-weight: 800;">$ ${totalValue.toLocaleString()}</td>
+                                <td colspan="2" style="border: 1.5px solid black; padding: 15px 10px; text-align: right; font-size: 10pt; font-weight: 800;">TOTAL DEVOLUCIÓN:</td>
+                                <td style="border: 1.5px solid black; padding: 15px 10px; text-align: center; font-size: 11pt; font-weight: 800;">${totalItems}</td>
+                                <td style="border: 1.5px solid black; padding: 15px 10px; text-align: right; font-size: 11pt; font-weight: 800;">$ ${totalValue.toLocaleString()}</td>
                             </tr>
                         </tbody>
                     </table>
 
-                    <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; padding: 0 40px 10px;">
+                    <div style="margin-top: 100px; display: grid; grid-template-columns: 1fr 1fr; gap: 100px; padding: 0 50px 20px;">
                         <div style="text-align: center;">
-                            <div style="border-top: 1.5px solid black; margin-bottom: 5px;"></div>
-                            <div style="font-size: 9pt; font-weight: 700; text-transform: uppercase;">Firma Auxiliar</div>
+                            <div style="border-top: 2px solid black; margin-bottom: 8px;"></div>
+                            <div style="font-size: 10pt; font-weight: 700; text-transform: uppercase;">Firma Auxiliar</div>
                         </div>
                         <div style="text-align: center;">
-                            <div style="border-top: 1.5px solid black; margin-bottom: 5px;"></div>
-                            <div style="font-size: 9pt; font-weight: 700; text-transform: uppercase;">Firma Bodega</div>
+                            <div style="border-top: 2px solid black; margin-bottom: 8px;"></div>
+                            <div style="font-size: 10pt; font-weight: 700; text-transform: uppercase;">Firma Bodega</div>
                         </div>
                     </div>
 
-                    <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 8px; text-align: center;">
-                        <p style="font-size: 7.5pt; color: #666; margin: 0; font-style: italic;">
-                            * Soporte oficial TAT DISTRIBUCIONES. Generado el ${new Date().toLocaleString('es-CO')}
+                    <div style="margin-top: 50px; border-top: 1px dashed #bbb; padding-top: 10px; text-align: center;">
+                        <p style="font-size: 8pt; color: #666; margin: 0; font-style: italic;">
+                            * Soporte oficial TAT DISTRIBUCIONES - Generado el ${new Date().toLocaleString('es-CO')}
                         </p>
                     </div>
                 </div>
             </div>
         `;
 
+        // Smallest possible delay to trigger the rendering before the print dialog
         setTimeout(() => {
             window.print();
-        }, 500);
+            // Optional: Clean up after print to prevent DOM bloat
+            if (printArea) printArea.innerHTML = '';
+        }, 150);
     };
 
 

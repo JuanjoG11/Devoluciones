@@ -18,6 +18,23 @@
     transform: scale(0.98);
 }
 
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
 .btn-primary {
     background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
     color: var(--text-on-primary);

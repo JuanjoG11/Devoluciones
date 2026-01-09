@@ -15,37 +15,61 @@
         width: 100% !important;
     }
 
-    /* Aggressive Hiding-All-Except-PrintArea */
-    body>*:not(#printArea) {
+    /* THE NUKE: Explicitly hide the main app container and any overlays */
+    #app,
+    .app-container,
+    .admin-layout,
+    #photoModal,
+    .dashboard-container {
         display: none !important;
         visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        position: absolute !important;
+        pointer-events: none !important;
     }
 
+    /* Ensure Print area is the only thing standing */
     #printArea {
         display: block !important;
         visibility: visible !important;
         position: static !important;
         width: 100% !important;
         background: white !important;
+        z-index: 9999999 !important;
     }
 
-    /* Professional Centering of the Form Box */
+    /* Centering the report box on the paper */
     .print-main-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         width: 100%;
-        padding-top: 1.5cm;
+        padding-top: 2cm;
+        background: white !important;
     }
 
     .report-box {
-        width: 19cm;
-        /* Safe width for most printers */
+        width: 18.5cm;
+        /* Standard width to leave margins on A4/Letter */
         margin: 0 auto;
-        border: 1px solid black;
-        padding: 15px;
-        background: white;
+        border: 2px solid black;
+        padding: 20px;
+        background: white !important;
         box-sizing: border-box;
+    }
+
+    /* Print Table Defaults */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th,
+    td {
+        border: 1px solid black;
+        padding: 6px;
     }
 }
 
