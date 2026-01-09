@@ -1,4 +1,5 @@
 import { db } from './data.js';
+import { Alert } from './utils/ui.js';
 
 export const auth = {
     login: async (username, password) => {
@@ -8,7 +9,7 @@ export const auth = {
         // Simple plain text password check (legacy)
         if (user && user.password === password) {
             if (user.isActive === false) {
-                alert("Tu cuenta ha sido desactivada. Por favor, contacta al administrador.");
+                Alert.error("Tu cuenta ha sido desactivada. Por favor, contacta al administrador.");
                 return null;
             }
             localStorage.setItem('currentUser', JSON.stringify(user));

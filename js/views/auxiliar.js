@@ -1,5 +1,6 @@
 import { db } from '../data.js';
 import { auth } from '../auth.js';
+import { Alert } from '../utils/ui.js';
 
 export const renderAuxiliarDashboard = async (container, user) => {
     // Removed: const products = await db.getInventory(); 
@@ -96,7 +97,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                             FINALIZADO
                         </div>
                     ` : ''}
-                    <button id="logoutBtn" onclick="auth.logout()" style="background:none; border:none; color:white; padding: 4px; display: flex; align-items: center;">
+                    <button id="logoutBtn" onclick="window.handleLogout()" style="background:none; border:none; color:white; padding: 4px; display: flex; align-items: center; cursor: pointer;">
                         <span class="material-icons-round">logout</span>
                     </button>
                 </div>
@@ -177,9 +178,10 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 if (createdRoute) {
                     state.routeStarted = true;
                     state.currentRouteId = createdRoute.id;
-                    window.location.reload();
+                    Alert.success("Ruta iniciada. ¡Buen camino!");
+                    setTimeout(() => window.location.reload(), 1500);
                 } else {
-                    alert("Error al iniciar ruta. Intente nuevamente.");
+                    Alert.error("Error al iniciar ruta.");
                 }
             });
         } else {
@@ -187,14 +189,15 @@ export const renderAuxiliarDashboard = async (container, user) => {
             const endBtn = document.getElementById('endRouteBtn');
             if (endBtn) {
                 endBtn.addEventListener('click', async () => {
-                    if (confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.")) {
+                    const confirmed = await Alert.confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.", "Finalizar Jornada");
+                    if (confirmed) {
                         const now = new Date().toLocaleTimeString();
                         const success = await db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now });
                         if (success) {
-                            alert("Jornada finalizada correctamente.");
-                            window.location.reload();
+                            Alert.success("Jornada finalizada correctamente.");
+                            setTimeout(() => window.location.reload(), 1500);
                         } else {
-                            alert("Error al finalizar. Intente de nuevo.");
+                            Alert.error("Error al finalizar. Intente de nuevo.");
                         }
                     }
                 });
@@ -417,7 +420,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
         document.getElementById('returnForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!selectedProduct) {
-                alert("Por favor selecciona un producto válido de la búsqueda");
+                Alert.error("Por favor selecciona un producto válido");
                 return;
             }
 
@@ -447,14 +450,14 @@ export const renderAuxiliarDashboard = async (container, user) => {
 
             if (result === true) {
                 if (!navigator.onLine) {
-                    alert("Guardado localmente. Se sincronizará al recuperar internet.");
+                    Alert.success("Guardado localmente. Sincronizando...");
                 } else {
-                    alert("Devolución registrada exitosamente");
+                    Alert.success("Devolución registrada exitosamente");
                 }
                 state.view = 'dashboard';
-                await render();
+                setTimeout(() => render(), 800);
             } else {
-                alert("Error al guardar la devolución");
+                Alert.error("Error al guardar la devolución");
             }
         });
 
@@ -470,4 +473,16 @@ export const renderAuxiliarDashboard = async (container, user) => {
     };
 
     await render();
+
+    window.handleLogout = async () => {
+        const confirmed = await Alert.confirm('¿Deseas cerrar la sesión activa?');
+        if (confirmed) auth.logout();
+    };
+
+    // Clean up
+    const originalOnDispose = window.onDisposeAuxiliar;
+    window.onDisposeAuxiliar = () => {
+        if (originalOnDispose) originalOnDispose();
+        delete window.handleLogout;
+    };
 };

@@ -1,11 +1,20 @@
 import { db } from '../data.js';
 import { auth } from '../auth.js';
+import { Alert } from '../utils/ui.js';
 
 export const renderAdminDashboard = (container, user) => {
     container.classList.add('admin-mode');
     let activeSection = 'dashboard';
     let sidebarOpen = false;
-    let cache = { routes: [], returns: [], users: [], lastFetch: 0 };
+    let cache = {
+        routes: [],
+        returns: [],
+        users: [],
+        stats: { active_routes_count: 0, total_returns_count: 0, total_returns_value: 0 },
+        lastFetch: 0,
+        returnsOffset: 0,
+        hasMoreReturns: true
+    };
     let filters = { auxiliares: '', products: '' };
 
     const fetchData = async () => {
@@ -14,24 +23,33 @@ export const renderAdminDashboard = (container, user) => {
             contentArea.innerHTML = '<div style="padding:80px; text-align:center; color: var(--primary-color);"><div class="spinner" style="margin: 0 auto 20px;"></div><p style="font-weight: 500;">Sincronizando información...</p></div>';
         }
         try {
-            const [routes, returns, users] = await Promise.all([
+            const today = new Date().toISOString().split('T')[0];
+            const [routes, returns, users, stats] = await Promise.all([
                 db.getRoutes(),
-                db.getReturns(50),
-                db.getUsers()
+                db.getReturns(50, 0),
+                db.getUsers(),
+                db.getDashboardStats(today)
             ]);
             cache.routes = routes;
             cache.returns = returns;
             cache.users = users.filter(u => u.role === 'auxiliar');
+            cache.stats = stats || cache.stats;
             cache.lastFetch = Date.now();
+            cache.returnsOffset = returns.length;
+            cache.hasMoreReturns = returns.length === 50;
         } catch (e) { console.error("Fetch error:", e); }
     };
 
     const setupRealtime = () => {
         if (!db.sb) return;
+        let realtimeTimer;
         return db.sb.channel('realtime-admin')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'return_items' }, async () => {
-                await fetchData();
-                renderSection();
+                clearTimeout(realtimeTimer);
+                realtimeTimer = setTimeout(async () => {
+                    await fetchData();
+                    renderSection();
+                }, 1000); // Wait 1s for more changes before refetching
             })
             .subscribe();
     };
@@ -89,7 +107,7 @@ export const renderAdminDashboard = (container, user) => {
                                     <div class="user-role">Administrador</div>
                                 </div>
                             </div>
-                            <button id="logoutBtn" onclick="auth.logout()" class="btn-logout">
+                            <button id="logoutBtn" onclick="window.handleLogout()" class="btn-logout">
                                 <span class="material-icons-round">logout</span> Cerrar Sesión
                             </button>
                         </div>
@@ -150,19 +168,18 @@ export const renderAdminDashboard = (container, user) => {
     const renderSection = () => {
         const contentArea = document.getElementById('admin-content');
         if (!contentArea) return;
-        const { routes, returns, users } = cache;
+        const { routes, returns, users, stats } = cache;
         const activeRoutes = (routes || []).filter(r => r.date === new Date().toISOString().split('T')[0]);
-        const totalValue = (returns || []).reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
         contentArea.innerHTML = `
-            ${activeSection === 'dashboard' ? renderDashboard(activeRoutes, returns, routes, users, totalValue) :
+            ${activeSection === 'dashboard' ? renderDashboard(activeRoutes, returns, routes, users, stats) :
                 activeSection === 'auxiliares' ? renderAuxiliares(users) :
                     activeSection === 'productos' ? renderProductos() : renderConfig()}
         `;
         attachEventListeners();
     };
 
-    const renderDashboard = (activeRoutes, returns, routes, users, totalValue) => `
+    const renderDashboard = (activeRoutes, returns, routes, users, stats) => `
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
             <div><h1 style="color: var(--primary-color);">Panel TAT DISTRIBUCIONES</h1><p>Gestión de Devoluciones y Registro Fotográfico</p></div>
             <div style="display: flex; gap: 12px;">
@@ -175,9 +192,9 @@ export const renderAdminDashboard = (container, user) => {
             </div>
         </header>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px;">
-            ${renderStatCard('Rutas Activas', `${activeRoutes.length} / ${users.length}`, 'local_shipping', 'var(--primary-color)')}
-            ${renderStatCard('Valor Devoluciones', `$ ${totalValue.toLocaleString()}`, 'payments', 'var(--accent-color)')}
-            ${renderStatCard('Items Recibidos', returns.length, 'shopping_bag', 'var(--success-color)')}
+            ${renderStatCard('Rutas Activas', `${stats.active_routes_count} / ${users.length}`, 'local_shipping', 'var(--primary-color)')}
+            ${renderStatCard('Valor Devoluciones', `$ ${Number(stats.total_returns_value).toLocaleString()}`, 'payments', 'var(--accent-color)')}
+            ${renderStatCard('Items Recibidos', stats.total_returns_count, 'shopping_bag', 'var(--success-color)')}
         </div>
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
             <div class="card" style="padding: 0; overflow: hidden;">
@@ -185,15 +202,22 @@ export const renderAdminDashboard = (container, user) => {
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                            <tr><th style="padding: 16px; text-align: left;">Hora</th><th style="padding: 16px; text-align: left;">Auxiliar</th><th style="padding: 16px; text-align: left;">Producto / Factura</th><th style="padding: 16px; text-align: left;">Motivo</th><th style="padding: 16px; text-align: right;">Total</th><th style="padding: 16px; text-align: center;">Evidencia</th></tr>
+                            <tr>
+                                <th style="padding: 16px; text-align: left;">Hora</th>
+                                <th style="padding: 16px; text-align: left;">Auxiliar</th>
+                                <th style="padding: 16px; text-align: left;">Producto / Factura</th>
+                                <th style="padding: 16px; text-align: left;">Motivo</th>
+                                <th style="padding: 16px; text-align: right;">Total</th>
+                                <th style="padding: 16px; text-align: center;">Evidencia</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${returns.slice().reverse().slice(0, 10).map(r => {
+                            ${returns.map(r => {
         const route = routes.find(rt => rt.id === r.routeId);
         return `<tr style="border-bottom: 1px solid #f1f5f9;">
                                     <td style="padding: 16px; color: var(--text-light);">${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                                     <td style="padding: 16px; font-weight: 500;">${route ? route.userName : 'Desconocido'}</td>
-                                    <td style="padding: 16px;"><div style="font-weight: 600;">${r.product_name || r.productName || 'N/A'}</div><small style="color: var(--text-light);">Doc: ${r.invoice}</small></td>
+                                    <td style="padding: 16px;"><div style="font-weight: 600;">${r.productName || 'N/A'}</div><small style="color: var(--text-light);">Doc: ${r.invoice}</small></td>
                                     <td style="padding: 16px;"><span style="background: #f1f5f9; color: var(--text-secondary); padding: 4px 8px; border-radius: 6px; font-size: 11px;">${r.reason}</span></td>
                                     <td style="padding: 16px; text-align: right; font-weight: 600;">$ ${r.total.toLocaleString()}</td>
                                     <td style="padding: 16px; text-align: center;">${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: none; border: none; color: var(--accent-color); cursor: pointer;"><span class="material-icons-round">image</span></button>` : '—'}</td>
@@ -202,7 +226,14 @@ export const renderAdminDashboard = (container, user) => {
                         </tbody>
                     </table>
                 </div>
-                ${returns.length === 0 ? '<div style="padding: 40px; text-align: center; color: var(--text-light);">No hay devoluciones registradas hoy.</div>' : ''}
+                ${returns.length === 0 ? '<div style="padding: 40px; text-align: center; color: var(--text-light);">No hay devoluciones registradas.</div>' : ''}
+                ${cache.hasMoreReturns ? `
+                    <div style="padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                        <button id="loadMoreBtn" class="btn btn-secondary" style="font-size: 13px; font-weight: 600;">
+                             Cargar más registros
+                        </button>
+                    </div>
+                ` : ''}
             </div>
             <div class="card" style="height: fit-content;">
                 <h3 class="mb-md">Estado de Rutas</h3>
@@ -351,6 +382,22 @@ export const renderAdminDashboard = (container, user) => {
             document.getElementById('closeModal')?.addEventListener('click', () => {
                 document.getElementById('photoModal').classList.add('hidden');
             });
+
+            document.getElementById('loadMoreBtn')?.addEventListener('click', async () => {
+                const btn = document.getElementById('loadMoreBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<div class="spinner" style="width:16px; height:16px; border-width:2px; margin:0 auto;"></div>';
+
+                const moreReturns = await db.getReturns(50, cache.returnsOffset);
+                if (moreReturns.length > 0) {
+                    cache.returns = [...cache.returns, ...moreReturns];
+                    cache.returnsOffset += moreReturns.length;
+                    cache.hasMoreReturns = moreReturns.length === 50;
+                } else {
+                    cache.hasMoreReturns = false;
+                }
+                renderSection();
+            });
         }
 
         if (activeSection === 'auxiliares') {
@@ -366,10 +413,12 @@ export const renderAdminDashboard = (container, user) => {
                 btn.addEventListener('click', async () => {
                     const id = btn.dataset.userId;
                     const next = btn.dataset.active !== 'true';
-                    if (confirm(`¿Deseas ${next ? 'activar' : 'desactivar'} este usuario?`)) {
+                    const confirmed = await Alert.confirm(`¿Deseas ${next ? 'activar' : 'desactivar'} este usuario?`);
+                    if (confirmed) {
                         await db.updateUserStatus(id, next);
                         await fetchData();
                         renderSection();
+                        Alert.success(`Usuario ${next ? 'activado' : 'desactivado'} con éxito`);
                     }
                 });
             });
@@ -403,7 +452,7 @@ export const renderAdminDashboard = (container, user) => {
 
         if (activeSection === 'config') {
             document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
-                const confirmed = confirm("¿ESTÁS SEGURO? Esta acción eliminará permanentemente todas las devoluciones y rutas de prueba. No se puede deshacer.");
+                const confirmed = await Alert.confirm("Esta acción eliminará permanentemente todas las devoluciones y rutas de prueba. No se puede deshacer.", "¿LIMPIAR TODO EL SISTEMA?");
                 if (confirmed) {
                     const btn = document.getElementById('resetDataBtn');
                     const originalHtml = btn.innerHTML;
@@ -412,12 +461,12 @@ export const renderAdminDashboard = (container, user) => {
 
                     const success = await db.resetTestData();
                     if (success) {
-                        alert("Sistema reiniciado con éxito. Todos los registros de prueba han sido eliminados.");
+                        Alert.success("Sistema reiniciado con éxito.");
                         cache.lastFetch = 0; // Force re-fetch
                         activeSection = 'dashboard';
                         render();
                     } else {
-                        alert("Hubo un error al intentar limpiar los datos. Por favor revisa la consola.");
+                        Alert.error("Hubo un error al intentar limpiar los datos.");
                         btn.disabled = false;
                         btn.innerHTML = originalHtml;
                     }
@@ -559,8 +608,15 @@ export const renderAdminDashboard = (container, user) => {
     };
 
     render();
+
+    window.handleLogout = async () => {
+        const confirmed = await Alert.confirm('¿Deseas cerrar la sesión activa?');
+        if (confirmed) auth.logout();
+    };
+
     window.onDisposeAdmin = () => {
         container.classList.remove('admin-mode');
         if (realtimeChannel) db.sb.removeChannel(realtimeChannel);
+        delete window.handleLogout;
     };
 };

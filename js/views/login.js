@@ -1,4 +1,5 @@
 import { auth } from '../auth.js';
+import { Alert } from '../utils/ui.js';
 
 export const renderLogin = (container) => {
     container.innerHTML = `
@@ -70,11 +71,11 @@ export const renderLogin = (container) => {
                 const event = new CustomEvent('navigate', { detail: { view: 'dashboard' } });
                 window.dispatchEvent(event);
             } else {
-                alert('Credenciales incorrectas');
+                Alert.error('Credenciales incorrectas');
             }
         } catch (error) {
             console.error("Login error:", error);
-            alert("Error al intentar iniciar sesión. Revisa tu conexión.");
+            Alert.error("Error al intentar iniciar sesión. Revisa tu conexión.");
         }
     });
 };

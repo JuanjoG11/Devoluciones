@@ -853,11 +853,10 @@ export const db = {
     },
 
     getRoutes: async () => {
-        // Admin usage mostly - fetch recent 100 for performance?
         const { data, error } = await sb.from('routes')
             .select('*')
             .order('date', { ascending: false })
-            .limit(50); // Optimization: Limit to last 50 routes
+            .limit(50);
 
         if (error) return [];
         return data.map(r => ({
@@ -872,12 +871,20 @@ export const db = {
         }));
     },
 
-    getReturns: async (limit = 200) => {
-        // Admin usage mostly
+    getDashboardStats: async (date) => {
+        const { data, error } = await sb.rpc('get_dashboard_stats', { target_date: date });
+        if (error) {
+            console.error("Error fetching dashboard stats:", error);
+            return null;
+        }
+        return data[0]; // Returns single row
+    },
+
+    getReturns: async (limit = 50, offset = 0) => {
         const { data, error } = await sb.from('return_items')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(limit); // Use parameter limit
+            .range(offset, offset + limit - 1);
 
         if (error) return [];
         return data.map(r => ({
