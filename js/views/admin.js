@@ -5,6 +5,7 @@ export const renderAdminDashboard = (container, user) => {
     container.classList.add('admin-mode');
     let activeSection = 'dashboard';
     let cache = { routes: [], returns: [], users: [], lastFetch: 0 };
+    let filters = { auxiliares: '', products: '' };
 
     const fetchData = async () => {
         const contentArea = document.getElementById('admin-content');
@@ -127,9 +128,14 @@ export const renderAdminDashboard = (container, user) => {
     const renderDashboard = (activeRoutes, returns, routes, users, totalValue) => `
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
             <div><h1 style="color: var(--primary-color);">Panel TAT DISTRIBUCIONES</h1><p>Gestión de Devoluciones y Registro Fotográfico</p></div>
-            <button id="refreshBtn" class="btn btn-secondary" style="height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; color: var(--primary-color); padding: 0 20px; font-weight: 600; cursor: pointer;">
-                <span class="material-icons-round">refresh</span> Actualizar Datos
-            </button>
+            <div style="display: flex; gap: 12px;">
+                <button id="exportCsvBtn" class="btn btn-primary" style="height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                    <span class="material-icons-round">file_download</span> Exportar Excel (Hoy)
+                </button>
+                <button id="refreshBtn" class="btn btn-secondary" style="height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; color: var(--primary-color); padding: 0 20px; font-weight: 600; cursor: pointer;">
+                    <span class="material-icons-round">refresh</span> Actualizar
+                </button>
+            </div>
         </header>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px;">
             ${renderStatCard('Rutas Activas', `${activeRoutes.length} / ${users.length}`, 'local_shipping', 'var(--primary-color)')}
@@ -196,25 +202,49 @@ export const renderAdminDashboard = (container, user) => {
         </div>
     `;
 
-    const renderAuxiliares = (users) => `
-        <header class="mb-lg"><h1 style="color: var(--primary-color);">Gestión de Auxiliares</h1><p>Control de acceso para personal operativo</p></header>
-        <div class="card" style="padding: 0;">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                    <tr><th style="padding: 16px; text-align: left;">Nombre</th><th style="padding: 16px; text-align: left;">Usuario</th><th style="padding: 16px; text-align: center;">Estado</th><th style="padding: 16px; text-align: center;">Acción</th></tr>
-                </thead>
-                <tbody>
-                    ${users.map(u => `
-                        <tr style="border-bottom: 1px solid #f1f5f9; opacity: ${u.isActive ? '1' : '0.6'}">
-                            <td style="padding: 16px;">${u.name}</td><td style="padding: 16px;">${u.username}</td>
-                            <td style="padding: 16px; text-align: center;"><span style="background: ${u.isActive ? '#dcfce7' : '#fee2e2'}; color: ${u.isActive ? '#15803d' : '#991b1b'}; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600;">${u.isActive ? 'Activo' : 'Inactivo'}</span></td>
-                            <td style="padding: 16px; text-align: center;"><button class="toggle-user-btn btn" data-user-id="${u.id}" data-active="${u.isActive}" style="background: none; border: 1px solid #ddd; color: ${u.isActive ? '#ef4444' : '#22c55e'}; height: 36px; padding: 0 12px;">${u.isActive ? 'Desactivar' : 'Activar'}</button></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+    const renderAuxiliares = (users) => {
+        const filtered = users.filter(u =>
+            u.name.toLowerCase().includes(filters.auxiliares.toLowerCase()) ||
+            u.username.toLowerCase().includes(filters.auxiliares.toLowerCase())
+        );
+
+        return `
+            <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px;">
+                <div><h1 style="color: var(--primary-color);">Gestión de Auxiliares</h1><p>Control de acceso para personal operativo</p></div>
+                <div style="width: 300px;">
+                    <input type="text" id="auxiliarSearch" class="input-field" placeholder="Buscar auxiliar..." value="${filters.auxiliares}" style="height: 44px; border-radius: 10px;">
+                </div>
+            </header>
+            <div class="card" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                        <tr><th style="padding: 16px; text-align: left;">Nombre</th><th style="padding: 16px; text-align: left;">Usuario</th><th style="padding: 16px; text-align: center;">Estado today</th><th style="padding: 16px; text-align: center;">Estado Cuenta</th><th style="padding: 16px; text-align: center;">Acción</th></tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(u => {
+            const todayRoute = cache.routes.find(r => r.userId === u.id && r.date === new Date().toISOString().split('T')[0]);
+            const statusColor = todayRoute ? (todayRoute.status === 'completed' ? '#6366f1' : '#22c55e') : '#94a3b8';
+            const statusText = todayRoute ? (todayRoute.status === 'completed' ? 'Finalizó' : 'En Ruta') : 'Inactivo';
+
+            return `
+                                <tr style="border-bottom: 1px solid #f1f5f9; opacity: ${u.isActive ? '1' : '0.6'}">
+                                    <td style="padding: 16px; font-weight: 500;">${u.name}</td>
+                                    <td style="padding: 16px;">${u.username}</td>
+                                    <td style="padding: 16px; text-align: center;">
+                                        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 600; color: ${statusColor};">
+                                            <span style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></span>
+                                            ${statusText}
+                                        </div>
+                                    </td>
+                                    <td style="padding: 16px; text-align: center;"><span style="background: ${u.isActive ? '#dcfce7' : '#fee2e2'}; color: ${u.isActive ? '#15803d' : '#991b1b'}; padding: 4px 12px; border-radius: 99px; font-size: 11px; font-weight: 600;">${u.isActive ? 'Activo' : 'Suspendido'}</span></td>
+                                    <td style="padding: 16px; text-align: center;"><button class="toggle-user-btn btn" data-user-id="${u.id}" data-active="${u.isActive}" style="background: none; border: 1px solid #ddd; color: ${u.isActive ? '#ef4444' : '#22c55e'}; height: 32px; padding: 0 10px; font-size: 12px;">${u.isActive ? 'Desactivar' : 'Reactivar'}</button></td>
+                                </tr>`;
+        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    };
 
     const renderProductos = () => `
         <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px;">
@@ -224,13 +254,46 @@ export const renderAdminDashboard = (container, user) => {
         <div class="card" style="padding: 0;"><div id="productTableContainer"><div style="padding: 60px; text-align: center; color: var(--text-light);"><span class="material-icons-round" style="font-size: 48px; opacity: 0.3;">search</span><p>Ingresa al menos 2 caracteres para buscar.</p></div></div></div>
     `;
 
-    const renderConfig = () => `<div class="card" style="text-align: center; padding: 80px;"><span class="material-icons-round" style="font-size: 64px; color: var(--text-light); opacity: 0.2;">settings</span><h2>Configuración General</h2><p>Próximamente disponible</p></div>`;
+    const renderConfig = () => `
+        <div style="max-width: 600px; margin: 0 auto; padding-top: 40px;">
+            <header style="margin-bottom: 32px; text-align: left;">
+                <h1 style="color: var(--primary-color);">Configuración Avanzada</h1>
+                <p>Mantenimiento y limpieza del sistema</p>
+            </header>
+            
+            <div class="card" style="padding: 32px; border-left: 4px solid #ef4444;">
+                <div style="display: flex; gap: 24px; align-items: flex-start;">
+                    <div style="background: #fee2e2; color: #ef4444; padding: 16px; border-radius: 12px;">
+                        <span class="material-icons-round" style="font-size: 32px;">delete_forever</span>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0 0 8px; color: #991b1b;">Reiniciar Base de Datos</h3>
+                        <p style="margin: 0 0 24px; color: #666; font-size: 14px; line-height: 1.5;">
+                            Esta acción eliminará **todas las devoluciones y rutas registradas** hasta el momento. 
+                            Úsala únicamente para limpiar datos de prueba antes de iniciar la operación oficial.
+                        </p>
+                        <button id="resetDataBtn" class="btn" style="background: #ef4444; color: white; height: 48px; padding: 0 24px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <span class="material-icons-round">warning</span> Limpiar Todos los Datos
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 24px; text-align: center; color: var(--text-light); border: 1px dashed #e2e8f0; background: transparent;">
+                <p style="font-size: 13px; margin: 0;">Otras opciones de configuración (inventario, usuarios) próximamente.</p>
+            </div>
+        </div>
+    `;
 
     const attachEventListeners = () => {
         if (activeSection === 'dashboard') {
             document.getElementById('refreshBtn')?.addEventListener('click', async () => {
                 await fetchData();
                 renderSection();
+            });
+
+            document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
+                exportToCSV(cache.returns, cache.routes);
             });
 
             document.querySelectorAll('.print-route-btn').forEach(btn => {
@@ -254,6 +317,14 @@ export const renderAdminDashboard = (container, user) => {
         }
 
         if (activeSection === 'auxiliares') {
+            const searchInput = document.getElementById('auxiliarSearch');
+            searchInput?.addEventListener('input', (e) => {
+                filters.auxiliares = e.target.value;
+                renderSection();
+                // Focus back to input
+                document.getElementById('auxiliarSearch')?.focus();
+            });
+
             document.querySelectorAll('.toggle-user-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const id = btn.dataset.userId;
@@ -275,46 +346,175 @@ export const renderAdminDashboard = (container, user) => {
                 timer = setTimeout(async () => {
                     if (input.value.length < 2) return;
                     const results = await db.searchProducts(input.value);
-                    document.getElementById('productTableContainer').innerHTML = `
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                                <tr><th style="padding: 16px; text-align: left;">Código</th><th style="padding: 16px; text-align: left;">Producto</th><th style="padding: 16px; text-align: right;">Precio</th></tr>
-                            </thead>
-                            <tbody>
-                                ${results.map(p => `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding:16px;">${p.code}</td><td style="padding:16px;">${p.name}</td><td style="padding:16px; text-align:right;">$ ${p.price.toLocaleString()}</td></tr>`).join('')}
-                                ${results.length === 0 ? '<tr><td colspan="3" style="padding:40px; text-align:center;">No se encontraron productos.</td></tr>' : ''}
-                            </tbody>
-                        </table>
-                    `;
+                    const container = document.getElementById('productTableContainer');
+                    if (container) {
+                        container.innerHTML = `
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                                    <tr><th style="padding: 16px; text-align: left;">Código</th><th style="padding: 16px; text-align: left;">Producto</th><th style="padding: 16px; text-align: right;">Precio</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${results.map(p => `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding:16px;">${p.code}</td><td style="padding:16px;">${p.name}</td><td style="padding:16px; text-align:right;">$ ${p.price.toLocaleString()}</td></tr>`).join('')}
+                                    ${results.length === 0 ? '<tr><td colspan="3" style="padding:40px; text-align:center;">No se encontraron productos.</td></tr>' : ''}
+                                </tbody>
+                            </table>
+                        `;
+                    }
                 }, 300);
+            });
+        }
+
+        if (activeSection === 'config') {
+            document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
+                const confirmed = confirm("¿ESTÁS SEGURO? Esta acción eliminará permanentemente todas las devoluciones y rutas de prueba. No se puede deshacer.");
+                if (confirmed) {
+                    const btn = document.getElementById('resetDataBtn');
+                    const originalHtml = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<div class="spinner" style="width:20px; height:20px; border-width:2px; border-top-color:white;"></div> Limpiando...';
+
+                    const success = await db.resetTestData();
+                    if (success) {
+                        alert("Sistema reiniciado con éxito. Todos los registros de prueba han sido eliminados.");
+                        cache.lastFetch = 0; // Force re-fetch
+                        activeSection = 'dashboard';
+                        render();
+                    } else {
+                        alert("Hubo un error al intentar limpiar los datos. Por favor revisa la consola.");
+                        btn.disabled = false;
+                        btn.innerHTML = originalHtml;
+                    }
+                }
             });
         }
     };
 
+
     const generatePrintReport = async (routes, id) => {
         const route = routes.find(r => r.id === id);
         const returns = await db.getRouteReturns(id);
-        const printArea = document.getElementById('printArea');
-        printArea.classList.remove('hidden');
+
+        let printArea = document.getElementById('printArea');
+        if (!printArea) {
+            printArea = document.createElement('div');
+            printArea.id = 'printArea';
+            document.body.appendChild(printArea);
+        }
+
+        const totalValue = returns.reduce((sum, r) => sum + (r.total || 0), 0);
+        const totalItems = returns.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+        const today = new Date().toLocaleDateString('es-CO');
+        const planilla = returns.length > 0 ? (returns[0].sheet || 'N/A') : 'N/A';
+
         printArea.innerHTML = `
-            <div style="border: 2px solid #000; padding: 20px; max-width: 800px; margin: 0 auto;">
-                <h2 style="text-align: center; text-transform: uppercase;">Reporte de Devoluciones</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; margin: 20px 0;">
-                    <div><strong>Auxiliar:</strong> ${route.userName}</div>
-                    <div style="text-align: right;"><strong>Fecha:</strong> ${route.date}</div>
+            <div class="print-main-container">
+                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif;">
+                    
+                    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 12px; margin-bottom: 15px;">
+                        <h1 style="margin: 0; font-size: 16pt; font-weight: 800; text-transform: uppercase;">CONCENTRADO DE DEVOLUCIONES</h1>
+                        <h2 style="margin: 5px 0 0; font-size: 12pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
+                        <p style="margin: 2px 0 0; font-size: 8.5pt; color: #555;">Control Operativo y Logístico</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; border-bottom: 1px solid black; padding: 10px 0; margin-bottom: 15px;">
+                        <div style="font-size: 9pt;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #666; display: block;">Auxiliar / Ruta</span>
+                            <span style="font-weight: 700; font-size: 10pt;">${route.userName.toUpperCase()}</span>
+                        </div>
+                        <div style="text-align: center; font-size: 9pt;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #666; display: block;">Planilla Nº</span>
+                            <span style="font-weight: 700; font-size: 10pt;">${planilla}</span>
+                        </div>
+                        <div style="text-align: right; font-size: 9pt;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #666; display: block;">Fecha</span>
+                            <span style="font-weight: 700; font-size: 10pt;">${route.date || today}</span>
+                        </div>
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
+                        <thead>
+                            <tr style="background: #f0f0f0;">
+                                <th style="border: 1px solid black; padding: 8px; text-align: left; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">FACTURA</th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: left; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">PRODUCTO</th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">CANT</th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: right; font-size: 8.5pt; font-weight: 800; text-transform: uppercase;">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${returns.map(r => `
+                                <tr>
+                                    <td style="border: 1px solid black; padding: 6px; font-size: 9pt; font-weight: 700;">${r.invoice}</td>
+                                    <td style="border: 1px solid black; padding: 6px; font-size: 9pt;">${(r.product_name || r.name || 'N/A').toUpperCase()}</td>
+                                    <td style="border: 1px solid black; padding: 6px; text-align: center; font-size: 9pt; font-weight: 700;">${r.quantity}</td>
+                                    <td style="border: 1px solid black; padding: 6px; text-align: right; font-size: 9pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #f9f9f9;">
+                                <td colspan="2" style="border: 1px solid black; padding: 10px; text-align: right; font-size: 9.5pt; font-weight: 800;">TOTAL DEVOLUCIÓN:</td>
+                                <td style="border: 1px solid black; padding: 10px; text-align: center; font-size: 10pt; font-weight: 800;">${totalItems}</td>
+                                <td style="border: 1px solid black; padding: 10px; text-align: right; font-size: 10pt; font-weight: 800;">$ ${totalValue.toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; padding: 0 40px 10px;">
+                        <div style="text-align: center;">
+                            <div style="border-top: 1.5px solid black; margin-bottom: 5px;"></div>
+                            <div style="font-size: 9pt; font-weight: 700; text-transform: uppercase;">Firma Auxiliar</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="border-top: 1.5px solid black; margin-bottom: 5px;"></div>
+                            <div style="font-size: 9pt; font-weight: 700; text-transform: uppercase;">Firma Bodega</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 8px; text-align: center;">
+                        <p style="font-size: 7.5pt; color: #666; margin: 0; font-style: italic;">
+                            * Soporte oficial TAT DISTRIBUCIONES. Generado el ${new Date().toLocaleString('es-CO')}
+                        </p>
+                    </div>
                 </div>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #eee;">
-                        <tr><th style="border: 1px solid #000; padding: 8px;">Factura</th><th style="border: 1px solid #000; padding: 8px;">Producto</th><th style="border: 1px solid #000; padding: 8px;">Cant</th><th style="border: 1px solid #000; padding: 8px;">Total</th></tr>
-                    </thead>
-                    <tbody>
-                        ${returns.map(r => `<tr><td style="border: 1px solid #000; padding: 8px;">${r.invoice}</td><td style="border: 1px solid #000; padding: 8px;">${r.product_name || 'N/A'}</td><td style="border: 1px solid #000; padding: 8px; text-align: center;">${r.quantity}</td><td style="border: 1px solid #000; padding: 8px; text-align: right;">$ ${r.total.toLocaleString()}</td></tr>`).join('')}
-                    </tbody>
-                </table>
             </div>
         `;
-        window.print();
-        printArea.classList.add('hidden');
+
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    };
+
+
+    const exportToCSV = (returns, routes) => {
+        const today = new Date().toISOString().split('T')[0];
+        const rows = [
+            ['Fecha', 'Auxiliar', 'Factura', 'Planilla', 'Codigo', 'Producto', 'Cantidad', 'Motivo', 'Total', 'Foto']
+        ];
+
+        returns.forEach(r => {
+            const route = routes.find(rt => rt.id === r.routeId);
+            rows.push([
+                r.timestamp ? new Date(r.timestamp).toLocaleDateString() : today,
+                route ? route.userName : 'N/A',
+                r.invoice,
+                r.sheet || '',
+                r.product_code || r.code || '',
+                r.product_name || r.name || '',
+                r.quantity,
+                r.reason,
+                r.total,
+                r.evidence || ''
+            ]);
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + rows.map(e => e.join(",")).join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Devoluciones_${today}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     render();

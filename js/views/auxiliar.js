@@ -18,15 +18,58 @@ export const renderAuxiliarDashboard = async (container, user) => {
     const render = async () => {
         let myReturns = [];
         if (state.currentRouteId) {
-            myReturns = await db.getRouteReturns(state.currentRouteId);
+            const serverReturns = await db.getRouteReturns(state.currentRouteId);
+            const pendingReturns = await db.getPendingReturns();
+
+            // Map pending returns for display
+            const mappedPending = pendingReturns
+                .filter(r => r.routeId === state.currentRouteId)
+                .map(r => ({ ...r, pending: true }));
+
+            myReturns = [...mappedPending, ...serverReturns];
         }
 
         if (state.view === 'dashboard') {
-            renderDashboard(myReturns, myRoute);
+            await renderDashboard(myReturns, myRoute);
         } else if (state.view === 'form') {
             renderForm();
         }
     };
+
+    // --- SYNC & NETWORK LOGIC ---
+    const updateSyncUI = async () => {
+        const syncStatus = document.getElementById('syncStatus');
+        const offlineBanner = document.getElementById('offlineBanner');
+        const pending = await db.getPendingReturns();
+
+        if (!navigator.onLine) {
+            if (syncStatus) syncStatus.innerHTML = '<span class="material-icons-round" style="font-size: 12px; color: #ffa500;">cloud_off</span> Offline';
+            if (offlineBanner) offlineBanner.style.display = 'block';
+        } else if (pending.length > 0) {
+            if (syncStatus) syncStatus.innerHTML = `<span class="material-icons-round" style="font-size: 12px; color: #ffa500;">sync</span> Pendiente (${pending.length})`;
+            if (offlineBanner) offlineBanner.style.display = 'none';
+        } else {
+            if (syncStatus) syncStatus.innerHTML = '<span class="material-icons-round" style="font-size: 12px; color: #4caf50;">cloud_done</span> Sincronizado';
+            if (offlineBanner) offlineBanner.style.display = 'none';
+        }
+    };
+
+    const triggerSync = async () => {
+        if (navigator.onLine) {
+            const count = await db.syncOfflineReturns();
+            if (count > 0) {
+                console.log(`Synced ${count} items`);
+                await render(); // Refresh to show synced items properly
+            }
+        }
+        await updateSyncUI();
+    };
+
+    window.addEventListener('online', triggerSync);
+    window.addEventListener('offline', updateSyncUI);
+
+    // Initial sync trigger
+    setTimeout(triggerSync, 1000);
 
     const renderDashboard = (returns, currentRoute) => {
         const totalValue = returns.reduce((sum, r) => sum + r.total, 0);
@@ -37,7 +80,10 @@ export const renderAuxiliarDashboard = async (container, user) => {
                     <h3 style="color: white; margin: 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                         ${(user.name || 'Auxiliar').split(' ')[0]}
                     </h3>
-                    <small style="opacity: 0.8; display: block;">${new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</small>
+                    <div id="syncStatus" style="font-size: 10px; opacity: 0.8; display: flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 12px;">cloud_done</span>
+                        Sincronizado
+                    </div>
                 </div>
                 <div class="header-actions">
                     ${currentRoute && currentRoute.status !== 'completed' ? `
@@ -68,6 +114,11 @@ export const renderAuxiliarDashboard = async (container, user) => {
                         </button>
                     </div>
                 ` : `
+                    <div id="offlineBanner" class="card" style="display: none; background: #fff3cd; color: #856404; padding: 10px; margin-bottom: 16px; font-size: 13px; border: 1px solid #ffeeba;">
+                        <span class="material-icons-round" style="font-size: 16px; vertical-align: middle;">offline_bolt</span>
+                        Sin conexión. Guardando de forma local.
+                    </div>
+
                     <div class="card" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; margin-bottom: 24px; padding: 20px 16px;">
                         <div class="flex justify-between items-center" style="gap: 12px;">
                             <div style="flex: 1; min-width: 0;">
@@ -96,7 +147,10 @@ export const renderAuxiliarDashboard = async (container, user) => {
                                     </div>
                                     <div style="text-align: right; flex-shrink: 0;">
                                         <div style="font-weight: 600; font-size: 14px;">$ ${(r.total || 0).toLocaleString()}</div>
-                                        ${r.evidence ? '<span class="material-icons-round" style="font-size: 14px; color: var(--accent-color);">photo_camera</span>' : ''}
+                                        <div style="display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px;">
+                                            ${r.pending ? '<span class="material-icons-round" style="font-size: 14px; color: #ffa500;" title="Pendiente de sincronizar">sync_problem</span>' : ''}
+                                            ${r.evidence ? '<span class="material-icons-round" style="font-size: 14px; color: var(--accent-color);">photo_camera</span>' : ''}
+                                        </div>
                                     </div>
                                 </div>
                             `).join('')}
@@ -129,6 +183,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 }
             });
         } else {
+            updateSyncUI(); // Update UI after render
             const endBtn = document.getElementById('endRouteBtn');
             if (endBtn) {
                 endBtn.addEventListener('click', async () => {
@@ -388,10 +443,14 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 timestamp: new Date().toISOString()
             };
 
-            const success = await db.addReturn(returnData);
+            const result = await db.addReturn(returnData);
 
-            if (success) {
-                alert("Devolución registrada exitosamente");
+            if (result === true) {
+                if (!navigator.onLine) {
+                    alert("Guardado localmente. Se sincronizará al recuperar internet.");
+                } else {
+                    alert("Devolución registrada exitosamente");
+                }
                 state.view = 'dashboard';
                 await render();
             } else {

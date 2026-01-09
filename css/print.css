@@ -1,111 +1,55 @@
 @media print {
 
-    /* Hide non-printable elements */
-    .app-header,
-    .fab,
-    .btn,
-    .input-group,
-    header,
-    #logoutBtn,
-    .admin-sidebar,
-    .admin-content {
-        display: none !important;
-    }
-
-    /* Reset Layout for Print */
-    body,
-    .app-container,
-    #app {
-        height: auto;
-        overflow: visible;
-        background: white;
+    /* Absolute reset for paper */
+    @page {
         margin: 0;
-        padding: 0;
-        max-width: 100%;
-        display: block !important;
+        size: portrait;
     }
 
-    /* Print Area Visibility */
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        height: auto !important;
+        width: 100% !important;
+    }
+
+    /* Aggressive Hiding-All-Except-PrintArea */
+    body>*:not(#printArea) {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
     #printArea {
         display: block !important;
-        position: absolute;
-        top: 0;
-        left: 0;
+        visibility: visible !important;
+        position: static !important;
+        width: 100% !important;
+        background: white !important;
+    }
+
+    /* Professional Centering of the Form Box */
+    .print-main-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         width: 100%;
-        height: auto;
-        z-index: 9999;
+        padding-top: 1.5cm;
+    }
+
+    .report-box {
+        width: 19cm;
+        /* Safe width for most printers */
+        margin: 0 auto;
+        border: 1px solid black;
+        padding: 15px;
         background: white;
-    }
-
-    .card {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-    }
-
-    /* Print Header */
-    .print-header {
-        display: block !important;
-        /* text-align: center; removed to allow flex header in JS to work properly if needed, but keeping block is fine */
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #000;
-        width: 100%;
-    }
-
-    .print-header h1 {
-        font-size: 24px;
-        color: #000;
-        margin: 0;
-    }
-
-    .print-header p {
-        margin: 5px 0;
-        color: #333;
-    }
-
-    /* Print Table */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 10pt;
-    }
-
-    th,
-    td {
-        border: 1px solid #000;
-        /* Darker border for print */
-        padding: 6px;
-        /* Slightly tighter padding */
-        color: #000;
-    }
-
-    th {
-        background-color: #f0f0f0 !important;
-        font-weight: bold;
-        /* Force background */
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    /* Evidence Images in Print */
-    .print-evidence-img {
-        max-width: 80px;
-        max-height: 80px;
-        display: block;
-    }
-
-    /* Page Break */
-    .page-break {
-        page-break-after: always;
-        break-after: page;
-        min-height: 90vh;
-        /* Ensure full page usage if needed */
-        position: relative;
+        box-sizing: border-box;
     }
 }
 
-/* Hide Print Header on Screen */
-.print-header {
+/* Hide on screen */
+#printArea {
     display: none;
 }

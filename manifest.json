@@ -1,0 +1,17 @@
+{
+    "name": "DevolucionesApp TAT",
+    "short_name": "Devoluciones",
+    "description": "Gestión de devoluciones TAT Distribuciones",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/2312/2312733.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

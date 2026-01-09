@@ -929,24 +929,197 @@ export const db = {
         return !error;
     },
 
-    addReturn: async (returnData) => {
-        const { error } = await sb.from('return_items').insert([{
-            route_id: returnData.routeId,
-            invoice: returnData.invoice,
-            sheet: returnData.sheet,
-            product_code: returnData.productCode, // Fixed
-            product_name: returnData.productName, // Fixed
-            quantity: returnData.quantity,
-            total: returnData.total,
-            reason: returnData.reason,
-            evidence: returnData.evidence
-        }]);
-        return !error;
-    },
-
     importInventory: (text) => {
         const products = parseInventory(text);
         localStorage.setItem('inventory', JSON.stringify(products));
         return products.length;
+    },
+
+    // --- PHOTO STORAGE ---
+    async uploadPhoto(base64Data) {
+        if (!base64Data) return null;
+        try {
+            // Convert base64 to Blob
+            const base64Parts = base64Data.split(',');
+            const mime = base64Parts[0].match(/:(.*?);/)[1];
+            const byteString = atob(base64Parts[1]);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            const blob = new Blob([ab], { type: mime });
+
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+            const filePath = `returns/${fileName}`;
+
+            const { data, error } = await sb.storage
+                .from('evidences')
+                .upload(filePath, blob, {
+                    contentType: mime,
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (error) throw error;
+
+            // Get public URL
+            const { data: { publicUrl } } = sb.storage
+                .from('evidences')
+                .getPublicUrl(filePath);
+
+            return publicUrl;
+        } catch (e) {
+            console.error("Error uploading to Supabase Storage:", e);
+            return null;
+        }
+    },
+
+    // --- OFFLINE SUPPORT (IndexedDB) ---
+    async _initOfflineDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('AppDevolucionesOffline', 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('pending_returns')) {
+                    db.createObjectStore('pending_returns', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = (e) => reject(e.target.error);
+        });
+    },
+
+    async saveOfflineReturn(returnData) {
+        try {
+            const db = await this._initOfflineDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['pending_returns'], 'readwrite');
+                const store = transaction.objectStore('pending_returns');
+                const request = store.add(returnData);
+                request.onsuccess = () => resolve(true);
+                request.onerror = () => reject(false);
+            });
+        } catch (e) {
+            console.error("Error saving offline return:", e);
+            return false;
+        }
+    },
+
+    async getPendingReturns() {
+        try {
+            const db = await this._initOfflineDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['pending_returns'], 'readonly');
+                const store = transaction.objectStore('pending_returns');
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject([]);
+            });
+        } catch (e) {
+            return [];
+        }
+    },
+
+    async deletePendingReturn(id) {
+        const db = await this._initOfflineDB();
+        return new Promise((resolve) => {
+            const transaction = db.transaction(['pending_returns'], 'readwrite');
+            const store = transaction.objectStore('pending_returns');
+            const request = store.delete(id);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => resolve(false);
+        });
+    },
+
+    async syncOfflineReturns() {
+        const pending = await this.getPendingReturns();
+        if (pending.length === 0) return 0;
+
+        let syncedCount = 0;
+        for (const item of pending) {
+            const tempId = item.id;
+            delete item.id; // Remove IndexedDB ID
+
+            const success = await this.addReturn(item, true); // true means skip queueing if it fails again
+            if (success) {
+                await this.deletePendingReturn(tempId);
+                syncedCount++;
+            }
+        }
+        return syncedCount;
+    },
+
+    async addReturn(returnData, skipOfflineQueue = false) {
+        try {
+            // 1. Check if online
+            if (!navigator.onLine && !skipOfflineQueue) {
+                return await this.saveOfflineReturn(returnData);
+            }
+
+            // 2. Upload photo to Storage if present and is still base64
+            let evidenceUrl = returnData.evidence;
+            if (returnData.evidence && returnData.evidence.startsWith('data:image')) {
+                const uploadedUrl = await this.uploadPhoto(returnData.evidence);
+                if (uploadedUrl) {
+                    evidenceUrl = uploadedUrl;
+                }
+                // If upload fails but skipOfflineQueue is false, maybe queue it offline?
+                // For now, if upload fails we might continue with null or fail base64 if small.
+                // Better: if it's too big, Supabase DB insert will fail.
+            }
+
+            const { error } = await sb.from('return_items').insert([{
+                route_id: returnData.routeId,
+                invoice: returnData.invoice,
+                sheet: returnData.sheet,
+                product_code: returnData.productCode,
+                product_name: returnData.productName,
+                quantity: returnData.quantity,
+                total: returnData.total,
+                reason: returnData.reason,
+                evidence: evidenceUrl
+            }]);
+
+            if (error) {
+                if (!skipOfflineQueue) {
+                    return await this.saveOfflineReturn(returnData);
+                }
+                throw error;
+            }
+            return true;
+        } catch (e) {
+            console.error("Error in addReturn:", e);
+            if (!skipOfflineQueue) {
+                return await this.saveOfflineReturn(returnData);
+            }
+            return false;
+        }
+    },
+
+    async resetTestData() {
+        try {
+            // 1. Clear Remote Database
+            const { error: error1 } = await sb.from('return_items').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+            const { error: error2 } = await sb.from('routes').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+            // 2. Clear Supabase Storage (Optional, but let's at least clear local traces)
+            // Note: Storage cleanup usually requires a different service role or iterating files which is slow.
+            // We'll focus on the DB records so the UI is clean.
+
+            // 3. Clear Local Storage
+            localStorage.removeItem('activeRoute');
+
+            // 4. Clear IndexedDB (Offline Pending)
+            const db = await this._initOfflineDB();
+            const transaction = db.transaction(['pending_returns'], 'readwrite');
+            transaction.objectStore('pending_returns').clear();
+
+            if (error1 || error2) throw (error1 || error2);
+            return true;
+        } catch (e) {
+            console.error("Reset Error:", e);
+            return false;
+        }
     }
 };
