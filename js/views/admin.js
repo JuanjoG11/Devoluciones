@@ -499,12 +499,25 @@ export const renderAdminDashboard = (container, user) => {
         printArea.id = 'printArea';
         document.body.appendChild(printArea);
 
-        const totalValue = returns.reduce((sum, r) => sum + (r.total || 0), 0);
-        const totalItems = returns.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+        // Split returns
+        const partialReturns = returns.filter(r => r.productName !== 'DEVOLUCIÓN TOTAL');
+        const totalReturns = returns.filter(r => r.productName === 'DEVOLUCIÓN TOTAL');
+
+        // Calculate totals
+        const partialTotalValue = partialReturns.reduce((sum, r) => sum + (r.total || 0), 0);
+        const partialTotalItems = partialReturns.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+
+        const totalTotalValue = totalReturns.reduce((sum, r) => sum + (r.total || 0), 0);
+        const totalTotalItems = totalReturns.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
+
+        // Grand totals
+        const grandTotalValue = partialTotalValue + totalTotalValue;
+        const grandTotalItems = partialTotalItems + totalTotalItems;
+
         const today = new Date().toLocaleDateString('es-CO');
         const planilla = returns.length > 0 ? (returns[0].sheet || 'N/A') : 'N/A';
 
-        printArea.innerHTML = `
+        let htmlContent = `
             <div class="print-main-container">
                 <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 25px;">
                     
@@ -539,34 +552,93 @@ export const renderAdminDashboard = (container, user) => {
                             </td>
                         </tr>
                     </table>
+        `;
 
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
-                        <thead>
-                            <tr style="background: #f4f4f4;">
-                                <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
-                                <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 55%;">PRODUCTO</th>
-                                <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 10%;">CANT</th>
-                                <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
+        // --- DEVOLUCIÓN PARCIAL SECTION ---
+        if (partialReturns.length > 0) {
+            htmlContent += `
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 10pt; font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; text-transform: uppercase;">Devolución Parcial</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
+                    <thead>
+                        <tr style="background: #f4f4f4;">
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 55%;">PRODUCTO</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 10%;">CANT</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${partialReturns.map(r => `
+                            <tr>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt; font-weight: 700;">${r.invoice}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt;">${(r.productName || r.name || 'N/A').toUpperCase()}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 700;">${r.quantity}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${returns.map(r => `
-                                <tr>
-                                    <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt; font-weight: 700;">${r.invoice}</td>
-                                    <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt;">${(r.product_name || r.name || 'N/A').toUpperCase()}</td>
-                                    <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 700;">${r.quantity}</td>
-                                    <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
-                                </tr>
-                            `).join('')}
-                            <tr style="background: #f9f9f9;">
-                                <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL DEVOLUCIÓN:</td>
-                                <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 9pt; font-weight: 800;">${totalItems}</td>
-                                <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">$ ${totalValue.toLocaleString()}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        `).join('')}
+                        
+                        <!-- Partial Total Row -->
+                        <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
+                            <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL PARCIAL:</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 9pt; font-weight: 800;">${partialTotalItems}</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">$ ${partialTotalValue.toLocaleString()}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            `;
+        }
 
-                    <div style="margin-top: 40px; display: flex; justify-content: space-between; padding: 0 40px 10px;">
+        // --- DEVOLUCIÓN TOTAL SECTION ---
+        if (totalReturns.length > 0) {
+            htmlContent += `
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 10pt; font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; text-transform: uppercase;">Devolución Total</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
+                    <thead>
+                        <tr style="background: #f4f4f4;">
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 55%;">MOTIVO / CLIENTE</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 10%;">CANT</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${totalReturns.map(r => `
+                            <tr>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt; font-weight: 700;">${r.invoice}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt;">${r.reason ? r.reason.toUpperCase() : 'DEVOLUCIÓN TOTAL'}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 700;">${r.quantity}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                        
+                        <!-- Total Total Row -->
+                        <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
+                            <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL TOTAL:</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 9pt; font-weight: 800;">${totalTotalItems}</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">$ ${totalTotalValue.toLocaleString()}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            `;
+        }
+
+        // --- GRAND SUMMARY (Optional, can be removed if user just wants split, but usually good to have) ---
+        // if (partialReturns.length > 0 && totalReturns.length > 0) {
+        //     htmlContent += `
+        //     <div style="display: flex; justify-content: flex-end; margin-top: 10px; margin-bottom: 20px;">
+        //         <div style="background: #eee; padding: 10px; border-radius: 4px; border: 1px solid black;">
+        //             <div style="font-size: 10pt; font-weight: 800; text-transform: uppercase;">GRAN TOTAL: $ ${grandTotalValue.toLocaleString()}</div>
+        //         </div>
+        //     </div>
+        //     `;
+        // }
+
+        htmlContent += `
+                    <div style="margin-top: 40px; display: flex; justify-content: space-between; padding: 0 40px 10px; page-break-inside: avoid;">
                         <div style="text-align: center; width: 35%;">
                             <div style="border-top: 1.5px solid black; margin-bottom: 6px;"></div>
                             <div style="font-size: 8pt; font-weight: 700; text-transform: uppercase;">FIRMA AUXILIAR</div>
@@ -585,6 +657,8 @@ export const renderAdminDashboard = (container, user) => {
                 </div>
             </div>
         `;
+
+        printArea.innerHTML = htmlContent;
 
         // Smallest possible delay to trigger the rendering before the print dialog
         setTimeout(() => {
