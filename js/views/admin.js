@@ -188,7 +188,7 @@ export const renderAdminDashboard = (container, user) => {
             </div>
             <div style="display: flex; gap: 12px; position: relative; z-index: 1; align-items: center;">
                 <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 99px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 8px;">
-                     <span class="material-icons-round" style="font-size: 16px;">admin_panel_settings</span> Administrador
+                     <span class="material-icons-round" style="font-size: 16px;">person</span> Administrador
                 </div>
                 <button id="refreshBtn" class="btn btn-secondary" style="height: 40px; width: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); color: white; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer;">
                     <span class="material-icons-round" style="font-size: 20px;">refresh</span>
