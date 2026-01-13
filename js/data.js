@@ -1057,6 +1057,28 @@ export const db = {
         return syncedCount;
     },
 
+    async checkDuplicate(invoice, sheet, routeId) {
+        try {
+            if (!invoice && !sheet) return null;
+
+            const { data, error } = await sb.from('return_items')
+                .select('*')
+                .eq('route_id', routeId)
+                .or(`invoice.eq.${invoice},sheet.eq.${sheet}`)
+                .limit(1);
+
+            if (error) {
+                console.error('Error checking duplicate:', error);
+                return null;
+            }
+
+            return data && data.length > 0 ? data[0] : null;
+        } catch (e) {
+            console.error('Error in checkDuplicate:', e);
+            return null;
+        }
+    },
+
     async addReturn(returnData, skipOfflineQueue = false) {
         try {
             // 1. Check if online

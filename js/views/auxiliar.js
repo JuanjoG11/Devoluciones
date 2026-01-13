@@ -549,6 +549,39 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 timestamp: new Date().toISOString()
             };
 
+            // ✅ Check for duplicates
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner" style="width:20px; height:20px; border-width:2px; margin:0 auto;"></div>';
+
+            const duplicate = await db.checkDuplicate(invoice, sheet, state.currentRouteId);
+
+            if (duplicate) {
+                const duplicateInfo = [];
+                if (duplicate.invoice === invoice) duplicateInfo.push(`• Factura: ${duplicate.invoice}`);
+                if (duplicate.sheet === sheet) duplicateInfo.push(`• Planilla: ${duplicate.sheet}`);
+
+                const timeAgo = new Date(duplicate.created_at);
+                const minutesAgo = Math.floor((Date.now() - timeAgo.getTime()) / 60000);
+                const timeText = minutesAgo < 1 ? 'hace menos de 1 minuto' :
+                    minutesAgo === 1 ? 'hace 1 minuto' :
+                        `hace ${minutesAgo} minutos`;
+
+                const confirmed = await Alert.confirm(
+                    `⚠️ Ya existe una devolución con:\n${duplicateInfo.join('\n')}\n\nRegistrada ${timeText}\n\n¿Estás seguro de continuar?`,
+                    '⚠️ Posible Duplicado'
+                );
+
+                if (!confirmed) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                    return;
+                }
+
+                console.warn('⚠️ Usuario confirmó guardar duplicado');
+            }
+
             const result = await db.addReturn(returnData);
 
             if (result === true) {
