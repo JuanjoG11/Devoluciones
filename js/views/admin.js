@@ -508,10 +508,19 @@ export const renderAdminDashboard = (container, user) => {
             <div class="print-main-container">
                 <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 25px;">
                     
-                    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 20pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">CONCENTRADO DE DEVOLUCIONES</h1>
-                        <h2 style="margin: 8px 0 0; font-size: 14pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
-                        <p style="margin: 4px 0 0; font-size: 10pt; color: #333; letter-spacing: 1px;">Control Operativo y Logístico</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
+                        <div style="width: 80px;">
+                            <img src="logo-tat.png" alt="TAT Logo" style="width: 100%; height: auto;">
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <h1 style="margin: 0; font-size: 20pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">CONCENTRADO DE DEVOLUCIONES</h1>
+                            <h2 style="margin: 8px 0 0; font-size: 14pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
+                            <p style="margin: 4px 0 0; font-size: 10pt; color: #333; letter-spacing: 1px;">Control Operativo y Logístico</p>
+                        </div>
+                        <div style="text-align: right; width: 80px; font-size: 9pt;">
+                            <div style="font-weight: 700;">NIT</div>
+                            <div style="font-weight: 600;">901568117-1</div>
+                        </div>
                     </div>
 
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 1.5px solid black;">
