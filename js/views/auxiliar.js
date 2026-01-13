@@ -172,7 +172,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                     userId: user.id,
                     username: user.username,
                     userName: user.name,
-                    startTime: new Date().toLocaleTimeString(),
+                    startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
                     date: new Date().toISOString().split('T')[0]
                 };
                 const createdRoute = await db.addRoute(newRoute);
@@ -192,7 +192,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 endBtn.addEventListener('click', async () => {
                     const confirmed = await Alert.confirm("¿Estás seguro de que deseas finalizar tu jornada laboral? No podrás registrar más devoluciones hoy.", "Finalizar Jornada");
                     if (confirmed) {
-                        const now = new Date().toLocaleTimeString();
+                        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                         const success = await db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now });
                         if (success) {
                             Alert.success("Jornada finalizada correctamente.");

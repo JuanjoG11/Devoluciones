@@ -17,6 +17,21 @@ export const renderAdminDashboard = (container, user) => {
     };
     let filters = { auxiliares: '', products: '' };
 
+    const formatTime12h = (timeStr) => {
+        if (!timeStr) return '—';
+        if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) return timeStr;
+        const parts = timeStr.split(':');
+        if (parts.length >= 2) {
+            let hour = parseInt(parts[0]);
+            const minute = parts[1];
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12;
+            hour = hour ? hour : 12;
+            return `${hour}:${minute}${parts[2] ? ':' + parts[2].split(' ')[0] : ''} ${ampm}`;
+        }
+        return timeStr;
+    };
+
     const fetchData = async () => {
         const contentArea = document.getElementById('admin-content');
         if (contentArea && cache.lastFetch === 0) {
@@ -221,6 +236,13 @@ export const renderAdminDashboard = (container, user) => {
                     <main id="admin-content" class="admin-content"></main>
                 </div>
             </div>
+            <div id="photoModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
+                <div class="card" style="max-width: 600px; width: 100%; padding: 0; overflow: hidden; background: white; border-radius: 16px;">
+                    <div style="padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;"><h3 style="margin: 0;">Evidencia</h3><button id="closeModal" style="border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;"><span class="material-icons-round">close</span></button></div>
+                    <div style="padding: 10px; background: #f8fafc; text-align: center;"><img id="modalImage" src="" style="max-width: 100%; max-height: 70vh; border-radius: 8px;"></div>
+                </div>
+            </div>
+            <div id="printArea" class="hidden"></div>
         `;
         document.getElementById('admin-nav').addEventListener('click', (e) => {
             const link = e.target.closest('[data-section]');
@@ -244,6 +266,24 @@ export const renderAdminDashboard = (container, user) => {
 
         document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
             exportToCSV(cache.returns, cache.routes);
+        });
+
+        // Event Delegation for Photo Viewer and Global Modals
+        container.addEventListener('click', (e) => {
+            // Photo Viewer
+            const photoBtn = e.target.closest('.view-photo-btn');
+            if (photoBtn) {
+                const img = document.getElementById('modalImage');
+                if (img) {
+                    img.src = photoBtn.dataset.photo;
+                    document.getElementById('photoModal')?.classList.remove('hidden');
+                }
+            }
+
+            // Modal Closure
+            if (e.target.closest('#closeModal') || (e.target.id === 'photoModal')) {
+                document.getElementById('photoModal')?.classList.add('hidden');
+            }
         });
     };
 
@@ -366,8 +406,8 @@ export const renderAdminDashboard = (container, user) => {
                                 <th style="padding: 12px; text-align: left;">Producto</th>
                                 <th style="padding: 12px; text-align: left;">Cant</th>
                                 <th style="padding: 12px; text-align: left;">Motivo</th>
-                                <th style="padding: 12px; text-align: right;">Total</th>
-                                <th style="padding: 12px; text-align: center;">Foto</th>
+                                <th style="padding: 12px; text-align: right; width: 120px;">Total</th>
+                                <th style="padding: 12px; text-align: center; width: 80px;">EVIDENCIA</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -376,7 +416,7 @@ export const renderAdminDashboard = (container, user) => {
                 const date = new Date(r.timestamp);
                 return `
                                     <tr style="border-bottom: 1px solid #e2e8f0; hover: background: #f8fafc;">
-                                        <td style="padding: 12px; font-size: 13px;">${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                        <td style="padding: 12px; font-size: 13px;">${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</td>
                                         <td style="padding: 12px; font-size: 13px;">${route?.userName || 'N/A'}</td>
                                         <td style="padding: 12px; font-size: 13px; font-weight: 600;">${r.invoice || '-'}</td>
                                         <td style="padding: 12px; font-size: 13px;">${r.sheet || '-'}</td>
@@ -385,7 +425,7 @@ export const renderAdminDashboard = (container, user) => {
                                         <td style="padding: 12px; font-size: 12px; color: #64748b;">${r.reason}</td>
                                         <td style="padding: 12px; font-size: 14px; font-weight: 600; text-align: right;">$ ${(r.total || 0).toLocaleString()}</td>
                                         <td style="padding: 12px; text-align: center;">
-                                            ${r.evidence ? `<button class="view-photo-btn btn-secondary" data-photo="${r.evidence}" style="padding: 4px 8px; border-radius: 6px;"><span class="material-icons-round" style="font-size: 18px;">photo_camera</span></button>` : '-'}
+                                            ${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: rgba(0,174,239,0.1); border: none; color: var(--accent-color); padding: 6px; border-radius: 8px; cursor: pointer;"><span class="material-icons-round" style="font-size: 18px;">image</span></button>` : '-'}
                                         </td>
                                     </tr>
                                 `;
@@ -405,17 +445,6 @@ export const renderAdminDashboard = (container, user) => {
             // Attach pagination events
             document.getElementById('prevPage')?.addEventListener('click', () => { if (currentPage > 0) { currentPage--; renderResults(); } });
             document.getElementById('nextPage')?.addEventListener('click', () => { if (end < filteredReturns.length) { currentPage++; renderResults(); } });
-
-            // Attach photo viewer events for historial
-            container.querySelectorAll('.view-photo-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const img = document.getElementById('modalImage');
-                    if (img) {
-                        img.src = btn.dataset.photo;
-                        document.getElementById('photoModal')?.classList.remove('hidden');
-                    }
-                });
-            });
         };
 
         setTimeout(() => {
@@ -511,7 +540,7 @@ export const renderAdminDashboard = (container, user) => {
                             ${returns.map(r => {
         const route = routes.find(rt => rt.id === r.routeId);
         return `<tr style="border-bottom: 1px solid #f1f5f9;">
-                                    <td style="padding: 12px 16px; color: var(--text-light); font-size: 11px;">${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                                    <td style="padding: 12px 16px; color: var(--text-light); font-size: 11px;">${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</td>
                                     <td style="padding: 12px 16px; font-weight: 600; font-size: 12px;">${route ? route.userName : 'Desconocido'}</td>
                                     <td style="padding: 12px 16px;">
                                         <div style="font-weight: 700; font-size: 12px; color: var(--primary-color);">${r.productName || 'N/A'}</div>
@@ -542,7 +571,7 @@ export const renderAdminDashboard = (container, user) => {
                             <div style="width: 8px; height: 8px; background: ${r.status === 'completed' ? 'var(--primary-color)' : 'var(--success-color)'}; border-radius: 50%;"></div>
                             <div style="flex-grow: 1;">
                                 <div style="font-weight: 600; font-size: 14px;">${r.userName}</div>
-                                <small style="color: var(--text-light);">${r.startTime} ${r.endTime ? ' - ' + r.endTime : ''}</small>
+                                <small style="color: var(--text-light);">${formatTime12h(r.startTime)}${r.endTime ? ' - ' + formatTime12h(r.endTime) : ''}</small>
                             </div>
                             <button class="print-route-btn" data-route-id="${r.id}" style="background: rgba(99, 102, 241, 0.1); border: none; color: var(--accent-color); padding: 8px; border-radius: 8px; cursor: pointer;"><span class="material-icons-round" style="font-size: 18px;">print</span></button>
                         </div>
@@ -550,14 +579,9 @@ export const renderAdminDashboard = (container, user) => {
                     ${activeRoutes.length === 0 ? '<div style="text-align: center; color: var(--text-light); padding: 20px;">No hay rutas activas.</div>' : ''}
                 </div>
             </div>
-        </div>
-        <div id="photoModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
-            <div class="card" style="max-width: 600px; width: 100%; padding: 0; overflow: hidden; background: white; border-radius: 16px;">
-                <div style="padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;"><h3 style="margin: 0;">Evidencia</h3><button id="closeModal" style="border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;"><span class="material-icons-round">close</span></button></div>
-                <div style="padding: 10px; background: #f8fafc; text-align: center;"><img id="modalImage" src="" style="max-width: 100%; max-height: 70vh; border-radius: 8px;"></div>
+                </div>
             </div>
         </div>
-        <div id="printArea" class="hidden"></div>
     `;
 
     const renderStatCard = (title, val, icon, color) => `
@@ -665,25 +689,11 @@ export const renderAdminDashboard = (container, user) => {
                 window.location.reload();
             });
 
-
-
             document.querySelectorAll('.print-route-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const id = btn.dataset.routeId;
                     await generatePrintReport(cache.routes, id);
                 });
-            });
-
-            document.querySelectorAll('.view-photo-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const img = document.getElementById('modalImage');
-                    img.src = btn.dataset.photo;
-                    document.getElementById('photoModal').classList.remove('hidden');
-                });
-            });
-
-            document.getElementById('closeModal')?.addEventListener('click', () => {
-                document.getElementById('photoModal').classList.add('hidden');
             });
 
             document.getElementById('loadMoreBtn')?.addEventListener('click', async () => {
@@ -807,7 +817,7 @@ export const renderAdminDashboard = (container, user) => {
         const today = new Date().toLocaleDateString('es-CO');
 
         let htmlContent = `
-    < div class="print-main-container" >
+    <div class="print-main-container">
         <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 10px;">
 
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 10px; margin-bottom: 12px;">
