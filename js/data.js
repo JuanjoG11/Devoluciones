@@ -1094,6 +1094,19 @@ export const db = {
                 }
                 throw error;
             }
+
+            // ✅ Trigger realtime notification for admin
+            console.log('📡 Enviando notificación broadcast a admin...');
+            try {
+                await sb.channel('devolucion-alerts').send({
+                    type: 'broadcast',
+                    event: 'nueva-devolucion',
+                    payload: { timestamp: new Date().toISOString() }
+                });
+            } catch (broadcastError) {
+                console.warn('⚠️ No se pudo enviar broadcast:', broadcastError);
+            }
+
             return true;
         } catch (e) {
             console.error("Error in addReturn:", e);

@@ -40,18 +40,125 @@ export const renderAdminDashboard = (container, user) => {
         } catch (e) { console.error("Fetch error:", e); }
     };
 
+    // Professional notification sound
+    const playNotificationSound = () => {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+
+            const ctx = new AudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            // Pleasant notification tone (C-E-G chord)
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+            oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+            oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+
+            gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 0.6);
+        } catch (e) {
+            console.error("Audio playback failed", e);
+        }
+    };
+
+    // Request notification permission on load
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted');
+            }
+        });
+    }
+
+    // Smart notification system
+    const showNotification = (title, body) => {
+        playNotificationSound();
+
+        // If tab is not visible, use browser notification
+        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification(title, {
+                body: body,
+                icon: '/logo-tat.png',
+                badge: '/logo-tat.png',
+                tag: 'devolucion-alert',
+                requireInteraction: false,
+                silent: false // Use system sound
+            });
+
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+
+            setTimeout(() => notification.close(), 8000);
+        }
+
+        // Always show visual toast
+        Alert.success(body);
+    };
+
     const setupRealtime = () => {
-        if (!db.sb) return;
+        if (!db.sb) {
+            console.error('❌ Supabase client no disponible');
+            return;
+        }
+
+        console.log('🔧 Configurando canal de Realtime (Broadcast)...');
         let realtimeTimer;
-        return db.sb.channel('realtime-admin')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'return_items' }, async () => {
+
+        const channel = db.sb.channel('devolucion-alerts', {
+            config: { broadcast: { self: true } }
+        })
+            .on('broadcast', { event: 'nueva-devolucion' }, (payload) => {
+                console.log('📦 ¡EVENTO RECIBIDO! Nueva devolución:', payload);
+
+                showNotification(
+                    '🔔 Nueva Devolución Registrada',
+                    'Se ha registrado una nueva devolución en el sistema'
+                );
+
                 clearTimeout(realtimeTimer);
                 realtimeTimer = setTimeout(async () => {
+                    console.log('🔄 Actualizando datos...');
                     await fetchData();
                     renderSection();
-                }, 1000); // Wait 1s for more changes before refetching
+                }, 1000);
             })
-            .subscribe();
+            .on('broadcast', { event: 'ruta-completada' }, (payload) => {
+                console.log('🚚 Ruta completada:', payload);
+
+                showNotification(
+                    '✅ Ruta Finalizada',
+                    `La ruta de ${payload.payload?.userName || 'un auxiliar'} ha sido completada`
+                );
+
+                fetchData().then(() => renderSection());
+            })
+            .subscribe((status, err) => {
+                console.log('🔌 Estado:', status);
+                if (err) console.error('❌ Error:', err);
+
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Sistema de alertas en tiempo real activado (Broadcast)');
+                    console.log('📡 Canal: devolucion-alerts');
+                    console.log('🧪 Prueba: window.testNotification()');
+                }
+            });
+
+        return channel;
+    };
+
+    window.testNotification = () => {
+        console.log('🧪 Probando notificaciones...');
+        showNotification('🧪 Prueba', 'Sistema funcionando');
     };
 
     const realtimeChannel = setupRealtime();
