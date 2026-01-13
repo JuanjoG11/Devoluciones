@@ -506,36 +506,38 @@ export const renderAdminDashboard = (container, user) => {
 
         printArea.innerHTML = `
             <div class="print-main-container">
-                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 30px;">
+                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 25px;">
                     
-                    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 20px; margin-bottom: 25px;">
-                        <h1 style="margin: 0; font-size: 18pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">CONCENTRADO DE DEVOLUCIONES</h1>
-                        <h2 style="margin: 8px 0 0; font-size: 13pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
-                        <p style="margin: 4px 0 0; font-size: 9pt; color: #333; letter-spacing: 1px;">Control Operativo y Logístico</p>
+                    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
+                        <h1 style="margin: 0; font-size: 20pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">CONCENTRADO DE DEVOLUCIONES</h1>
+                        <h2 style="margin: 8px 0 0; font-size: 14pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
+                        <p style="margin: 4px 0 0; font-size: 10pt; color: #333; letter-spacing: 1px;">Control Operativo y Logístico</p>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; border-bottom: 1.5px solid black; padding: 15px 0; margin-bottom: 25px;">
-                        <div style="font-size: 10pt;">
-                            <span style="font-weight: 800; text-transform: uppercase; font-size: 8pt; color: #555; display: block; margin-bottom: 4px;">Auxiliar / Ruta</span>
-                            <span style="font-weight: 700; font-size: 11pt;">${route.userName.toUpperCase()}</span>
-                        </div>
-                        <div style="text-align: center; font-size: 10pt;">
-                            <span style="font-weight: 800; text-transform: uppercase; font-size: 8pt; color: #555; display: block; margin-bottom: 4px;">Planilla Nº</span>
-                            <span style="font-weight: 700; font-size: 11pt;">${planilla}</span>
-                        </div>
-                        <div style="text-align: right; font-size: 10pt;">
-                            <span style="font-weight: 800; text-transform: uppercase; font-size: 8pt; color: #555; display: block; margin-bottom: 4px;">Fecha</span>
-                            <span style="font-weight: 700; font-size: 11pt;">${route.date || today}</span>
-                        </div>
-                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 1.5px solid black;">
+                        <tr>
+                            <td style="padding: 12px 0; width: 50%; border: none;">
+                                <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 4px;">AUXILIAR / RUTA</div>
+                                <div style="font-weight: 700; font-size: 11pt;">${route.userName.toUpperCase()}</div>
+                            </td>
+                            <td style="padding: 12px 0; width: 25%; text-align: center; border: none;">
+                                <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 4px;">PLANILLA Nº</div>
+                                <div style="font-weight: 700; font-size: 11pt;">${planilla}</div>
+                            </td>
+                            <td style="padding: 12px 0; width: 25%; text-align: right; border: none;">
+                                <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 4px;">FECHA</div>
+                                <div style="font-weight: 700; font-size: 11pt;">${route.date || today}</div>
+                            </td>
+                        </tr>
+                    </table>
 
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                         <thead>
                             <tr style="background: #f4f4f4;">
-                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: left; font-size: 9pt; font-weight: 800; text-transform: uppercase;">FACTURA</th>
-                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: left; font-size: 9pt; font-weight: 800; text-transform: uppercase;">PRODUCTO</th>
-                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: center; font-size: 9pt; font-weight: 800; text-transform: uppercase;">CANT</th>
-                                <th style="border: 1.5px solid black; padding: 12px 8px; text-align: right; font-size: 9pt; font-weight: 800; text-transform: uppercase;">TOTAL</th>
+                                <th style="border: 1.5px solid black; padding: 10px 8px; text-align: left; font-size: 10pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
+                                <th style="border: 1.5px solid black; padding: 10px 8px; text-align: left; font-size: 10pt; font-weight: 800; text-transform: uppercase; width: 55%;">PRODUCTO</th>
+                                <th style="border: 1.5px solid black; padding: 10px 8px; text-align: center; font-size: 10pt; font-weight: 800; text-transform: uppercase; width: 10%;">CANT</th>
+                                <th style="border: 1.5px solid black; padding: 10px 8px; text-align: right; font-size: 10pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -555,18 +557,18 @@ export const renderAdminDashboard = (container, user) => {
                         </tbody>
                     </table>
 
-                    <div style="margin-top: 100px; display: grid; grid-template-columns: 1fr 1fr; gap: 100px; padding: 0 50px 20px;">
-                        <div style="text-align: center;">
+                    <div style="margin-top: 60px; display: flex; justify-content: space-between; padding: 0 40px 15px;">
+                        <div style="text-align: center; width: 35%;">
                             <div style="border-top: 2px solid black; margin-bottom: 8px;"></div>
-                            <div style="font-size: 10pt; font-weight: 700; text-transform: uppercase;">Firma Auxiliar</div>
+                            <div style="font-size: 10pt; font-weight: 700; text-transform: uppercase;">FIRMA AUXILIAR</div>
                         </div>
-                        <div style="text-align: center;">
+                        <div style="text-align: center; width: 35%;">
                             <div style="border-top: 2px solid black; margin-bottom: 8px;"></div>
-                            <div style="font-size: 10pt; font-weight: 700; text-transform: uppercase;">Firma Bodega</div>
+                            <div style="font-size: 10pt; font-weight: 700; text-transform: uppercase;">FIRMA BODEGA</div>
                         </div>
                     </div>
 
-                    <div style="margin-top: 50px; border-top: 1px dashed #bbb; padding-top: 10px; text-align: center;">
+                    <div style="margin-top: 30px; border-top: 1px dashed #bbb; padding-top: 10px; text-align: center;">
                         <p style="font-size: 8pt; color: #666; margin: 0; font-style: italic;">
                             * Soporte oficial TAT DISTRIBUCIONES - Generado el ${new Date().toLocaleString('es-CO')}
                         </p>
