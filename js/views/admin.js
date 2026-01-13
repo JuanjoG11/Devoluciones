@@ -519,7 +519,7 @@ export const renderAdminDashboard = (container, user) => {
 
         let htmlContent = `
             <div class="print-main-container">
-                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 25px;">
+                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 10px;">
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 10px; margin-bottom: 12px;">
                         <div style="width: 60px;">
@@ -530,23 +530,23 @@ export const renderAdminDashboard = (container, user) => {
                             <h2 style="margin: 4px 0 0; font-size: 11pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
                             <p style="margin: 2px 0 0; font-size: 8pt; color: #333;">Control Operativo y Logístico</p>
                         </div>
-                        <div style="text-align: right; width: 60px; font-size: 8pt;">
+                        <div style="text-align: right; width: 85px; font-size: 8pt;">
                             <div style="font-weight: 700;">NIT</div>
-                            <div style="font-weight: 600;">901568117-1</div>
+                            <div style="font-weight: 600; white-space: nowrap;">901568117-1</div>
                         </div>
                     </div>
 
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border-bottom: 1.5px solid black;">
                         <tr>
-                            <td style="padding: 8px 0; width: 50%; border: none;">
+                            <td style="padding: 8px 0; width: 35%; border: none;">
                                 <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">AUXILIAR / RUTA</div>
                                 <div style="font-weight: 700; font-size: 9pt;">${route.userName.toUpperCase()}</div>
                             </td>
-                            <td style="padding: 8px 0; width: 25%; text-align: center; border: none;">
+                            <td style="padding: 8px 0; width: 30%; text-align: center; border: none;">
                                 <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">PLANILLA Nº</div>
                                 <div style="font-weight: 700; font-size: 9pt;">${planilla}</div>
                             </td>
-                            <td style="padding: 8px 0; width: 25%; text-align: right; border: none;">
+                            <td style="padding: 8px 0; width: 35%; text-align: right; border: none;">
                                 <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">FECHA</div>
                                 <div style="font-weight: 700; font-size: 9pt;">${route.date || today}</div>
                             </td>
@@ -616,7 +616,7 @@ export const renderAdminDashboard = (container, user) => {
                         
                         <!-- Total Total Row -->
                         <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                            <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL TOTAL:</td>
+                            <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL:</td>
                             <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 9pt; font-weight: 800;">${totalTotalItems}</td>
                             <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">$ ${totalTotalValue.toLocaleString()}</td>
                         </tr>
