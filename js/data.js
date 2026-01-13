@@ -684,6 +684,20 @@ export const initializeData = async () => {
             await seedProducts();
         }
 
+        // --- OFFLINE CACHE: Always try to sync local inventory with remote ---
+        if (navigator.onLine) {
+            console.log("Syncing local inventory cache...");
+            const { data: allProducts } = await sb.from('products').select('code, name, price, search_string');
+            if (allProducts) {
+                localStorage.setItem('inventory', JSON.stringify(allProducts));
+            }
+        } else if (!localStorage.getItem('inventory')) {
+            // Fallback to RAW if offline and no cache
+            console.warn("Offline and no inventory cache. Using default seeding...");
+            const products = parseInventory(RAW_INVENTORY);
+            localStorage.setItem('inventory', JSON.stringify(products));
+        }
+
         sessionStorage.setItem('db_initialized', 'true');
     } catch (e) {
         console.error("Error checking DB:", e);
@@ -795,6 +809,27 @@ export const db = {
 
     searchProducts: async (query) => {
         if (!query || query.length < 2) return [];
+
+        // 1. OFFLINE FALLBACK
+        if (!navigator.onLine) {
+            console.log("Offline mode: Searching products in local cache...");
+            try {
+                const cached = localStorage.getItem('inventory');
+                if (!cached) return [];
+                const products = JSON.parse(cached);
+                const q = query.toLowerCase();
+                return products.filter(p =>
+                    (p.name && p.name.toLowerCase().includes(q)) ||
+                    (p.code && p.code.toLowerCase().includes(q)) ||
+                    (p.search_string && p.search_string.includes(q))
+                ).slice(0, 15);
+            } catch (e) {
+                console.error("Error searching local inventory:", e);
+                return [];
+            }
+        }
+
+        // 2. ONLINE SEARCH
         const { data, error } = await sb.from('products')
             .select('*')
             .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
