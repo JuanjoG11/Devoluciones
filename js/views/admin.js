@@ -1,4 +1,4 @@
-import { db } from '../data.js';
+﻿import { db } from '../data.js';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 
@@ -261,6 +261,9 @@ export const renderAdminDashboard = (container, user) => {
         <a href="#" data-section="dashboard" class="sidebar-link ${activeSection === 'dashboard' ? 'active' : ''}">
             <span class="material-icons-round">dashboard</span> <span>Panel General</span>
         </a>
+        <a href="#" data-section="historial" class="sidebar-link ${activeSection === 'historial' ? 'active' : ''}">
+            <span class="material-icons-round">history</span> <span>Historial</span>
+        </a>
         <a href="#" data-section="auxiliares" class="sidebar-link ${activeSection === 'auxiliares' ? 'active' : ''}">
             <span class="material-icons-round">people</span> <span>Auxiliares</span>
         </a>
@@ -280,10 +283,192 @@ export const renderAdminDashboard = (container, user) => {
 
         contentArea.innerHTML = `
             ${activeSection === 'dashboard' ? renderDashboard(activeRoutes, returns, routes, users, stats) :
-                activeSection === 'auxiliares' ? renderAuxiliares(users) :
-                    activeSection === 'productos' ? renderProductos() : renderConfig()}
+                activeSection === 'historial' ? renderHistorial() :
+                    activeSection === 'auxiliares' ? renderAuxiliares(users) :
+                        activeSection === 'productos' ? renderProductos() : renderConfig()}
         `;
         attachEventListeners();
+    };
+
+    const renderHistorial = () => {
+        let filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
+        let currentPage = 0;
+        const PAGE_SIZE = 50;
+        let filteredReturns = [];
+
+        const applyFilters = () => {
+            let results = [...cache.returns];
+            if (filters.search) {
+                const search = filters.search.toLowerCase();
+                results = results.filter(r =>
+                    (r.invoice && r.invoice.toLowerCase().includes(search)) ||
+                    (r.sheet && r.sheet.toLowerCase().includes(search)) ||
+                    (r.productName && r.productName.toLowerCase().includes(search))
+                );
+            }
+            if (filters.dateFrom) results = results.filter(r => new Date(r.timestamp) >= new Date(filters.dateFrom));
+            if (filters.dateTo) {
+                const dateTo = new Date(filters.dateTo);
+                dateTo.setHours(23, 59, 59);
+                results = results.filter(r => new Date(r.timestamp) <= dateTo);
+            }
+            if (filters.userId) {
+                results = results.filter(r => {
+                    const route = cache.routes.find(rt => rt.id === r.routeId);
+                    return route && route.userId === filters.userId;
+                });
+            }
+            if (filters.reason) results = results.filter(r => r.reason === filters.reason);
+            filteredReturns = results;
+            currentPage = 0;
+            renderResults();
+        };
+
+        const renderResults = () => {
+            const container = document.getElementById('historial-results');
+            const statsContainer = document.getElementById('historial-stats');
+            if (!container || !statsContainer) return;
+
+            const totalValue = filteredReturns.reduce((sum, r) => sum + (r.total || 0), 0);
+            const totalCount = filteredReturns.length;
+
+            statsContainer.innerHTML = `
+                <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px; background: var(--grad-electric); padding: 20px; border-radius: 12px; color: white;">
+                        <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Total Devoluciones</div>
+                        <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${totalCount}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; background: var(--grad-lava); padding: 20px; border-radius: 12px; color: white;">
+                        <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Valor Total</div>
+                        <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">$ ${totalValue.toLocaleString()}</div>
+                    </div>
+                </div>
+            `;
+
+            const start = currentPage * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+            const pageReturns = filteredReturns.slice(start, end);
+
+            if (pageReturns.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 60px 20px; opacity: 0.6;"><span class="material-icons-round" style="font-size: 64px;">search_off</span><p style="margin-top: 16px; font-size: 16px;">No se encontraron devoluciones</p></div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
+                        <thead>
+                            <tr style="background: #f8fafc; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
+                                <th style="padding: 12px; text-align: left;">Fecha / Hora</th>
+                                <th style="padding: 12px; text-align: left;">Auxiliar</th>
+                                <th style="padding: 12px; text-align: left;">Factura</th>
+                                <th style="padding: 12px; text-align: left;">Planilla</th>
+                                <th style="padding: 12px; text-align: left;">Producto</th>
+                                <th style="padding: 12px; text-align: left;">Cant</th>
+                                <th style="padding: 12px; text-align: left;">Motivo</th>
+                                <th style="padding: 12px; text-align: right;">Total</th>
+                                <th style="padding: 12px; text-align: center;">Foto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pageReturns.map(r => {
+                const route = cache.routes.find(rt => rt.id === r.routeId);
+                const date = new Date(r.timestamp);
+                return `
+                                    <tr style="border-bottom: 1px solid #e2e8f0; hover: background: #f8fafc;">
+                                        <td style="padding: 12px; font-size: 13px;">${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                        <td style="padding: 12px; font-size: 13px;">${route?.userName || 'N/A'}</td>
+                                        <td style="padding: 12px; font-size: 13px; font-weight: 600;">${r.invoice || '-'}</td>
+                                        <td style="padding: 12px; font-size: 13px;">${r.sheet || '-'}</td>
+                                        <td style="padding: 12px; font-size: 13px;">${r.productName || '-'}</td>
+                                        <td style="padding: 12px; font-size: 13px;">${r.quantity}</td>
+                                        <td style="padding: 12px; font-size: 12px; color: #64748b;">${r.reason}</td>
+                                        <td style="padding: 12px; font-size: 14px; font-weight: 600; text-align: right;">$ ${(r.total || 0).toLocaleString()}</td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            ${r.evidence ? `<button class="view-photo-btn btn-secondary" data-photo="${r.evidence}" style="padding: 4px 8px; border-radius: 6px;"><span class="material-icons-round" style="font-size: 18px;">photo_camera</span></button>` : '-'}
+                                        </td>
+                                    </tr>
+                                `;
+            }).join('')}
+                        </tbody>
+                    </table>
+                 </div>
+                ${filteredReturns.length > PAGE_SIZE ? `
+                    <div style="display: flex; justify-content: center; gap: 12px; margin-top: 24px; align-items: center;">
+                        <button id="prevPage" class="btn btn-secondary" ${currentPage === 0 ? 'disabled' : ''}><span class="material-icons-round">chevron_left</span> Anterior</button>
+                        <span style="color: #64748b; font-size: 14px;">Página ${currentPage + 1} de ${Math.ceil(filteredReturns.length / PAGE_SIZE)}</span>
+                        <button id="nextPage" class="btn btn-secondary" ${end >= filteredReturns.length ? 'disabled' : ''}>Siguiente <span class="material-icons-round">chevron_right</span></button>
+                    </div>
+                ` : ''}
+            `;
+
+            // Attach pagination events
+            document.getElementById('prevPage')?.addEventListener('click', () => { if (currentPage > 0) { currentPage--; renderResults(); } });
+            document.getElementById('nextPage')?.addEventListener('click', () => { if (end < filteredReturns.length) { currentPage++; renderResults(); } });
+
+            // Attach photo viewer events for historial
+            container.querySelectorAll('.view-photo-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const img = document.getElementById('modalImage');
+                    if (img) {
+                        img.src = btn.dataset.photo;
+                        document.getElementById('photoModal')?.classList.remove('hidden');
+                    }
+                });
+            });
+        };
+
+        setTimeout(() => {
+            applyFilters();
+            const searchInput = document.getElementById('historial-search');
+            const dateFromInput = document.getElementById('historial-date-from');
+            const dateToInput = document.getElementById('historial-date-to');
+            const userSelect = document.getElementById('historial-user');
+            const reasonSelect = document.getElementById('historial-reason');
+            const clearBtn = document.getElementById('clear-filters');
+
+            let searchDebounce;
+            searchInput?.addEventListener('input', (e) => { clearTimeout(searchDebounce); searchDebounce = setTimeout(() => { filters.search = e.target.value; applyFilters(); }, 300); });
+            dateFromInput?.addEventListener('change', (e) => { filters.dateFrom = e.target.value; applyFilters(); });
+            dateToInput?.addEventListener('change', (e) => { filters.dateTo = e.target.value; applyFilters(); });
+            userSelect?.addEventListener('change', (e) => { filters.userId = e.target.value; applyFilters(); });
+            reasonSelect?.addEventListener('change', (e) => { filters.reason = e.target.value; applyFilters(); });
+            clearBtn?.addEventListener('click', () => {
+                filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
+                if (searchInput) searchInput.value = '';
+                if (dateFromInput) dateFromInput.value = '';
+                if (dateToInput) dateToInput.value = '';
+                if (userSelect) userSelect.value = '';
+                if (reasonSelect) reasonSelect.value = '';
+                applyFilters();
+            });
+        }, 100);
+
+        const uniqueReasons = [...new Set(cache.returns.map(r => r.reason))].filter(Boolean);
+
+        return `
+            <div style="padding: 24px;">
+                <header style="margin-bottom: 24px;">
+                    <h1 style="font-size: 28px; font-weight: 800; margin: 0 0 8px 0; color: var(--text-primary);">
+                        <span class="material-icons-round" style="vertical-align: middle; margin-right: 8px; color: var(--primary-color);">history</span>
+                        Historial de Devoluciones
+                    </h1>
+                    <p style="color: #64748b; margin: 0;">Consulta y filtra todas las devoluciones registradas</p>
+                </header>
+                <div class="card" style="margin-bottom: 24px; padding: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                        <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Búsqueda</label><input type="text" id="historial-search" placeholder="Factura, planilla o producto..." class="input-field" style="width: 100%;"></div>
+                        <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Desde</label><input type="date" id="historial-date-from" class="input-field" style="width: 100%;"></div>
+                        <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label><input type="date" id="historial-date-to" class="input-field" style="width: 100%;"></div>
+                        <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Auxiliar</label><select id="historial-user" class="input-field" style="width: 100%;"><option value="">Todos</option>${cache.users.filter(u => u.role === 'auxiliar').map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                        <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Motivo</label><select id="historial-reason" class="input-field" style="width: 100%;"><option value="">Todos</option>${uniqueReasons.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
+                    </div>
+                    <button id="clear-filters" class="btn btn-secondary" style="width: auto;"><span class="material-icons-round">clear</span> Limpiar Filtros</button>
+                </div>
+                <div id="historial-stats" style="margin-bottom: 24px;"></div>
+                <div class="card" style="padding: 0; overflow: hidden;"><div id="historial-results"></div></div>
+            </div>
+        `;
     };
 
     const renderDashboard = (activeRoutes, returns, routes, users, stats) => `
@@ -404,13 +589,13 @@ export const renderAdminDashboard = (container, user) => {
                     <input type="text" id="auxiliarSearch" class="input-field" placeholder="Buscar auxiliar..." value="${filters.auxiliares}" style="height: 44px; border-radius: 10px;">
                 </div>
             </header>
-            <div class="card" style="padding: 0;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                        <tr><th style="padding: 16px; text-align: left;">Nombre</th><th style="padding: 16px; text-align: left;">Usuario</th><th style="padding: 16px; text-align: center;">Estado today</th><th style="padding: 16px; text-align: center;">Estado Cuenta</th><th style="padding: 16px; text-align: center;">Acción</th></tr>
-                    </thead>
-                    <tbody>
-                        ${filtered.map(u => {
+    <div class="card" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                <tr><th style="padding: 16px; text-align: left;">Nombre</th><th style="padding: 16px; text-align: left;">Usuario</th><th style="padding: 16px; text-align: center;">Estado Hoy</th><th style="padding: 16px; text-align: center;">Estado Cuenta</th><th style="padding: 16px; text-align: center;">Acción</th></tr>
+            </thead>
+            <tbody>
+                ${filtered.map(u => {
             const todayRoute = cache.routes.find(r => r.userId === u.id && r.date === new Date().toISOString().split('T')[0]);
             const statusColor = todayRoute ? (todayRoute.status === 'completed' ? '#6366f1' : '#22c55e') : '#94a3b8';
             const statusText = todayRoute ? (todayRoute.status === 'completed' ? 'Finalizó' : 'En Ruta') : 'Inactivo';
@@ -429,10 +614,10 @@ export const renderAdminDashboard = (container, user) => {
                                     <td style="padding: 16px; text-align: center;"><button class="toggle-user-btn btn" data-user-id="${u.id}" data-active="${u.isActive}" style="background: none; border: 1px solid #ddd; color: ${u.isActive ? '#ef4444' : '#22c55e'}; height: 32px; padding: 0 10px; font-size: 12px;">${u.isActive ? 'Desactivar' : 'Reactivar'}</button></td>
                                 </tr>`;
         }).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
+            </tbody>
+        </table>
+    </div>
+`;
     };
 
     const renderProductos = () => `
@@ -531,7 +716,7 @@ export const renderAdminDashboard = (container, user) => {
                 btn.addEventListener('click', async () => {
                     const id = btn.dataset.userId;
                     const next = btn.dataset.active !== 'true';
-                    const confirmed = await Alert.confirm(`¿Deseas ${next ? 'activar' : 'desactivar'} este usuario?`);
+                    const confirmed = await Alert.confirm(`¿Deseas ${next ? 'activar' : 'desactivar'} este usuario ? `);
                     if (confirmed) {
                         await db.updateUserStatus(id, next);
                         await fetchData();
@@ -551,19 +736,17 @@ export const renderAdminDashboard = (container, user) => {
                     if (input.value.length < 2) return;
                     const results = await db.searchProducts(input.value);
                     const container = document.getElementById('productTableContainer');
-                    if (container) {
-                        container.innerHTML = `
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                                    <tr><th style="padding: 16px; text-align: left;">Código</th><th style="padding: 16px; text-align: left;">Producto</th><th style="padding: 16px; text-align: right;">Precio</th></tr>
-                                </thead>
-                                <tbody>
-                                    ${results.map(p => `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding:16px;">${p.code}</td><td style="padding:16px;">${p.name}</td><td style="padding:16px; text-align:right;">$ ${p.price.toLocaleString()}</td></tr>`).join('')}
-                                    ${results.length === 0 ? '<tr><td colspan="3" style="padding:40px; text-align:center;">No se encontraron productos.</td></tr>' : ''}
-                                </tbody>
-                            </table>
-                        `;
-                    }
+                    container.innerHTML = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                                <tr><th style="padding: 16px; text-align: left;">Código</th><th style="padding: 16px; text-align: left;">Producto</th><th style="padding: 16px; text-align: right;">Precio</th></tr>
+                            </thead>
+                            <tbody>
+                                ${results.map(p => `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding:16px;">${p.code}</td><td style="padding:16px;">${p.name}</td><td style="padding:16px; text-align:right;">$ ${p.price.toLocaleString()}</td></tr>`).join('')}
+                                ${results.length === 0 ? '<tr><td colspan="3" style="padding:40px; text-align:center;">No se encontraron productos.</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    `;
                 }, 300);
             });
         }
@@ -624,38 +807,38 @@ export const renderAdminDashboard = (container, user) => {
         const today = new Date().toLocaleDateString('es-CO');
 
         let htmlContent = `
-            <div class="print-main-container">
-                <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 10px;">
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 10px; margin-bottom: 12px;">
-                        <div style="width: 60px;">
-                            <img src="logo-tat.png" alt="TAT Logo" style="width: 100%; height: auto;">
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <h1 style="margin: 0; font-size: 14pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">CONCENTRADO DE DEVOLUCIONES</h1>
-                            <h2 style="margin: 4px 0 0; font-size: 11pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
-                            <p style="margin: 2px 0 0; font-size: 8pt; color: #333;">Control Operativo y Logístico</p>
-                        </div>
-                        <div style="text-align: right; width: 85px; font-size: 8pt;">
-                            <div style="font-weight: 700;">NIT</div>
-                            <div style="font-weight: 600; white-space: nowrap;">901568117-1</div>
-                        </div>
-                    </div>
+    < div class="print-main-container" >
+        <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 10px;">
 
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border-bottom: 1.5px solid black;">
-                        <tr>
-                            <td style="padding: 8px 0; width: 60%; border: none;">
-                                <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">AUXILIAR / RUTA</div>
-                                <div style="font-weight: 700; font-size: 9pt;">${route.userName.toUpperCase()}</div>
-                            </td>
-                            <!-- Planilla removed from header -->
-                            <td style="padding: 8px 0; width: 40%; text-align: right; border: none;">
-                                <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">FECHA</div>
-                                <div style="font-weight: 700; font-size: 9pt;">${route.date || today}</div>
-                            </td>
-                        </tr>
-                    </table>
-        `;
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 10px; margin-bottom: 12px;">
+                <div style="width: 60px;">
+                    <img src="logo-tat.png" alt="TAT Logo" style="width: 100%; height: auto;">
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    <h1 style="margin: 0; font-size: 14pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">CONCENTRADO DE DEVOLUCIONES</h1>
+                    <h2 style="margin: 4px 0 0; font-size: 11pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
+                    <p style="margin: 2px 0 0; font-size: 8pt; color: #333;">Control Operativo y Logístico</p>
+                </div>
+                <div style="text-align: right; width: 85px; font-size: 8pt;">
+                    <div style="font-weight: 700;">NIT</div>
+                    <div style="font-weight: 600; white-space: nowrap;">901568117-1</div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border-bottom: 1.5px solid black;">
+                <tr>
+                    <td style="padding: 8px 0; width: 60%; border: none;">
+                        <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">AUXILIAR / RUTA</div>
+                        <div style="font-weight: 700; font-size: 9pt;">${route.userName.toUpperCase()}</div>
+                    </td>
+                    <!-- Planilla removed from header -->
+                    <td style="padding: 8px 0; width: 40%; text-align: right; border: none;">
+                        <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">FECHA</div>
+                        <div style="font-weight: 700; font-size: 9pt;">${route.date || today}</div>
+                    </td>
+                </tr>
+            </table>
+            `;
 
         // --- DEVOLUCIÓN PARCIAL SECTION ---
         if (partialReturns.length > 0) {
@@ -791,8 +974,8 @@ export const renderAdminDashboard = (container, user) => {
                 route ? route.userName : 'N/A',
                 r.invoice,
                 r.sheet || '',
-                r.product_code || r.code || '',
-                r.product_name || r.name || '',
+                r.code || '',
+                r.productName || '',
                 r.quantity,
                 r.reason,
                 r.total,
@@ -825,3 +1008,4 @@ export const renderAdminDashboard = (container, user) => {
         delete window.handleLogout;
     };
 };
+
