@@ -231,6 +231,16 @@ export const renderAuxiliarDashboard = async (container, user) => {
 
             <div style="padding: 20px;">
                 <form id="returnForm" class="card">
+                    <!-- Type Toggle -->
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px; background: #f1f5f9; padding: 4px; border-radius: 12px;">
+                        <label style="flex: 1; text-align: center; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s;" class="type-option active" data-value="partial">
+                            <input type="radio" name="returnType" value="partial" checked class="hidden"> Parcial
+                        </label>
+                        <label style="flex: 1; text-align: center; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; color: var(--text-secondary);" class="type-option" data-value="total">
+                            <input type="radio" name="returnType" value="total" class="hidden"> Total
+                        </label>
+                    </div>
+
                     <div class="input-group">
                         <label class="input-label">Factura</label>
                         <input type="text" name="invoice" class="input-field" placeholder="12345" required>
@@ -241,9 +251,10 @@ export const renderAuxiliarDashboard = async (container, user) => {
                         <input type="text" name="sheet" class="input-field" placeholder="001" required>
                     </div>
 
-                    <div class="input-group" style="position: relative;">
+                    <!-- Partial: Product Search -->
+                    <div id="productSection" class="input-group" style="position: relative;">
                         <label class="input-label">Producto (Buscar por nombre o código)</label>
-                        <input type="text" id="productSearch" class="input-field" placeholder="Escribe para buscar..." required autocomplete="off">
+                        <input type="text" id="productSearch" class="input-field" placeholder="Escribe para buscar..." autocomplete="off">
                         <!-- Custom Search Results Dropdown instead of Datalist -->
                         <ul id="searchResults" style="
                             display: none;
@@ -264,10 +275,11 @@ export const renderAuxiliarDashboard = async (container, user) => {
                         "></ul>
                     </div>
 
-                    <div class="flex gap-md">
+                    <!-- Partial: Quantity & Price -->
+                    <div id="qtyPriceSection" class="flex gap-md">
                         <div class="input-group w-full">
                             <label class="input-label">Cantidad</label>
-                            <input type="number" id="qty" class="input-field" min="1" value="1" required>
+                            <input type="number" id="qty" class="input-field" min="1" value="1">
                         </div>
                         <div class="input-group w-full">
                             <label class="input-label">Precio Unit.</label>
@@ -275,22 +287,20 @@ export const renderAuxiliarDashboard = async (container, user) => {
                         </div>
                     </div>
 
+                    <!-- Computed Total (Partial) vs Manual Total (Total) -->
                     <div class="input-group">
                         <label class="input-label">Valor Total</label>
-                        <div style="font-size: 24px; font-weight: 700; color: var(--accent-color); margin-top: 4px;">
+                        <div id="computedTotalDisplay" style="font-size: 24px; font-weight: 700; color: var(--accent-color); margin-top: 4px;">
                             $ <span id="totalValue">0</span>
                         </div>
+                        <!-- Manual Total Input for 'Total' type -->
+                        <input type="text" inputmode="numeric" id="manualTotalInput" class="input-field hidden" placeholder="Ingrese el valor total">
                     </div>
 
                     <div class="input-group">
                         <label class="input-label">Razón</label>
-                        <select name="reason" class="input-field" required>
-                            <option value="">Seleccionar...</option>
-                            <option value="Producto vencido">Producto vencido</option>
-                            <option value="Producto averiado">Producto averiado</option>
-                            <option value="Error de despacho">Error de despacho</option>
-                            <option value="Rechazo del cliente">Rechazo del cliente</option>
-                            <option value="Otro">Otro</option>
+                        <select name="reason" id="reasonSelect" class="input-field" required>
+                            <!-- Options populated via JS -->
                         </select>
                     </div>
 
@@ -322,15 +332,82 @@ export const renderAuxiliarDashboard = async (container, user) => {
         const priceInput = document.getElementById('price');
         const qtyInput = document.getElementById('qty');
         const totalSpan = document.getElementById('totalValue');
+        const computedTotalDisplay = document.getElementById('computedTotalDisplay');
+        const manualTotalInput = document.getElementById('manualTotalInput');
         const evidenceInput = document.getElementById('evidence');
         const evidenceText = document.getElementById('evidenceText');
         const evidencePreview = document.getElementById('evidencePreview');
+        const reasonSelect = document.getElementById('reasonSelect');
+        const typeOptions = document.querySelectorAll('.type-option');
+        const productSection = document.getElementById('productSection');
+        const qtyPriceSection = document.getElementById('qtyPriceSection');
 
         let selectedProduct = null;
         let debounceTimer;
+        let currentType = 'partial';
+
+        const REASONS_PARTIAL = [
+            "Producto vencido", "Producto averiado", "Error de despacho", "Rechazo del cliente", "Otro"
+        ];
+        const REASONS_TOTAL = [
+            "Negocio cerrado", "Sin dinero", "Fuera de ruta"
+        ];
+
+        const updateUIForType = (type) => {
+            currentType = type;
+            const isPartial = type === 'partial';
+
+            // Toggle active style
+            typeOptions.forEach(opt => {
+                const isActive = opt.dataset.value === type;
+                opt.classList.toggle('active', isActive);
+                opt.style.background = isActive ? 'white' : 'transparent';
+                opt.style.color = isActive ? 'var(--primary-color)' : 'var(--text-secondary)';
+                opt.style.boxShadow = isActive ? '0 2px 5px rgba(0,0,0,0.05)' : 'none';
+            });
+
+            // Visibility
+            if (isPartial) {
+                productSection.classList.remove('hidden');
+                qtyPriceSection.classList.remove('hidden');
+                computedTotalDisplay.classList.remove('hidden');
+                manualTotalInput.classList.add('hidden');
+                productInput.setAttribute('required', 'true');
+                manualTotalInput.removeAttribute('required');
+            } else {
+                productSection.classList.add('hidden');
+                qtyPriceSection.classList.add('hidden');
+                computedTotalDisplay.classList.add('hidden');
+                manualTotalInput.classList.remove('hidden');
+                productInput.removeAttribute('required');
+                manualTotalInput.setAttribute('required', 'true');
+            }
+
+            // Update Reasons
+            reasonSelect.innerHTML = '<option value="">Seleccionar...</option>';
+            const reasons = isPartial ? REASONS_PARTIAL : REASONS_TOTAL;
+            reasons.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = r;
+                reasonSelect.appendChild(opt);
+            });
+        };
+
+        // Initialize UI
+        updateUIForType('partial');
+
+        // Toggle Listeners
+        typeOptions.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                const radio = opt.querySelector('input');
+                radio.checked = true;
+                updateUIForType(opt.dataset.value);
+            });
+        });
 
         const calculate = () => {
-            if (selectedProduct) {
+            if (currentType === 'partial' && selectedProduct) {
                 const qty = parseInt(qtyInput.value) || 0;
                 const total = qty * selectedProduct.price;
                 totalSpan.textContent = total.toLocaleString();
@@ -342,7 +419,6 @@ export const renderAuxiliarDashboard = async (container, user) => {
             clearTimeout(debounceTimer);
             const query = e.target.value.trim();
 
-            // Allow manual clearing
             if (query === '') {
                 searchResults.style.display = 'none';
                 selectedProduct = null;
@@ -355,7 +431,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 searchResults.style.display = 'block';
                 const results = await db.searchProducts(query);
                 renderSearchResults(results);
-            }, 300); // 300ms debounce
+            }, 300);
         });
 
         const renderSearchResults = (results) => {
@@ -391,7 +467,18 @@ export const renderAuxiliarDashboard = async (container, user) => {
             calculate();
         };
 
-        // Hide search if clicked outside
+        // Format Manual Total Input with dots
+        manualTotalInput.addEventListener('input', (e) => {
+            // Remove non-numeric characters
+            let value = e.target.value.replace(/\D/g, '');
+            if (value) {
+                // Add dots every 3 digits
+                e.target.value = new Intl.NumberFormat('es-CO').format(value);
+            } else {
+                e.target.value = '';
+            }
+        });
+
         document.addEventListener('click', (e) => {
             if (e.target !== productInput && e.target !== searchResults) {
                 searchResults.style.display = 'none';
@@ -407,7 +494,7 @@ export const renderAuxiliarDashboard = async (container, user) => {
                 const file = e.target.files[0];
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    capturedPhoto = event.target.result; // Base64 string
+                    capturedPhoto = event.target.result;
                     evidenceText.textContent = "Foto Capturada ✓";
                     evidenceText.style.color = "var(--success-color)";
                     evidenceText.parentElement.style.borderColor = "var(--success-color)";
@@ -420,26 +507,41 @@ export const renderAuxiliarDashboard = async (container, user) => {
 
         document.getElementById('returnForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!selectedProduct) {
-                Alert.error("Por favor selecciona un producto válido");
-                return;
-            }
-
             const formData = new FormData(e.target);
             const invoice = formData.get('invoice');
             const sheet = formData.get('sheet');
-            const quantity = qtyInput.value;
             const reason = formData.get('reason');
-            const total = selectedProduct.price * parseInt(quantity);
+            let total, quantity, productCode, productName, price;
+
+            if (currentType === 'partial') {
+                if (!selectedProduct) {
+                    Alert.error("Por favor selecciona un producto válido");
+                    return;
+                }
+                quantity = parseInt(qtyInput.value);
+                price = selectedProduct.price;
+                total = price * quantity;
+                productCode = selectedProduct.code;
+                productName = selectedProduct.name;
+            } else {
+                // Total Return
+                // Sanitize input: remove dots/commas before parsing
+                const rawValue = manualTotalInput.value.replace(/\D/g, '');
+                total = parseInt(rawValue) || 0;
+                quantity = 1; // Default
+                price = total;
+                productCode = ""; // Empty code
+                productName = "DEVOLUCIÓN TOTAL"; // Placeholder name
+            }
 
             const returnData = {
                 routeId: state.currentRouteId,
                 invoice,
                 sheet,
-                productCode: selectedProduct.code,
-                productName: selectedProduct.name,
-                price: selectedProduct.price,
-                quantity: parseInt(quantity),
+                productCode,
+                productName,
+                price: price,
+                quantity: quantity,
                 total,
                 reason,
                 evidence: capturedPhoto,

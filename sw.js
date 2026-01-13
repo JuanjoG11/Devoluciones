@@ -1,34 +1,24 @@
-const CACHE_NAME = 'devoluciones-v1';
-const ASSETS = [
-    '/',
-    '/index.html',
-    '/css/variables.css',
-    '/css/styles.css',
-    '/css/components.css',
-    '/css/print.css',
-    '/js/app.js',
-    '/js/auth.js',
-    '/js/supabase.js',
-    '/js/data.js',
-    '/js/views/login.js',
-    '/js/views/admin.js',
-    '/js/views/auxiliar.js',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
-    'https://fonts.googleapis.com/icon?family=Material+Icons+Round'
-];
+const CACHE_NAME = 'devoluciones-kill-cache-v4';
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS);
-        })
-    );
+    // Force immediate activation
+    self.skipWaiting();
 });
 
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+self.addEventListener('activate', (event) => {
+    // Delete ALL old caches to clear any corrupted state
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    console.log('Deleting cache:', cacheName);
+                    return caches.delete(cacheName);
+                })
+            );
         })
     );
+    self.clients.claim();
 });
+
+// fetch listener removed to disable all interception strategies.
+// The app will behave like a normal website (Network Only).
