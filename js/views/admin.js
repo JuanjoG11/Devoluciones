@@ -600,7 +600,7 @@ export const renderAdminDashboard = (container, user) => {
                         <tr style="background: #f4f4f4;">
                             <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
                             <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">PLANILLA</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 45%;">MOTIVO / CLIENTE</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 45%;">MOTIVO</th>
                             <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
                             <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                         </tr>
