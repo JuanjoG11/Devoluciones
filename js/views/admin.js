@@ -100,13 +100,9 @@ export const renderAdminDashboard = (container, user) => {
                             ${renderNavLinks()}
                         </nav>
                         <div class="sidebar-footer">
-                            <div class="user-profile">
-                                <div class="user-avatar">${(user.name || 'A').charAt(0)}</div>
-                                <div class="user-info">
-                                    <div class="user-name">${user.name || 'Administrador'}</div>
-                                    <div class="user-role">Administrador</div>
-                                </div>
-                            </div>
+                            <button id="exportCsvBtn" class="btn" style="background: rgba(34, 139, 34, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); width: 100%; margin-bottom: 12px; justify-content: center; padding: 12px; border-radius: 12px; transition: all 0.3s;" title="Exportar a Excel">
+                                <span class="material-icons-round" style="font-size: 24px;">description</span>
+                            </button>
                             <button id="logoutBtn" onclick="window.handleLogout()" class="btn-logout">
                                 <span class="material-icons-round">logout</span> Cerrar Sesión
                             </button>
@@ -137,6 +133,10 @@ export const renderAdminDashboard = (container, user) => {
         document.getElementById('sidebarOverlay')?.addEventListener('click', () => {
             sidebarOpen = false;
             updateSidebarUI();
+        });
+
+        document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
+            exportToCSV(cache.returns, cache.routes);
         });
     };
 
@@ -187,9 +187,9 @@ export const renderAdminDashboard = (container, user) => {
                 <p style="color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 500; margin: 2px 0 0;">Gestión Inteligente de Devoluciones y Logística</p>
             </div>
             <div style="display: flex; gap: 12px; position: relative; z-index: 1; align-items: center;">
-                <button id="exportCsvBtn" class="btn btn-primary" style="height: 40px; border-radius: 10px; padding: 0 16px; font-size: 13px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 8px;">
-                     <span class="material-icons-round" style="font-size: 18px;">file_download</span> Exportar Excel
-                </button>
+                <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 99px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 8px;">
+                     <span class="material-icons-round" style="font-size: 16px;">admin_panel_settings</span> Administrador
+                </div>
                 <button id="refreshBtn" class="btn btn-secondary" style="height: 40px; width: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); color: white; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer;">
                     <span class="material-icons-round" style="font-size: 20px;">refresh</span>
                 </button>
@@ -373,9 +373,7 @@ export const renderAdminDashboard = (container, user) => {
                 window.location.reload();
             });
 
-            document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
-                exportToCSV(cache.returns, cache.routes);
-            });
+
 
             document.querySelectorAll('.print-route-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
