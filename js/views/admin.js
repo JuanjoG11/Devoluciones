@@ -515,7 +515,6 @@ export const renderAdminDashboard = (container, user) => {
         const grandTotalItems = partialTotalItems + totalTotalItems;
 
         const today = new Date().toLocaleDateString('es-CO');
-        const planilla = returns.length > 0 ? (returns[0].sheet || 'N/A') : 'N/A';
 
         let htmlContent = `
             <div class="print-main-container">
@@ -538,15 +537,12 @@ export const renderAdminDashboard = (container, user) => {
 
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border-bottom: 1.5px solid black;">
                         <tr>
-                            <td style="padding: 8px 0; width: 35%; border: none;">
+                            <td style="padding: 8px 0; width: 60%; border: none;">
                                 <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">AUXILIAR / RUTA</div>
                                 <div style="font-weight: 700; font-size: 9pt;">${route.userName.toUpperCase()}</div>
                             </td>
-                            <td style="padding: 8px 0; width: 30%; text-align: center; border: none;">
-                                <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">PLANILLA Nº</div>
-                                <div style="font-weight: 700; font-size: 9pt;">${planilla}</div>
-                            </td>
-                            <td style="padding: 8px 0; width: 35%; text-align: right; border: none;">
+                            <!-- Planilla removed from header -->
+                            <td style="padding: 8px 0; width: 40%; text-align: right; border: none;">
                                 <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">FECHA</div>
                                 <div style="font-weight: 700; font-size: 9pt;">${route.date || today}</div>
                             </td>
@@ -562,27 +558,31 @@ export const renderAdminDashboard = (container, user) => {
                 <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
                     <thead>
                         <tr style="background: #f4f4f4;">
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 55%;">PRODUCTO</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 10%;">CANT</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 12%;">FACTURA</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 10%;">PLANILLA</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 33%;">PRODUCTO</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">MOTIVO</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${partialReturns.map(r => `
                             <tr>
-                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt; font-weight: 700;">${r.invoice}</td>
-                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt;">${(r.productName || r.name || 'N/A').toUpperCase()}</td>
-                                <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 700;">${r.quantity}</td>
-                                <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${(r.productName || r.name || 'N/A').toUpperCase()}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.reason || ''}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 700;">${r.quantity}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
                             </tr>
                         `).join('')}
                         
                         <!-- Partial Total Row -->
                         <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                            <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL PARCIAL:</td>
-                            <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 9pt; font-weight: 800;">${partialTotalItems}</td>
-                            <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">$ ${partialTotalValue.toLocaleString()}</td>
+                            <td colspan="4" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL PARCIAL:</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 8pt; font-weight: 800;">${partialTotalItems}</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">$ ${partialTotalValue.toLocaleString()}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -598,27 +598,29 @@ export const renderAdminDashboard = (container, user) => {
                 <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
                     <thead>
                         <tr style="background: #f4f4f4;">
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 55%;">MOTIVO / CLIENTE</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 10%;">CANT</th>
-                            <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">PLANILLA</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 45%;">MOTIVO / CLIENTE</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
+                            <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${totalReturns.map(r => `
                             <tr>
-                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt; font-weight: 700;">${r.invoice}</td>
-                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 8pt;">${r.reason ? r.reason.toUpperCase() : 'DEVOLUCIÓN TOTAL'}</td>
-                                <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 8pt; font-weight: 700;">${r.quantity}</td>
-                                <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 8pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.reason ? r.reason.toUpperCase() : 'DEVOLUCIÓN TOTAL'}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 700;">${r.quantity}</td>
+                                <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
                             </tr>
                         `).join('')}
                         
                         <!-- Total Total Row -->
                         <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                            <td colspan="2" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">TOTAL:</td>
-                            <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 9pt; font-weight: 800;">${totalTotalItems}</td>
-                            <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 9pt; font-weight: 800;">$ ${totalTotalValue.toLocaleString()}</td>
+                            <td colspan="3" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL:</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 8pt; font-weight: 800;">${totalTotalItems}</td>
+                            <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">$ ${totalTotalValue.toLocaleString()}</td>
                         </tr>
                     </tbody>
                 </table>
