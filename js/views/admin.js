@@ -180,18 +180,18 @@ export const renderAdminDashboard = (container, user) => {
     };
 
     const renderDashboard = (activeRoutes, returns, routes, users, stats) => `
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; background: var(--grad-electric); padding: 32px; border-radius: 24px; color: white; box-shadow: var(--shadow-blue); border-bottom: 4px solid var(--secondary-accent); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -20px; top: -20px; opacity: 0.1;"><span class="material-icons-round" style="font-size: 150px;">analytics</span></div>
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--grad-electric); padding: 20px 24px; border-radius: 16px; color: white; box-shadow: var(--shadow-blue); border-bottom: 3px solid var(--secondary-accent); position: relative; overflow: hidden;">
+            <div style="position: absolute; right: -10px; top: -10px; opacity: 0.1;"><span class="material-icons-round" style="font-size: 100px;">analytics</span></div>
             <div style="position: relative; z-index: 1;">
-                <h1 style="color: white; margin: 0; font-size: 32px; letter-spacing: -1px; font-weight: 900;">CENTRO DE CONTROL TAT</h1>
-                <p style="color: rgba(255,255,255,0.8); font-weight: 500; margin: 4px 0 0;">Gestión Inteligente de Devoluciones y Logística</p>
+                <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px; font-weight: 800;">CENTRO DE CONTROL TAT</h1>
+                <p style="color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 500; margin: 2px 0 0;">Gestión Inteligente de Devoluciones y Logística</p>
             </div>
-            <div style="display: flex; gap: 16px; position: relative; z-index: 1;">
-                <button id="exportCsvBtn" class="btn btn-primary" style="height: 52px; border-radius: 14px; padding: 0 24px; font-weight: 700; border: 2px solid rgba(255,255,255,0.2);">
-                    <span class="material-icons-round">file_download</span> Exportar Excel
+            <div style="display: flex; gap: 12px; position: relative; z-index: 1; align-items: center;">
+                <button id="exportCsvBtn" class="btn btn-primary" style="height: 40px; border-radius: 10px; padding: 0 16px; font-size: 13px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 8px;">
+                     <span class="material-icons-round" style="font-size: 18px;">file_download</span> Exportar Excel
                 </button>
-                <button id="refreshBtn" class="btn btn-secondary" style="height: 52px; border-radius: 14px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); color: white; padding: 0 24px; font-weight: 700; cursor: pointer;">
-                    <span class="material-icons-round">refresh</span>
+                <button id="refreshBtn" class="btn btn-secondary" style="height: 40px; width: 40px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); color: white; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer;">
+                    <span class="material-icons-round" style="font-size: 20px;">refresh</span>
                 </button>
             </div>
         </header>
@@ -369,9 +369,8 @@ export const renderAdminDashboard = (container, user) => {
 
     const attachEventListeners = () => {
         if (activeSection === 'dashboard') {
-            document.getElementById('refreshBtn')?.addEventListener('click', async () => {
-                await fetchData();
-                renderSection();
+            document.getElementById('refreshBtn')?.addEventListener('click', () => {
+                window.location.reload();
             });
 
             document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
