@@ -183,7 +183,8 @@ export const db = {
     },
 
     async getRoutes() {
-        const { data, error } = await sb.from('routes').select('*').order('date', { ascending: false }).limit(50);
+        // Increased limit to support >50 auxiliaries per day
+        const { data, error } = await sb.from('routes').select('*').order('date', { ascending: false }).limit(200);
         return error ? [] : data.map(r => this._mapRoute(r));
     },
 
