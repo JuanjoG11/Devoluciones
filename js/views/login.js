@@ -3,6 +3,7 @@ import { Alert } from '../utils/ui.js';
 
 export const renderLogin = (container) => {
     container.innerHTML = `
+        <div id="pwa-install-banner" style="display:none;"></div>
         <div class="flex items-center justify-center anim-fade-in" style="height: 100vh; background: var(--grad-mesh); padding: 20px; position: relative; overflow: hidden;">
             <div style="position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(247, 148, 29, 0.15) 0%, transparent 70%);"></div>
             <div class="card glass-card text-center" style="width: 100%; max-width: 420px; position: relative; z-index: 10; padding: 48px 32px; border-radius: 32px; border: 1px solid var(--secondary-accent);">
@@ -80,4 +81,10 @@ export const renderLogin = (container) => {
             Alert.error("Error al intentar iniciar sesión. Revisa tu conexión.");
         }
     });
+
+    // Try showing PWA banner
+    if (window.showPwaBanner) {
+        window.showPwaBanner();
+        window.addEventListener('pwa-installable', () => window.showPwaBanner());
+    }
 };

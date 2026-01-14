@@ -6,6 +6,7 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
     const totalValue = returns.reduce((sum, r) => sum + r.total, 0);
 
     container.innerHTML = `
+        <div id="pwa-install-banner" style="display:none;"></div>
         <header class="app-header">
             <div style="flex: 1; min-width: 0;">
                 <h3 style="color: white; margin: 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -139,6 +140,12 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
             state.view = 'form';
             render();
         });
+
+        // Try showing banner
+        if (window.showPwaBanner) {
+            window.showPwaBanner();
+            window.addEventListener('pwa-installable', () => window.showPwaBanner());
+        }
     }
 };
 

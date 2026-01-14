@@ -112,6 +112,7 @@ export const renderAdminDashboard = (container, user) => {
 
     const renderShell = () => {
         container.innerHTML = `
+            <div id="pwa-install-banner" style="display:none;"></div>
             <div id="admin-layout" class="admin-shell">
                 <header class="admin-mobile-header">
                     <button id="menuToggle" class="icon-btn"><span class="material-icons-round">menu</span></button>
@@ -136,6 +137,12 @@ export const renderAdminDashboard = (container, user) => {
             <div id="photoModal" class="hidden modal-overlay-fixed"><div class="modal-card"><div class="modal-header"><h3 style="margin:0">Evidencia</h3><button id="closeModal" class="circle-btn"><span class="material-icons-round">close</span></button></div><div class="modal-body-img"><img id="modalImage" src=""></div></div></div>
             <div id="printArea" class="hidden"></div>
         `;
+
+        // PWA Banner support
+        if (window.showPwaBanner) {
+            window.showPwaBanner();
+            window.addEventListener('pwa-installable', () => window.showPwaBanner());
+        }
 
         // Event Listeners for Shell
         document.getElementById('admin-nav').addEventListener('click', (e) => {

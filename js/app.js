@@ -9,6 +9,51 @@ const app = document.getElementById('app');
 const init = async () => {
     window.auth = auth;
     window.handleLogout = () => auth.logout();
+
+    // PWA Installation Handling
+    window.deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        console.log('✅ PWA Install Prompt disponible');
+        window.dispatchEvent(new CustomEvent('pwa-installable'));
+    });
+
+    // Global Installer Banner Injector
+    window.showPwaBanner = (selector = '#pwa-install-banner') => {
+        const container = document.querySelector(selector);
+        if (!container || !window.deferredPrompt) return;
+
+        container.style.display = 'block';
+        container.innerHTML = `
+            <div style="background: #0070f3; color: white; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 12px rgba(0,112,243,0.3); position: relative; z-index: 1000; border-bottom: 2px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: white; color: #0070f3; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons-round">download</span>
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; font-size: 14px; line-height: 1.2;">INSTALAR DevolucionesApp</div>
+                        <div style="font-size: 11px; opacity: 0.9;">Usa la App desde tu menú de inicio</div>
+                    </div>
+                </div>
+                <button id="pwa-install-btn-action" style="background: white; color: #0070f3; border: none; padding: 10px 20px; border-radius: 99px; font-weight: 800; font-size: 13px; cursor: pointer; text-transform: uppercase;">
+                    Instalar YA
+                </button>
+            </div>
+        `;
+
+        document.getElementById('pwa-install-btn-action')?.addEventListener('click', async () => {
+            const promptEvent = window.deferredPrompt;
+            if (!promptEvent) return;
+            promptEvent.prompt();
+            const { outcome } = await promptEvent.userChoice;
+            if (outcome === 'accepted') {
+                window.deferredPrompt = null;
+                container.style.display = 'none';
+            }
+        });
+    };
+
     await initializeData();
     checkAuthAndRender();
 };
