@@ -30,8 +30,8 @@ export const generatePrintReport = async (routes, id) => {
     <div class="report-box" style="font-family: 'Inter', Arial, sans-serif; padding: 10px;">
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 10px; margin-bottom: 12px;">
-            <div style="width: 60px;">
-                <img src="logo-app.png" alt="TAT Logo" style="width: 100%; height: auto;">
+            <div style="width: 100px;">
+                <img src="logo-tat.jpg" alt="TAT Logo" style="width: 100%; height: auto;">
             </div>
             <div style="text-align: center; flex: 1;">
                 <h1 style="margin: 0; font-size: 14pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">CONCENTRADO DE DEVOLUCIONES</h1>
