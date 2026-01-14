@@ -223,10 +223,18 @@ export const db = {
             try {
                 // Fetch user name for the notification
                 const { data: route } = await sb.from('routes').select('user_name').eq('id', routeId).single();
-                await sb.channel('devolucion-alerts').send({
-                    type: 'broadcast',
-                    event: 'ruta-completada',
-                    payload: { userName: route?.user_name || 'Alguien' }
+
+                const channel = sb.channel('devolucion-alerts');
+                channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.send({
+                            type: 'broadcast',
+                            event: 'ruta-completada',
+                            payload: { userName: route?.user_name || 'Alguien' }
+                        });
+                        // Clean up channel after sending to avoid leaks
+                        sb.removeChannel(channel);
+                    }
                 });
             } catch (e) { console.error("Error sending realtime alert:", e); }
         }
