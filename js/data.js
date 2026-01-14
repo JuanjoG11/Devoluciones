@@ -217,6 +217,19 @@ export const db = {
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.endTime) dbUpdates.end_time = updates.endTime;
         const { error } = await sb.from('routes').update(dbUpdates).eq('id', routeId);
+
+        // Notify Admin if route is completed
+        if (!error && updates.status === 'completed') {
+            try {
+                // Fetch user name for the notification
+                const { data: route } = await sb.from('routes').select('user_name').eq('id', routeId).single();
+                await sb.channel('devolucion-alerts').send({
+                    type: 'broadcast',
+                    event: 'ruta-completada',
+                    payload: { userName: route?.user_name || 'Alguien' }
+                });
+            } catch (e) { console.error("Error sending realtime alert:", e); }
+        }
         return !error;
     },
 
