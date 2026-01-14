@@ -112,6 +112,29 @@ const parseInventory = (text) => {
     }).filter(item => item !== null);
 };
 
+// Helper for broadcasting events
+let _broadcastChannel = null;
+const broadcastEvent = async (event, payload) => {
+    try {
+        if (!_broadcastChannel) {
+            _broadcastChannel = sb.channel('devolucion-alerts');
+            await new Promise((resolve) => {
+                _broadcastChannel.subscribe((status) => {
+                    if (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR') resolve();
+                });
+            });
+        }
+        await _broadcastChannel.send({ type: 'broadcast', event, payload });
+    } catch (e) {
+        console.error("Broadcast failed:", e);
+        // Force reset channel for next time if it failed
+        if (_broadcastChannel) {
+            sb.removeChannel(_broadcastChannel);
+            _broadcastChannel = null;
+        }
+    }
+};
+
 /**
  * Data Access Object (DAO)
  */
@@ -221,21 +244,8 @@ export const db = {
         // Notify Admin if route is completed
         if (!error && updates.status === 'completed') {
             try {
-                // Fetch user name for the notification
                 const { data: route } = await sb.from('routes').select('user_name').eq('id', routeId).single();
-
-                const channel = sb.channel('devolucion-alerts');
-                channel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        await channel.send({
-                            type: 'broadcast',
-                            event: 'ruta-completada',
-                            payload: { userName: route?.user_name || 'Alguien' }
-                        });
-                        // Clean up channel after sending to avoid leaks
-                        sb.removeChannel(channel);
-                    }
-                });
+                await broadcastEvent('ruta-completada', { userName: route?.user_name || 'Alguien' });
             } catch (e) { console.error("Error sending realtime alert:", e); }
         }
         return !error;
@@ -350,10 +360,7 @@ export const db = {
             if (error) return skipOfflineQueue ? false : await this.saveOfflineReturn(returnData);
 
             try {
-                await sb.channel('devolucion-alerts').send({
-                    type: 'broadcast', event: 'nueva-devolucion',
-                    payload: { timestamp: new Date().toISOString() }
-                });
+                await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() });
             } catch (e) { }
             return true;
         } catch (e) {
