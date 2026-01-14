@@ -54,8 +54,13 @@ const init = async () => {
         });
     };
 
-    await initializeData();
+    // 1. Check Auth and Render UI immediately
     checkAuthAndRender();
+
+    // 2. Initialize Data and Sync in the background (NON-BLOCKING)
+    initializeData().then(() => {
+        console.log("Background data initialization complete.");
+    });
 };
 
 const checkAuthAndRender = () => {

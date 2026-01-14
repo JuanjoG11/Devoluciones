@@ -6,7 +6,13 @@ import { sb } from './supabase.js';
  * Caches products locally for offline search support.
  */
 export const initializeData = async () => {
-    if (sessionStorage.getItem('db_initialized')) return;
+    if (localStorage.getItem('db_initialized')) {
+        // Even if initialized, check if we need to sync inventory in the background
+        if (navigator.onLine && !localStorage.getItem('inventory')) {
+            syncInventory();
+        }
+        return;
+    }
 
     try {
         // 1. Seed Users if empty
@@ -27,16 +33,26 @@ export const initializeData = async () => {
 
         // 3. Sync Local Cache for search performance
         if (navigator.onLine) {
-            console.log("Syncing local inventory cache...");
-            const { data: allProducts } = await sb.from('products').select('code, name, price, search_string');
-            if (allProducts) {
-                localStorage.setItem('inventory', JSON.stringify(allProducts));
-            }
+            await syncInventory();
         }
 
-        sessionStorage.setItem('db_initialized', 'true');
+        localStorage.setItem('db_initialized', 'true');
     } catch (e) {
         console.error("Error checking DB:", e);
+    }
+};
+
+const syncInventory = async () => {
+    try {
+        console.log("Syncing local inventory cache...");
+        const { data: allProducts, error } = await sb.from('products').select('code, name, price, search_string');
+        if (error) throw error;
+        if (allProducts) {
+            localStorage.setItem('inventory', JSON.stringify(allProducts));
+            console.log("Inventory cache updated.");
+        }
+    } catch (e) {
+        console.error("Error syncing inventory:", e);
     }
 };
 

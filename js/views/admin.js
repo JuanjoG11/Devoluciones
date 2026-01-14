@@ -17,6 +17,11 @@ import { generatePrintReport, exportToCSV } from './admin/reports.js';
 export const renderAdminDashboard = (container, user) => {
     container.classList.add('admin-mode');
 
+    // Request Notification Permissions
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
     // Internal State
     let activeSection = 'dashboard';
     let sidebarOpen = false;
@@ -80,8 +85,18 @@ export const renderAdminDashboard = (container, user) => {
 
     const showNotification = (title, body) => {
         playNotificationSound();
-        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification(title, { body: body, icon: '/logo-tat.png' });
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                const n = new Notification(title, {
+                    body: body,
+                    icon: 'logo-app.png',
+                    badge: 'logo-app.png',
+                    vibrate: [200, 100, 200]
+                });
+                n.onclick = () => { window.focus(); n.close(); };
+            } catch (e) {
+                console.error("Error showing system notification:", e);
+            }
         }
         Alert.success(body);
     };
