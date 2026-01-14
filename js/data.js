@@ -6,20 +6,17 @@ import { sb } from './supabase.js';
  * Caches products locally for offline search support.
  */
 export const initializeData = async () => {
-    if (localStorage.getItem('db_initialized')) {
-        // Even if initialized, check if we need to sync inventory in the background
-        if (navigator.onLine && !localStorage.getItem('inventory')) {
-            syncInventory();
-        }
-        return;
-    }
-
     try {
-        // 1. Seed Users if empty
-        const { count: userCount } = await sb.from('users').select('*', { count: 'exact', head: true });
-        if (userCount === 0) {
-            console.log("Seeding initial users...");
-            await seedUsers();
+        // 1. Always Sync Users (to ensure new ones are added)
+        console.log("Syncing users...");
+        await seedUsers();
+
+        if (localStorage.getItem('db_initialized')) {
+            // Even if initialized, check if we need to sync inventory in the background
+            if (navigator.onLine && !localStorage.getItem('inventory')) {
+                syncInventory();
+            }
+            return;
         }
 
         // 2. Seed Products if empty
@@ -79,7 +76,8 @@ const seedUsers = async () => {
         { username: '1078456086', password: '123', role: 'auxiliar', name: 'NELWIS DEYVER CORDOBA MOSQUERA' },
         { username: '1085717552', password: '123', role: 'auxiliar', name: 'DANIEL ANDRES OLAYA PEREZ' }
     ];
-    const { error } = await sb.from('users').insert(users);
+    // Use upsert to insert or update existing users
+    const { error } = await sb.from('users').upsert(users, { onConflict: 'username' });
     if (error) console.error("Error seeding users:", error);
 };
 
