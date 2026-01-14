@@ -74,7 +74,10 @@ const seedUsers = async () => {
         { username: '1005048479', password: '123', role: 'auxiliar', name: 'NATALY MOLINA BECERRA' },
         { username: '80433929', password: '123', role: 'auxiliar', name: 'LINO LOPEZ SIMONS' },
         { username: '1060506540', password: '123', role: 'auxiliar', name: 'YENIFER ANDREA SOTO GARZON' },
-        { username: '1060586518', password: '123', role: 'auxiliar', name: 'NELLY YURANNY SALDARRIAGA CAÑAS' }
+        { username: '1060586518', password: '123', role: 'auxiliar', name: 'NELLY YURANNY SALDARRIAGA CAÑAS' },
+        { username: '1076350176', password: '123', role: 'auxiliar', name: 'DANIELA CASTIBLANCO RAMIREZ' },
+        { username: '1078456086', password: '123', role: 'auxiliar', name: 'NELWIS DEYVER CORDOBA MOSQUERA' },
+        { username: '1085717552', password: '123', role: 'auxiliar', name: 'DANIEL ANDRES OLAYA PEREZ' }
     ];
     const { error } = await sb.from('users').insert(users);
     if (error) console.error("Error seeding users:", error);
