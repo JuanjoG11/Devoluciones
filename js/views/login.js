@@ -7,8 +7,8 @@ export const renderLogin = (container) => {
         <div class="flex items-center justify-center anim-fade-in" style="height: 100vh; background: var(--grad-mesh); padding: 20px; position: relative; overflow: hidden;">
             <div style="position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(247, 148, 29, 0.15) 0%, transparent 70%);"></div>
             <div class="card glass-card text-center" style="width: 100%; max-width: 420px; position: relative; z-index: 10; padding: 48px 32px; border-radius: 32px; border: 1px solid var(--secondary-accent);">
-                    <div style="width: 90px; height: 90px; background: white; border-radius: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 15px 35px var(--secondary-glow); border: 2px solid var(--secondary-accent);">
-                        <span class="material-icons-round" style="font-size: 52px; color: var(--primary-color);">local_shipping</span>
+                    <div style="width: 120px; height: 120px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden;">
+                        <img src="logo-app.png" alt="Devoluciones App" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
                     <h1 style="color: var(--primary-color); margin-top: 16px; font-size: 32px; letter-spacing: -1.5px; font-weight: 900;">DevolucionesApp</h1>
                     <p style="font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-size: 12px;">Sistema de Devoluciones Inteligente</p>
