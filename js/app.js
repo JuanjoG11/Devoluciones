@@ -8,6 +8,7 @@ const app = document.getElementById('app');
 
 const init = async () => {
     window.auth = auth;
+    window.handleLogout = () => auth.logout();
     await initializeData();
     checkAuthAndRender();
 };

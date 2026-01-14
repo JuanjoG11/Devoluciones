@@ -178,3 +178,105 @@
         opacity: 1;
     }
 }
+
+/* Modal Extensions for Fixed Photo View */
+.modal-overlay-fixed {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-header {
+    padding: 16px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body-img {
+    padding: 10px;
+    background: #f8fafc;
+    text-align: center;
+}
+
+.modal-body-img img {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 8px;
+}
+
+.circle-btn {
+    border: none;
+    background: #f1f5f9;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.circle-btn:hover {
+    background: #e2e8f0;
+}
+
+/* Animations */
+.rotating {
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Swipe to Delete Styles */
+.swipe-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #ef4444;
+    /* Danger color for delete background */
+    margin-bottom: 8px;
+}
+
+.swipe-content {
+    position: relative;
+    z-index: 2;
+    background: white;
+    transition: transform 0.3s ease;
+    cursor: grab;
+    touch-action: pan-y;
+}
+
+.swipe-action {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 1;
+}
+
+.swipe-action span {
+    font-size: 24px;
+}
