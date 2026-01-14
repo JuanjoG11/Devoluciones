@@ -83,20 +83,21 @@ export const renderAdminDashboard = (container, user) => {
         } catch (e) { }
     };
 
-    const showNotification = (title, body) => {
+    const showNotification = async (title, body) => {
         playNotificationSound();
-        if ('Notification' in window && Notification.permission === 'granted') {
-            try {
-                const n = new Notification(title, {
-                    body: body,
-                    icon: 'logo-app.png',
-                    badge: 'logo-app.png',
-                    vibrate: [200, 100, 200]
-                });
-                n.onclick = () => { window.focus(); n.close(); };
-            } catch (e) {
-                console.error("Error showing system notification:", e);
-            }
+        const options = {
+            body: body,
+            icon: 'logo-app.png',
+            badge: 'logo-app.png',
+            vibrate: [200, 100, 200],
+            requireInteraction: true // Keeps notification visible on Windows until user acts
+        };
+
+        if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+            const registration = await navigator.serviceWorker.ready;
+            registration.showNotification(title, options);
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, options);
         }
         Alert.success(body);
     };

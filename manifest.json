@@ -12,13 +12,25 @@
             "src": "logo-app.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
         },
         {
             "src": "logo-app.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "logo-app.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "logo-app.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
         }
     ]
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v5';
+const CACHE_NAME = 'devoluciones-v6';
 const ASSETS = [
     '/',
     '/index.html',
@@ -16,7 +16,7 @@ const ASSETS = [
     '/js/views/login.js',
     '/js/views/admin.js',
     '/js/views/auxiliar.js',
-    'https://cdn-icons-png.flaticon.com/512/2312/2312733.png'
+    '/logo-app.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -41,14 +41,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Skip Supabase API calls
     if (event.request.url.includes('supabase.co')) return;
 
     event.respondWith(
         caches.match(event.request).then((response) => {
             return response || fetch(event.request).then((fetchRes) => {
                 return caches.open(CACHE_NAME).then((cache) => {
-                    // Cache new static assets on the fly
                     if (event.request.method === 'GET' &&
                         (event.request.url.includes('.js') ||
                             event.request.url.includes('.css') ||
@@ -59,10 +57,28 @@ self.addEventListener('fetch', (event) => {
                 });
             });
         }).catch(() => {
-            // Fallback for navigation
             if (event.request.mode === 'navigate') {
                 return caches.match('/index.html');
             }
+        })
+    );
+});
+
+// Windows PWA Standalone Notification Click Handler
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            if (clientList.length > 0) {
+                let client = clientList[0];
+                for (let i = 0; i < clientList.length; i++) {
+                    if (clientList[i].focused) {
+                        client = clientList[i];
+                    }
+                }
+                return client.focus();
+            }
+            return clients.openWindow('/');
         })
     );
 });
