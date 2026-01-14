@@ -60,6 +60,11 @@ export const renderForm = (container, state, render) => {
                     <select name="reason" id="reasonSelect" class="input-field" required></select>
                 </div>
 
+                <div id="manualReasonGroup" class="input-group hidden">
+                    <label class="input-label">Especifique el motivo</label>
+                    <input type="text" id="manualReasonInput" class="input-field" placeholder="Escriba la razón..." autocomplete="off">
+                </div>
+
                 <div class="input-group">
                     <label class="input-label">Evidencia</label>
                     <label for="evidence" class="btn btn-secondary w-full" style="justify-content: flex-start;">
@@ -82,6 +87,8 @@ export const renderForm = (container, state, render) => {
     const manualTotalInput = document.getElementById('manualTotalInput');
     const evidenceInput = document.getElementById('evidence');
     const reasonSelect = document.getElementById('reasonSelect');
+    const manualReasonGroup = document.getElementById('manualReasonGroup');
+    const manualReasonInput = document.getElementById('manualReasonInput');
     const typeOptions = document.querySelectorAll('.type-option');
 
     let selectedProduct = null;
@@ -89,7 +96,7 @@ export const renderForm = (container, state, render) => {
     let capturedPhoto = null;
 
     const REASONS_PARTIAL = ["Producto vencido", "Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Otro"];
-    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta"];
+    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Otro"];
 
     const updateUIForType = (type) => {
         currentType = type;
@@ -104,6 +111,11 @@ export const renderForm = (container, state, render) => {
         productInput.required = isPartial;
         manualTotalInput.required = !isPartial;
 
+        // Reset manual reason
+        manualReasonGroup.classList.add('hidden');
+        manualReasonInput.value = '';
+        manualReasonInput.required = false;
+
         reasonSelect.innerHTML = '<option value="">Seleccionar...</option>';
         (isPartial ? REASONS_PARTIAL : REASONS_TOTAL).forEach(r => {
             const opt = document.createElement('option'); opt.value = r; opt.textContent = r; reasonSelect.appendChild(opt);
@@ -113,6 +125,13 @@ export const renderForm = (container, state, render) => {
     updateUIForType('partial');
 
     typeOptions.forEach(opt => opt.addEventListener('click', () => updateUIForType(opt.dataset.value)));
+
+    reasonSelect.addEventListener('change', (e) => {
+        const isOtro = e.target.value === 'Otro';
+        manualReasonGroup.classList.toggle('hidden', !isOtro);
+        manualReasonInput.required = isOtro;
+        if (!isOtro) manualReasonInput.value = '';
+    });
 
     const calculate = () => {
         if (currentType === 'partial' && selectedProduct) {
@@ -177,6 +196,10 @@ export const renderForm = (container, state, render) => {
             evidence: capturedPhoto,
             timestamp: new Date().toISOString()
         };
+
+        if (data.reason === 'Otro') {
+            data.reason = manualReasonInput.value.trim();
+        }
 
         if (currentType === 'partial') {
             if (!selectedProduct) return Alert.error("Selecciona un producto");
