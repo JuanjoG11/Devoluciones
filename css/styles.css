@@ -117,25 +117,26 @@ body {
     }
 
     .admin-sidebar {
-        display: none !important;
+        display: flex !important;
         position: fixed !important;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 280px;
+        width: 280px !important;
         transform: translateX(-100%);
-        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 2000 !important;
-        background: var(--primary-dark) !important;
+        background: var(--primary-color) !important;
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.3);
     }
 
     .admin-sidebar.mobile-open {
-        display: flex !important;
         transform: translateX(0);
     }
 
     .admin-content {
-        padding: 20px 12px !important;
+        padding: 24px 16px !important;
+        margin-top: 0;
     }
 
     /* Sidebar Overlay */
@@ -143,13 +144,17 @@ body {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(4px);
-        z-index: 950;
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 1500;
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
 
     .sidebar-overlay.active {
         display: block;
+        opacity: 1;
     }
 
     /* Stack Grids */

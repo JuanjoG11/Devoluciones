@@ -156,8 +156,15 @@ export const renderAdminDashboard = (container, user) => {
             }
         });
 
-        document.getElementById('menuToggle').onclick = () => { sidebarOpen = !sidebarOpen; updateSidebarUI(); };
-        document.getElementById('sidebarOverlay').onclick = () => { sidebarOpen = false; updateSidebarUI(); };
+        document.getElementById('menuToggle').onclick = () => {
+            sidebarOpen = !sidebarOpen;
+            console.log('Sidebar toggled:', sidebarOpen);
+            updateSidebarUI();
+        };
+        document.getElementById('sidebarOverlay').onclick = () => {
+            sidebarOpen = false;
+            updateSidebarUI();
+        };
         document.getElementById('exportCsvBtn').onclick = () => exportToCSV(cache.returns, cache.routes);
 
         container.addEventListener('click', (e) => {
