@@ -216,14 +216,18 @@ export const renderForm = (container, state, render) => {
         const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true; btn.innerHTML = 'Guardando...';
 
+        // Optimized for SPEED: Skip remote duplicate check
+        /*
         const dup = await db.checkDuplicate(data.invoice, data.sheet, state.currentRouteId);
         if (dup && !(await Alert.confirm(`⚠️ Posible duplicado (Doc: ${data.invoice}). ¿Continuar?`, 'Confirmar'))) {
             btn.disabled = false; btn.innerHTML = 'Guardar'; return;
         }
+        */
 
         if (await db.addReturn(data)) {
             Alert.success("Registrado correctamente");
-            state.view = 'dashboard'; render();
+            // Small delay to ensure logic clears before render, though not strictly needed with optimistic UI
+            setTimeout(() => { state.view = 'dashboard'; render(); }, 100);
         } else {
             Alert.error("Error al guardar");
             btn.disabled = false; btn.innerHTML = 'Guardar';

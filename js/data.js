@@ -345,8 +345,17 @@ export const db = {
     },
 
     async addReturn(returnData, skipOfflineQueue = false) {
+        // 1. FAST PATH: UI Call (save local, return instant, sync later)
+        if (!skipOfflineQueue) {
+            try {
+                await this.saveOfflineReturn(returnData);
+                this.syncOfflineReturns(); // Background trigger (fire & forget)
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // 2. SYNC PATH: Background Worker (upload & insert)
         try {
-            if (!navigator.onLine && !skipOfflineQueue) return await this.saveOfflineReturn(returnData);
             let evidenceUrl = returnData.evidence;
             if (returnData.evidence && returnData.evidence.startsWith('data:image')) {
                 const uploadedUrl = await this.uploadPhoto(returnData.evidence);
@@ -358,14 +367,15 @@ export const db = {
                 quantity: returnData.quantity, total: returnData.total, reason: returnData.reason,
                 evidence: evidenceUrl
             }]);
-            if (error) return skipOfflineQueue ? false : await this.saveOfflineReturn(returnData);
+
+            if (error) return false; // Keep in queue if failed
 
             try {
                 await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() });
             } catch (e) { }
             return true;
         } catch (e) {
-            return skipOfflineQueue ? false : await this.saveOfflineReturn(returnData);
+            return false;
         }
     },
 
