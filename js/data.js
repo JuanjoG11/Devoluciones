@@ -229,23 +229,33 @@ export const db = {
 
             // 1. Add all static users first (Default Active)
             TYM_AUX_LIST.forEach(staticUser => {
-                mergedMap.set(String(staticUser.username), {
+                const username = String(staticUser.username).trim();
+                mergedMap.set(username, {
                     ...staticUser,
-                    id: staticUser.username, // UI uses Cedula as ID
+                    id: username, // Fallback ID is username
                     isActive: true, // Default
                     organization: 'TYM'
                 });
             });
 
-            // 2. Overlay DB users (to get updated isActive status)
+            // 2. Overlay or Add DB users
             dbUsers.forEach(dbUser => {
                 const cleanUsername = String(dbUser.username).trim();
                 if (mergedMap.has(cleanUsername)) {
-                    // Update the existing static entry with DB state
+                    // Update entry with DB state
                     const existing = mergedMap.get(cleanUsername);
                     mergedMap.set(cleanUsername, {
                         ...existing,
-                        isActive: dbUser.is_active !== false, // Respect DB status
+                        ...dbUser, // Prioritize database data (id, name, etc.)
+                        isActive: dbUser.is_active !== false,
+                        organization: 'TYM'
+                    });
+                } else if (dbUser.organization === 'TYM') {
+                    // Add purely database-driven TYM user
+                    mergedMap.set(cleanUsername, {
+                        ...dbUser,
+                        isActive: dbUser.is_active !== false,
+                        organization: 'TYM'
                     });
                 }
             });
@@ -330,11 +340,30 @@ export const db = {
         if (!username) return null;
         const cleanUsername = String(username).trim();
 
-        // 1. FAST PATH: Check Static Lists (Instant Login for TYM)
-        const tymUser = TYM_AUX_LIST.find(u => u.username == cleanUsername);
-        if (tymUser) {
-            return { ...tymUser, id: tymUser.username, isActive: true };
+        // 1. Check DB first (most reliable status)
+        const { data, error } = await sb.from('users').select('*').eq('username', cleanUsername).maybeSingle();
+        if (error) { console.error("Login lookup error:", error); }
+
+        const staticTym = TYM_AUX_LIST.find(u => String(u.username).trim() == cleanUsername);
+
+        if (data) {
+            // User exists in DB
+            let user = { ...data, isActive: data.is_active !== false };
+
+            // Auto-detect TYM if missing or if in static list
+            if (!user.organization) {
+                user.organization = staticTym ? 'TYM' : 'TAT';
+            } else if (staticTym && user.organization !== 'TYM') {
+                user.organization = 'TYM'; // Static list overrides DB for these specific users
+            }
+            return user;
         }
+
+        // 2. Fallback to Static Lists (e.g. first login or seeding issues)
+        if (staticTym) {
+            return { ...staticTym, id: staticTym.username, isActive: true, organization: 'TYM' };
+        }
+
         if (cleanUsername === 'admin_tym') {
             return {
                 id: 'tym-admin-id', username: 'admin_tym', password: '123',
@@ -342,54 +371,68 @@ export const db = {
             };
         }
 
-        // 2. DB PATH: For TAT users or unknown users
-        const { data, error } = await sb.from('users').select('*').eq('username', cleanUsername).maybeSingle();
-        if (error) { console.error(error); return null; }
-
-        // Enhance with Organization details for DB users (TAT defaults)
-        let user = data ? { ...data, isActive: data.is_active !== false } : null;
-        if (user && !user.organization) {
-            user.organization = 'TAT';
-        }
-
-        return user;
+        return null;
     },
 
     async searchProducts(query, organization = 'TAT') {
         if (!query || query.length < 2) return [];
         const q = query.toLowerCase();
 
-        // 1. ISOLATE TYM PRODUCTS
-        // Since we don't have a DB column yet, we serve MOCK products for TYM
-        if (organization === 'TYM') {
-            const TYM_PRODUCTS = TYM_PRODUCTS_LIST;
-            return TYM_PRODUCTS.filter(p =>
-                String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
-            ).slice(0, 50);
-        }
+        let dbResults = [];
 
-        // 2. NORMAL FLOW (TAT)
-        // Only return results if they are NOT meant for TYM (implies legacy products are TAT)
-
+        // 1. FETCH FROM DATABASE (OR LOCAL CACHE)
         if (!navigator.onLine) {
             try {
                 const cached = localStorage.getItem('inventory');
-                if (!cached) return [];
-                const products = JSON.parse(cached);
-                return products.filter(p => {
-                    if (p.organization && p.organization !== 'TAT') return false; // Safety check
-                    return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-                }).slice(0, 15);
-            } catch (e) { return []; }
+                if (cached) {
+                    const products = JSON.parse(cached);
+                    dbResults = products.filter(p => {
+                        const org = p.organization || 'TAT';
+                        const matchesOrg = (organization === 'TYM') ? (org === 'TYM') : (org === 'TAT');
+                        return matchesOrg && (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q));
+                    });
+                }
+            } catch (e) { dbResults = []; }
+        } else {
+            // Refined DB Query for strict isolation
+            let dbQuery = sb.from('products').select('*');
+
+            if (organization === 'TYM') {
+                dbQuery = dbQuery.eq('organization', 'TYM');
+            } else {
+                // For TAT, include both TAT and null/missing organization
+                dbQuery = dbQuery.or(`organization.eq.TAT,organization.is.null`);
+            }
+
+            const { data, error } = await dbQuery
+                .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
+                .limit(500);
+
+            if (!error && data) dbResults = data;
         }
 
-        let dbQuery = sb.from('products')
-            .select('*')
-            .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
-            .limit(15);
+        // 2. FETCH FROM STATIC LIST IF TYM
+        let staticResults = [];
+        if (organization === 'TYM') {
+            staticResults = TYM_PRODUCTS_LIST.filter(p =>
+                String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+            );
+        }
 
-        const { data, error } = await dbQuery;
-        return error ? [] : data;
+        // 3. MERGE AND DEDUPLICATE BY CODE
+        const combined = [...dbResults, ...staticResults];
+        const unique = [];
+        const seenCodes = new Set();
+
+        for (const p of combined) {
+            const code = String(p.code).trim();
+            if (!seenCodes.has(code)) {
+                seenCodes.add(code);
+                unique.push(p);
+            }
+        }
+
+        return unique.slice(0, 500);
     },
 
     async getTodaysRoute(userId) {
