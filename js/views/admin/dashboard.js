@@ -16,11 +16,11 @@ export const renderStatCard = (title, val, icon, color) => `
     </div>
 `;
 
-export const renderDashboard = (activeRoutes, recentReturns, routes, users, stats, hasMoreReturns) => `
+export const renderDashboard = (activeRoutes, recentReturns, routes, users, stats, hasMoreReturns, user) => `
     <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--grad-electric); padding: 20px 24px; border-radius: 16px; color: white; box-shadow: var(--shadow-blue); border-bottom: 3px solid var(--secondary-accent); position: relative; overflow: hidden;">
         <div style="position: absolute; right: -10px; top: -10px; opacity: 0.1;"><span class="material-icons-round" style="font-size: 100px;">analytics</span></div>
         <div style="position: relative; z-index: 1;">
-            <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px; font-weight: 800;">CENTRO DE CONTROL TAT</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px; font-weight: 800;">${(user.organization === 'TYM' || user.username === 'admin_tym') ? 'CENTRO DE CONTROL TYM' : 'CENTRO DE CONTROL TAT'}</h1>
             <p style="color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 500; margin: 2px 0 0;">Gestión Inteligente de Devoluciones y Logística</p>
         </div>
         <div style="display: flex; gap: 12px; position: relative; z-index: 1; align-items: center;">

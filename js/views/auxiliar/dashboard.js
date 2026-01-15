@@ -1,4 +1,4 @@
-import { db } from '../../data.js';
+import { db } from '../../data.js?v=fixed7';
 import { Alert } from '../../utils/ui.js';
 import { formatPrice, formatTime12h } from '../../utils/formatters.js';
 
@@ -110,13 +110,17 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
                 startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
                 date: new Date().toISOString().split('T')[0]
             };
+            console.log("[startRouteBtn] Creating route with data:", newRoute);
             const createdRoute = await db.addRoute(newRoute);
+            console.log("[startRouteBtn] Created route:", createdRoute);
             if (createdRoute) {
                 state.routeStarted = true;
                 state.currentRouteId = createdRoute.id;
                 Alert.success("Ruta iniciada. ¡Buen camino!");
+                console.log("[startRouteBtn] Reloading page in 1.5s...");
                 setTimeout(() => window.location.reload(), 1500);
             } else {
+                console.error("[startRouteBtn] Failed to create route");
                 Alert.error("Error al iniciar ruta.");
             }
         });

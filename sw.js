@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v10';
+const CACHE_NAME = 'devoluciones-v12';
 const ASSETS = [
     '/',
     '/index.html',
@@ -41,6 +41,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    if (!event.request.url.startsWith('http')) return;
     if (event.request.url.includes('supabase.co')) return;
 
     event.respondWith(

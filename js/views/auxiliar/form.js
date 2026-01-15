@@ -1,7 +1,7 @@
 import { db } from '../../data.js';
 import { Alert } from '../../utils/ui.js';
 
-export const renderForm = (container, state, render) => {
+export const renderForm = (container, user, state, render) => {
     container.innerHTML = `
         <header class="app-header">
             <button id="backBtn" style="background:none; border:none; color:white; margin-right: 16px;">
@@ -144,7 +144,8 @@ export const renderForm = (container, state, render) => {
         if (!query) { searchResults.style.display = 'none'; return; }
         clearTimeout(window.searchDebounce);
         window.searchDebounce = setTimeout(async () => {
-            const results = await db.searchProducts(query);
+            const org = user.organization || 'TAT';
+            const results = await db.searchProducts(query, org);
             searchResults.innerHTML = results.map(p => `
                 <li style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}">
                     <div style="font-weight: 600;">${p.code} - ${p.name}</div>

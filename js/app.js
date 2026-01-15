@@ -1,4 +1,4 @@
-import { initializeData } from './data.js';
+import { initializeData } from './data.js?v=fixed7';
 import { auth } from './auth.js';
 import { renderLogin } from './views/login.js';
 import { renderAdminDashboard } from './views/admin.js';

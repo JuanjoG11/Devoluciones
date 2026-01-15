@@ -1,4 +1,4 @@
-﻿import { db } from '../data.js';
+﻿import { db } from '../data.js?v=fixed7';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 import { formatTime12h } from '../utils/formatters.js';
@@ -47,16 +47,48 @@ export const renderAdminDashboard = (container, user) => {
         }
         try {
             const today = new Date().toISOString().split('T')[0];
-            const [routes, returns, users, stats] = await Promise.all([
-                db.getRoutes(),
-                db.getReturns(50, 0),
-                db.getUsers(),
-                db.getDashboardStats(today)
+            const org = user.organization || 'TAT'; // Default to TAT if undefined
+
+            // For Stats: Use RPC for TAT (Global/Existing), but COMPUTE locally for TYM to avoid data leaks
+            let stats = { active_routes_count: 0, total_returns_count: 0, total_returns_value: 0 };
+
+            if (org === 'TAT') {
+                stats = await db.getDashboardStats(today);
+            } else {
+                // TYM Local Stats Calculation
+                // 1. Get Routes for Today (Already filtered by db.getRoutes(org))
+                const tymRoutes = await db.getRoutes(org);
+                const todaysRoutes = tymRoutes.filter(r => r.date === today);
+                const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
+
+                // 2. Get Returns for Today
+                // We need ALL returns for today to sum them up. 
+                // Since TYM is new, fetching "all" is safe (likely 0 or few).
+                // We reuse getReturns but need to ensure we get enough. 
+                // Let's assume fetching top 100 is enough for stats for now.
+                const tymReturns = await db.getReturns(100, 0, org);
+                // Filter returns that are actually from today (getReturns sorts by created_at desc)
+                // Just simpler: sum what we have.
+                const todaysReturns = tymReturns.filter(r => r.timestamp.startsWith(today));
+
+                stats = {
+                    active_routes_count: activeCount,
+                    total_returns_count: todaysReturns.length,
+                    total_returns_value: todaysReturns.reduce((sum, r) => sum + r.total, 0)
+                };
+            }
+
+            const [routes, returns, users] = await Promise.all([
+                db.getRoutes(org),
+                db.getReturns(50, 0, org), // For the list view
+                db.getUsers(org)
             ]);
+
             cache.routes = routes;
             cache.returns = returns;
             cache.users = users.filter(u => u.role === 'auxiliar');
-            cache.stats = stats || cache.stats;
+
+            cache.stats = stats || { active_routes_count: 0, total_returns_count: 0, total_returns_value: 0 };
             cache.lastFetch = Date.now();
             cache.returnsOffset = returns.length;
             cache.hasMoreReturns = returns.length === 50;
@@ -137,8 +169,8 @@ export const renderAdminDashboard = (container, user) => {
                 <div class="admin-main-wrapper">
                     <aside class="admin-sidebar ${sidebarOpen ? 'mobile-open' : ''}">
                         <div class="sidebar-header">
-                            <div class="sidebar-logo"><span class="material-icons-round">local_shipping</span><h2>DevolucionesApp</h2></div>
-                            <small>TAT DISTRIBUCIONES</small>
+                            <div class="sidebar-logo"><span class="material-icons-round">local_shipping</span><h2>Devoluciones</h2></div>
+                            <small>${user.organization === 'TYM' ? 'TIENDAS Y MARCAS' : 'TAT DISTRIBUCIONES'}</small>
                         </div>
                         <nav id="admin-nav">${renderNavLinks()}</nav>
                         <div class="sidebar-footer">
@@ -218,7 +250,7 @@ export const renderAdminDashboard = (container, user) => {
         const activeRoutes = cache.routes.filter(r => r.date === todayStr);
 
         switch (activeSection) {
-            case 'dashboard': contentArea.innerHTML = renderDashboard(activeRoutes, cache.returns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns); break;
+            case 'dashboard': contentArea.innerHTML = renderDashboard(activeRoutes, cache.returns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user); break;
             case 'historial': contentArea.innerHTML = renderHistorial(cache); break;
             case 'auxiliares': contentArea.innerHTML = renderAuxiliares(cache.users, cache.routes, filters.auxiliares); break;
             case 'productos': contentArea.innerHTML = renderProductos(); break;
@@ -233,7 +265,8 @@ export const renderAdminDashboard = (container, user) => {
         document.getElementById('loadMoreBtn')?.addEventListener('click', async (e) => {
             e.target.disabled = true;
             e.target.textContent = 'Cargando...';
-            const more = await db.getReturns(50, cache.returnsOffset);
+            const org = user.organization || 'TAT';
+            const more = await db.getReturns(50, cache.returnsOffset, org);
             cache.returns = [...cache.returns, ...more];
             cache.returnsOffset += more.length;
             cache.hasMoreReturns = more.length === 50;
@@ -266,39 +299,62 @@ export const renderAdminDashboard = (container, user) => {
             };
         });
 
+        // PRODUCT SEARCH LOGIC
         const prodSearch = document.getElementById('productSearch');
         if (prodSearch) {
-            let debounce;
+            let debounceTimer;
             prodSearch.addEventListener('input', (e) => {
-                clearTimeout(debounce);
-                debounce = setTimeout(async () => {
-                    const query = e.target.value;
+                const query = e.target.value.trim();
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
                     const container = document.getElementById('productTableContainer');
-                    if (query.length < 2) return;
-                    container.innerHTML = '<div style="padding:40px; text-align:center;"><div class="spinner" style="margin:auto"></div></div>';
-                    const results = await db.searchProducts(query);
+                    if (query.length < 2) {
+                        container.innerHTML = `
+                            <div style="padding: 60px; text-align: center; color: var(--text-light);">
+                                <span class="material-icons-round" style="font-size: 48px; opacity: 0.3;">search</span>
+                                <p>Ingresa al menos 2 caracteres para buscar.</p>
+                            </div>`;
+                        return;
+                    }
+
+                    container.innerHTML = `<div class="spinner" style="margin: 40px auto;"></div>`;
+
+                    const org = user.organization || 'TAT';
+                    const results = await db.searchProducts(query, org);
+
                     if (results.length === 0) {
-                        container.innerHTML = '<div style="padding:40px; text-align:center;">No se encontraron productos.</div>';
+                        container.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-light);">No se encontraron productos.</div>`;
                     } else {
                         container.innerHTML = `
-                            <table style="width:100%; border-collapse:collapse;">
-                                <thead style="background:#f8fafc; font-size:12px; text-transform:uppercase;">
-                                    <tr><th style="padding:12px; text-align:left;">Código</th><th style="padding:12px; text-align:left;">Nombre</th><th style="padding:12px; text-align:right;">Precio</th></tr>
-                                </thead>
-                                <tbody>
-                                    ${results.map(p => `
-                                        <tr style="border-bottom:1px solid #f1f5f9;">
-                                            <td style="padding:12px; font-weight:600;">${p.code}</td>
-                                            <td style="padding:12px;">${p.name}</td>
-                                            <td style="padding:12px; text-align:right; font-weight:700;">$ ${p.price.toLocaleString()}</td>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">
+                                        <tr>
+                                            <th style="padding: 12px 16px; text-align: left;">Código</th>
+                                            <th style="padding: 12px 16px; text-align: left;">Nombre</th>
+                                            <th style="padding: 12px 16px; text-align: right;">Precio</th>
                                         </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>`;
+                                    </thead>
+                                    <tbody>
+                                        ${results.map(p => `
+                                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                <td style="padding: 12px 16px; font-weight: 600; font-size: 13px;">${p.code}</td>
+                                                <td style="padding: 12px 16px; font-size: 13px;">${p.name}</td>
+                                                <td style="padding: 12px 16px; text-align: right; font-weight: 700;">${formatPrice(p.price)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
                     }
-                }, 300);
+                    // Keep focus? No need, we are just rendering table below
+                }, 400);
             });
+            prodSearch.focus();
         }
+
+
 
         document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
             if (await Alert.confirm('¿Estás seguro de que deseas eliminar TODOS los datos de devoluciones y rutas?', 'Reiniciar Sistema')) {

@@ -1,4 +1,4 @@
-import { db } from '../data.js';
+import { db } from '../data.js?v=fixed7';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 
@@ -23,9 +23,12 @@ export const renderAuxiliarDashboard = (container, user) => {
     const render = async () => {
         try {
             // 1. Fetch current route and returns
+            console.log("[auxiliar render] Fetching route for user:", user.id, user.username);
             const currentRoute = await db.getTodaysRoute(user.id);
+            console.log("[auxiliar render] Current route:", currentRoute);
             state.routeStarted = !!currentRoute;
             state.currentRouteId = currentRoute ? currentRoute.id : null;
+            console.log("[auxiliar render] Route started:", state.routeStarted, "Route ID:", state.currentRouteId);
 
             let returns = [];
             if (state.currentRouteId) {
@@ -43,7 +46,7 @@ export const renderAuxiliarDashboard = (container, user) => {
             if (state.view === 'dashboard') {
                 renderDashboard(container, user, state, returns, currentRoute, render, updateSyncUI);
             } else {
-                renderForm(container, state, render);
+                renderForm(container, user, state, render);
             }
 
             // 3. Network listeners

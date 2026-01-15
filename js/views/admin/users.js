@@ -30,7 +30,7 @@ export const renderAuxiliares = (users, routes, filterTerm) => {
                 </thead>
                 <tbody>
                     ${filtered.map(u => {
-        const todayRoute = routes.find(r => r.userId === u.id && r.date === todayStr);
+        const todayRoute = routes.find(r => (r.userId === u.id || r.username == u.username) && r.date === todayStr);
         const statusColor = todayRoute ? (todayRoute.status === 'completed' ? '#6366f1' : '#22c55e') : '#94a3b8';
         const statusText = todayRoute ? (todayRoute.status === 'completed' ? 'Finalizó' : 'En Ruta') : 'Inactivo';
 

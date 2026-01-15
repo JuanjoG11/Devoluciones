@@ -46,12 +46,16 @@ export const renderLogin = (container) => {
     const passwordGroup = document.getElementById('passwordGroup');
     const passwordInput = document.getElementById('password');
 
-    // Dynamic UI for Admin
+    // Dynamic UI: Show password ONLY for admins (starts with 'admin')
+    // Hide for numeric IDs (Auxiliaries)
     usernameInput.addEventListener('input', (e) => {
-        if (e.target.value.toLowerCase() === 'admin') {
+        const value = e.target.value.trim().toLowerCase();
+        // Check if starts with 'admin' to support 'admin', 'admin_tym', etc.
+        if (value.startsWith('admin')) {
             passwordGroup.classList.remove('hidden');
             passwordInput.setAttribute('required', 'true');
         } else {
+            // Assume Auxiliary (Numeric ID) -> No password needed
             passwordGroup.classList.add('hidden');
             passwordInput.removeAttribute('required');
         }
@@ -60,9 +64,10 @@ export const renderLogin = (container) => {
     const form = document.getElementById('loginForm');
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('username').value;
+        const username = document.getElementById('username').value.trim();
         const passwordField = document.getElementById('password');
-        // If password field is hidden (for auxiliar), use default '123'
+
+        // If password field is hidden (Auxiliary), use default '123'
         const password = (!passwordField.parentElement.classList.contains('hidden'))
             ? passwordField.value
             : '123';
