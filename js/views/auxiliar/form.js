@@ -201,6 +201,10 @@ export const renderForm = (container, user, state, render) => {
 
     document.getElementById('returnForm').onsubmit = async (e) => {
         e.preventDefault();
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        if (btn.disabled) return; // Fail-safe
+
         const fd = new FormData(e.target);
         const data = {
             routeId: state.currentRouteId,
@@ -208,7 +212,9 @@ export const renderForm = (container, user, state, render) => {
             sheet: fd.get('sheet'),
             reason: fd.get('reason'),
             evidence: capturedPhoto,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            // Unique ID for this submission attempt to prevent race conditions
+            submissionId: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2)
         };
 
         if (data.reason === 'Otro') {
@@ -227,24 +233,20 @@ export const renderForm = (container, user, state, render) => {
             data.total = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
         }
 
-        const btn = e.target.querySelector('button[type="submit"]');
-        btn.disabled = true; btn.innerHTML = 'Guardando...';
-
-        // Optimized for SPEED: Skip remote duplicate check
-        /*
-        const dup = await db.checkDuplicate(data.invoice, data.sheet, state.currentRouteId);
-        if (dup && !(await Alert.confirm(`⚠️ Posible duplicado (Doc: ${data.invoice}). ¿Continuar?`, 'Confirmar'))) {
-            btn.disabled = false; btn.innerHTML = 'Guardar'; return;
-        }
-        */
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons-round spinning">sync</span> Guardando...';
 
         if (await db.addReturn(data)) {
             Alert.success("Registrado correctamente");
-            // Small delay to ensure logic clears before render, though not strictly needed with optimistic UI
-            setTimeout(() => { state.view = 'dashboard'; render(); }, 100);
+            // Delay redirection slightly to allow UI to settle and prevent re-clicks
+            setTimeout(() => {
+                state.view = 'dashboard';
+                render();
+            }, 500);
         } else {
             Alert.error("Error al guardar");
-            btn.disabled = false; btn.innerHTML = 'Guardar';
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">save</span> Guardar';
         }
     };
 

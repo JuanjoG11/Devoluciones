@@ -195,6 +195,7 @@ const broadcastEvent = async (event, payload, organization = null) => {
 
 // Fallback ID cache
 let _cachedFallbackUserId = null;
+let _submissionLock = false;
 
 /**
  * Data Access Object (DAO)
@@ -467,11 +468,9 @@ export const db = {
         query = query.order('created_at', { ascending: false }).limit(1);
 
         const { data, error } = await query.maybeSingle();
+
         if (error) {
             console.error("[getTodaysRoute] Error fetching route:", error);
-            console.error("[getTodaysRoute] Error details:", JSON.stringify(error, null, 2));
-        } else {
-            console.log("[getTodaysRoute] Query result:", data);
         }
 
         return data ? this._mapRoute(data) : null;
@@ -568,7 +567,6 @@ export const db = {
                     status: 'active'
                 }]).select().single();
             } catch (err) {
-                console.error("Insert exception:", err);
                 return { error: err };
             }
         };
@@ -588,11 +586,7 @@ export const db = {
 
         // 3. Fallback Mechanism
         if (result.error) {
-            console.warn("Route creation failed (likely FK), attempting Proxy ID...", result.error);
-
             const fallbackId = await this.getFallbackUserId();
-            console.log("Fallback ID:", fallbackId);
-
             if (fallbackId) {
                 result = await doInsert(fallbackId);
             }
@@ -717,6 +711,17 @@ export const db = {
 
     async checkDuplicate(invoice, sheet, routeId) {
         if (!invoice && !sheet) return null;
+
+        // 1. Check Offline Queue first (Prevent local race condition)
+        const pending = await this.getPendingReturns();
+        const localDuplicate = pending.find(p =>
+            p.routeId === routeId &&
+            ((p.invoice === invoice && invoice !== '') ||
+                (p.sheet === sheet && sheet !== ''))
+        );
+        if (localDuplicate) return localDuplicate;
+
+        // 2. Check Database
         let query = sb.from('return_items').select('*').eq('route_id', routeId);
 
         const conditions = [];
@@ -736,24 +741,30 @@ export const db = {
     async addReturn(returnData, skipOfflineQueue = false) {
         // 1. FAST PATH: UI Call (save local, return instant, sync later)
         if (!skipOfflineQueue) {
-            try {
-                // Check if already in offline queue to prevent double submission from UI
-                const pending = await this.getPendingReturns();
-                const isDuplicate = pending.some(p =>
-                    p.routeId === returnData.routeId &&
-                    (p.invoice === returnData.invoice && p.invoice !== '') ||
-                    (p.sheet === returnData.sheet && p.sheet !== '')
-                );
+            if (_submissionLock) {
+                console.log("[addReturn] Submission locked, skipping duplicate trigger.");
+                return true;
+            }
+            _submissionLock = true;
 
-                if (isDuplicate) {
-                    console.log("Duplicate return detected in local queue, skipping.");
+            try {
+                // Double Check for Duplicates (Local + Remote if online)
+                const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId);
+
+                if (existing) {
+                    console.log("Duplicate return detected, skipping.");
                     return true;
                 }
 
                 await this.saveOfflineReturn(returnData);
                 this.syncOfflineReturns(); // Background trigger
                 return true;
-            } catch (e) { return false; }
+            } catch (e) {
+                return false;
+            } finally {
+                // Release lock after a short delay to prevent mechanical bounce
+                setTimeout(() => { _submissionLock = false; }, 500);
+            }
         }
 
         // 2. SYNC PATH: Background Worker (upload & insert)
