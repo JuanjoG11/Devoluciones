@@ -263,26 +263,23 @@ export const db = {
             return Array.from(mergedMap.values());
         }
 
-        // Standard TAT Logic (DB Only)
-        let finalUsers = dbUsers;
+        // Standard Logic (DB Only)
         try {
-            // Fetch Global Users (TAT + others in DB)
             const { data, error } = await sb.from('users').select('*').order('name', { ascending: true });
 
             if (!error && data) {
                 // Pre-calculate known TYM usernames for identification
                 const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
 
-                finalUsers = data.map(u => {
+                let finalUsers = data.map(u => {
                     const cleanUsername = String(u.username).trim();
                     let org = u.organization;
 
-                    // FORCE TYM organization if user is in the known TYM list, 
-                    // regardless of what the DB says (fixes "leaked" users in TAT view)
-                    if (tymUsernames.has(cleanUsername)) {
+                    // FORCE TYM organization if user is in the known TYM list or has TYM org in DB
+                    if (tymUsernames.has(cleanUsername) || org === 'TYM') {
                         org = 'TYM';
-                    } else if (!org) {
-                        org = 'TAT'; // Default to TAT only if not identified as TYM
+                    } else {
+                        org = 'TAT'; // Default everything else to TAT
                     }
 
                     return {
@@ -291,17 +288,17 @@ export const db = {
                         organization: org
                     };
                 });
+
+                if (organization) {
+                    finalUsers = finalUsers.filter(u => u.organization === organization);
+                }
+                return finalUsers;
             }
         } catch (e) {
             console.error("Error fetching users:", e);
         }
 
-        // Filter for TAT (or others if schema supported it)
-        if (organization) {
-            finalUsers = finalUsers.filter(u => u.organization === organization);
-        }
-
-        return finalUsers;
+        return organization === 'TYM' ? Array.from(mergedMap.values()) : [];
     },
 
     async updateUserStatus(userId, isActive) {
@@ -350,10 +347,10 @@ export const db = {
             // User exists in DB
             let user = { ...data, isActive: data.is_active !== false };
 
-            // Auto-detect TYM if missing or if in static list
+            // Auto-detect TYM if missing or if known
             if (!user.organization) {
-                user.organization = staticTym ? 'TYM' : 'TAT';
-            } else if (staticTym && user.organization !== 'TYM') {
+                user.organization = this.isTymAccount(cleanUsername) ? 'TYM' : 'TAT';
+            } else if (this.isTymAccount(cleanUsername) && user.organization !== 'TYM') {
                 user.organization = 'TYM'; // Static list overrides DB for these specific users
             }
             return user;
@@ -364,10 +361,12 @@ export const db = {
             return { ...staticTym, id: staticTym.username, isActive: true, organization: 'TYM' };
         }
 
-        if (cleanUsername === 'admin_tym') {
+        if (this.isTymAccount(cleanUsername)) {
             return {
-                id: 'tym-admin-id', username: 'admin_tym', password: '123',
-                role: 'admin', name: 'Administrador TYM', organization: 'TYM', isActive: true
+                id: cleanUsername, username: cleanUsername, password: '123',
+                role: (cleanUsername === 'admin_tym') ? 'admin' : 'auxiliar',
+                name: (cleanUsername === 'admin_tym') ? 'Administrador TYM' : (staticTym ? staticTym.name : 'Auxiliar TYM'),
+                organization: 'TYM', isActive: true
             };
         }
 
@@ -386,27 +385,18 @@ export const db = {
                 const cached = localStorage.getItem('inventory');
                 if (cached) {
                     const products = JSON.parse(cached);
-                    dbResults = products.filter(p => {
-                        const org = p.organization || 'TAT';
-                        const matchesOrg = (organization === 'TYM') ? (org === 'TYM') : (org === 'TAT');
-                        return matchesOrg && (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q));
-                    });
+                    dbResults = products.filter(p =>
+                        String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+                    );
                 }
             } catch (e) { dbResults = []; }
         } else {
-            // Refined DB Query for strict isolation
-            let dbQuery = sb.from('products').select('*');
-
-            if (organization === 'TYM') {
-                dbQuery = dbQuery.eq('organization', 'TYM');
-            } else {
-                // For TAT, include both TAT and null/missing organization
-                dbQuery = dbQuery.or(`organization.eq.TAT,organization.is.null`);
-            }
-
-            const { data, error } = await dbQuery
+            // Fetch based on search term only, then filter by organization in JS
+            // This is the most robust way to handle the logical isolation
+            const { data, error } = await sb.from('products')
+                .select('*')
                 .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
-                .limit(500);
+                .limit(organization === 'TYM' ? 300 : 500);
 
             if (!error && data) dbResults = data;
         }
@@ -426,13 +416,28 @@ export const db = {
 
         for (const p of combined) {
             const code = String(p.code).trim();
-            if (!seenCodes.has(code)) {
+            if (seenCodes.has(code)) continue;
+
+            const pOrg = p.organization || 'TAT';
+            const matchesOrg = (organization === 'TYM') ? (pOrg === 'TYM') : (pOrg === 'TAT');
+
+            if (matchesOrg) {
                 seenCodes.add(code);
                 unique.push(p);
             }
         }
 
         return unique.slice(0, 500);
+    },
+
+    /**
+     * Helper to identify if a username belongs to TYM
+     */
+    isTymAccount(username) {
+        if (!username) return false;
+        const clean = String(username).trim();
+        const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
+        return tymUsernames.has(clean) || clean === 'admin_tym' || clean.startsWith('aux_tym');
     },
 
     async getTodaysRoute(userId) {
@@ -503,24 +508,14 @@ export const db = {
         const { data: routes, error } = await query;
         if (error) return [];
 
-        // Manually filter by user organization if needed
-        // This is robust against missing schema relations, provided we have cached users
-        if (organization) {
-            // Fetch users of that org and filter
-            const orgUsers = await this.getUsers(organization);
-
-            // FILTER BY USERNAME:
-            // Because we might be using Proxy IDs for TYM users (FK bypass),
-            // we cannot rely on 'user_id' matching the mock user's ID.
-            // We MUST rely on 'username' (Cedula) which is persisted correctly.
-            const orgUsernames = new Set(orgUsers.map(u => u.username));
-
-            return routes
-                .filter(r => orgUsernames.has(r.username))
-                .map(r => this._mapRoute(r));
-        }
-
-        return routes.map(r => this._mapRoute(r));
+        // STRICT ISOLATION: Use unified helper to filter routes
+        return routes
+            .filter(r => {
+                if (!organization) return true;
+                const rOrg = this.isTymAccount(r.username) ? 'TYM' : 'TAT';
+                return rOrg === organization;
+            })
+            .map(r => this._mapRoute(r));
     },
 
     async getDashboardStats(date) {
@@ -699,24 +694,42 @@ export const db = {
     },
 
     async syncOfflineReturns() {
-        const pending = await this.getPendingReturns();
-        if (pending.length === 0) return 0;
-        let syncedCount = 0;
-        for (const item of pending) {
-            const tempId = item.id;
-            delete item.id;
-            const success = await this.addReturn(item, true);
-            if (success) {
-                await this.deletePendingReturn(tempId);
-                syncedCount++;
+        if (this._syncing) return 0;
+        this._syncing = true;
+        try {
+            const pending = await this.getPendingReturns();
+            if (pending.length === 0) return 0;
+            let syncedCount = 0;
+            for (const item of pending) {
+                const tempId = item.id;
+                delete item.id;
+                const success = await this.addReturn(item, true);
+                if (success) {
+                    await this.deletePendingReturn(tempId);
+                    syncedCount++;
+                }
             }
+            return syncedCount;
+        } finally {
+            this._syncing = false;
         }
-        return syncedCount;
     },
 
     async checkDuplicate(invoice, sheet, routeId) {
         if (!invoice && !sheet) return null;
-        const { data } = await sb.from('return_items').select('*').eq('route_id', routeId).or(`invoice.eq.${invoice},sheet.eq.${sheet}`).limit(1);
+        let query = sb.from('return_items').select('*').eq('route_id', routeId);
+
+        const conditions = [];
+        if (invoice) conditions.push(`invoice.eq.${invoice}`);
+        if (sheet) conditions.push(`sheet.eq.${sheet}`);
+
+        if (conditions.length > 0) {
+            query = query.or(conditions.join(','));
+        } else {
+            return null;
+        }
+
+        const { data } = await query.limit(1);
         return (data && data.length > 0) ? data[0] : null;
     },
 
@@ -724,14 +737,34 @@ export const db = {
         // 1. FAST PATH: UI Call (save local, return instant, sync later)
         if (!skipOfflineQueue) {
             try {
+                // Check if already in offline queue to prevent double submission from UI
+                const pending = await this.getPendingReturns();
+                const isDuplicate = pending.some(p =>
+                    p.routeId === returnData.routeId &&
+                    (p.invoice === returnData.invoice && p.invoice !== '') ||
+                    (p.sheet === returnData.sheet && p.sheet !== '')
+                );
+
+                if (isDuplicate) {
+                    console.log("Duplicate return detected in local queue, skipping.");
+                    return true;
+                }
+
                 await this.saveOfflineReturn(returnData);
-                this.syncOfflineReturns(); // Background trigger (fire & forget)
+                this.syncOfflineReturns(); // Background trigger
                 return true;
             } catch (e) { return false; }
         }
 
         // 2. SYNC PATH: Background Worker (upload & insert)
         try {
+            // DEEP DUPLICATE CHECK: Before inserting to DB, check if it already exists
+            const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId);
+            if (existing) {
+                console.log("Duplicate return found in DB during sync, marking as success to remove from queue.");
+                return true;
+            }
+
             let evidenceUrl = returnData.evidence;
             if (returnData.evidence && returnData.evidence.startsWith('data:image')) {
                 const uploadedUrl = await this.uploadPhoto(returnData.evidence);
@@ -744,18 +777,22 @@ export const db = {
                 evidence: evidenceUrl
             }]);
 
-            if (error) return false; // Keep in queue if failed
+            if (error) {
+                console.error("Error inserting return:", error);
+                return false;
+            }
 
             try {
-                // Determine organization from route
+                // Determine organization from route for targeted broadcast
                 const { data: route } = await sb.from('routes').select('username').eq('id', returnData.routeId).single();
                 const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
-                const organization = tymUsernames.has(String(route?.username).trim()) ? 'TYM' : 'TAT';
+                const organization = (route && tymUsernames.has(String(route.username).trim())) ? 'TYM' : 'TAT';
 
                 await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() }, organization);
             } catch (e) { }
             return true;
         } catch (e) {
+            console.error("Exception in addReturn (sync):", e);
             return false;
         }
     },

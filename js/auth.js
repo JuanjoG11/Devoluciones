@@ -39,11 +39,9 @@ export const auth = {
             }
             // Ensure organization is set
             if (!user.organization) {
-                if (user.username === 'admin_tym' || user.username.startsWith('aux_tym')) {
-                    user.organization = 'TYM';
-                } else {
-                    user.organization = 'TAT';
-                }
+                user.organization = db.isTymAccount(user.username) ? 'TYM' : 'TAT';
+            } else if (db.isTymAccount(user.username) && user.organization !== 'TYM') {
+                user.organization = 'TYM';
             }
 
             localStorage.setItem('currentUser', JSON.stringify(user));
