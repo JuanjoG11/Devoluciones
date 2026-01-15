@@ -17,7 +17,7 @@ export const formatNumber = (value) => {
 
 export const formatTime12h = (timeStr) => {
     if (!timeStr) return '—';
-    if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) return timeStr;
+    if (timeStr.toLowerCase().match(/[ap]\.?\s*m\.?/)) return timeStr;
     const parts = timeStr.split(':');
     if (parts.length >= 2) {
         let hour = parseInt(parts[0]);

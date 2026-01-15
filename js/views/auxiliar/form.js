@@ -144,7 +144,20 @@ export const renderForm = (container, user, state, render) => {
         if (!query) { searchResults.style.display = 'none'; return; }
         clearTimeout(window.searchDebounce);
         window.searchDebounce = setTimeout(async () => {
-            const org = user.organization || 'TAT';
+            let org = user.organization;
+            // Fallback: If organization is missing (stale login), detect if user is TYM
+            if (!org) {
+                // We suspect user might be TYM but localstorage is old.
+                // Check if they exist in the TYM list
+                const tymUsers = await db.getUsers('TYM');
+                const isTym = tymUsers.some(u => String(u.username) === String(user.username));
+                org = isTym ? 'TYM' : 'TAT';
+
+                // Optional: Auto-fix local user object to avoid future checks
+                user.organization = org;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+            }
+
             const results = await db.searchProducts(query, org);
             searchResults.innerHTML = results.map(p => `
                 <li style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}">

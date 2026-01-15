@@ -172,7 +172,7 @@ const parseInventory = (text) => {
 
 // Helper for broadcasting events
 let _broadcastChannel = null;
-const broadcastEvent = async (event, payload) => {
+const broadcastEvent = async (event, payload, organization = null) => {
     try {
         if (!_broadcastChannel) {
             _broadcastChannel = sb.channel('devolucion-alerts');
@@ -182,7 +182,7 @@ const broadcastEvent = async (event, payload) => {
                 });
             });
         }
-        await _broadcastChannel.send({ type: 'broadcast', event, payload });
+        await _broadcastChannel.send({ type: 'broadcast', event, payload: { ...payload, organization } });
     } catch (e) {
         console.error("Broadcast failed:", e);
         // Force reset channel for next time if it failed
@@ -364,8 +364,8 @@ export const db = {
         if (organization === 'TYM') {
             const TYM_PRODUCTS = TYM_PRODUCTS_LIST;
             return TYM_PRODUCTS.filter(p =>
-                p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
-            );
+                String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+            ).slice(0, 50);
         }
 
         // 2. NORMAL FLOW (TAT)
@@ -573,8 +573,13 @@ export const db = {
         // Notify Admin if route is completed
         if (!error && updates.status === 'completed') {
             try {
-                const { data: route } = await sb.from('routes').select('user_name').eq('id', routeId).single();
-                await broadcastEvent('ruta-completada', { userName: route?.user_name || 'Alguien' });
+                const { data: route } = await sb.from('routes').select('user_name, username').eq('id', routeId).single();
+
+                // Determine organization
+                const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
+                const organization = tymUsernames.has(String(route?.username).trim()) ? 'TYM' : 'TAT';
+
+                await broadcastEvent('ruta-completada', { userName: route?.user_name || 'Alguien' }, organization);
             } catch (e) { console.error("Error sending realtime alert:", e); }
         }
         return !error;
@@ -699,7 +704,12 @@ export const db = {
             if (error) return false; // Keep in queue if failed
 
             try {
-                await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() });
+                // Determine organization from route
+                const { data: route } = await sb.from('routes').select('username').eq('id', returnData.routeId).single();
+                const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
+                const organization = tymUsernames.has(String(route?.username).trim()) ? 'TYM' : 'TAT';
+
+                await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() }, organization);
             } catch (e) { }
             return true;
         } catch (e) {
@@ -717,10 +727,23 @@ export const db = {
         } catch (e) { return false; }
     },
 
-    async resetTestData() {
+    async resetTestData(organization = null) {
         try {
-            await sb.from('return_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await sb.from('routes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            if (organization) {
+                // Get all routes for this organization
+                const routes = await this.getRoutes(organization);
+                const routeIds = routes.map(r => r.id);
+
+                if (routeIds.length > 0) {
+                    await sb.from('return_items').delete().in('route_id', routeIds);
+                    await sb.from('routes').delete().in('id', routeIds);
+                }
+            } else {
+                // Delete all (admin override)
+                await sb.from('return_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await sb.from('routes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            }
+
             localStorage.removeItem('activeRoute');
             const dbRef = await this._initOfflineDB();
             const transaction = dbRef.transaction(['pending_returns'], 'readwrite');

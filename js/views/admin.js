@@ -1,7 +1,7 @@
 ﻿import { db } from '../data.js?v=fixed7';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
-import { formatTime12h } from '../utils/formatters.js';
+import { formatTime12h, formatPrice } from '../utils/formatters.js';
 
 // Modular Sections
 import { renderDashboard } from './admin/dashboard.js';
@@ -49,34 +49,26 @@ export const renderAdminDashboard = (container, user) => {
             const today = new Date().toISOString().split('T')[0];
             const org = user.organization || 'TAT'; // Default to TAT if undefined
 
-            // For Stats: Use RPC for TAT (Global/Existing), but COMPUTE locally for TYM to avoid data leaks
-            let stats = { active_routes_count: 0, total_returns_count: 0, total_returns_value: 0 };
+            // For Stats: COMPUTE locally to ensure strict organization isolation
+            // We do not rely on RPC 'get_dashboard_stats' as it may not be organization-aware.
 
-            if (org === 'TAT') {
-                stats = await db.getDashboardStats(today);
-            } else {
-                // TYM Local Stats Calculation
-                // 1. Get Routes for Today (Already filtered by db.getRoutes(org))
-                const tymRoutes = await db.getRoutes(org);
-                const todaysRoutes = tymRoutes.filter(r => r.date === today);
-                const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
+            // 1. Get Routes for Today (Already filtered by db.getRoutes(org))
+            const todaysRoutesAll = await db.getRoutes(org);
+            const todaysRoutes = todaysRoutesAll.filter(r => r.date === today);
+            const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
 
-                // 2. Get Returns for Today
-                // We need ALL returns for today to sum them up. 
-                // Since TYM is new, fetching "all" is safe (likely 0 or few).
-                // We reuse getReturns but need to ensure we get enough. 
-                // Let's assume fetching top 100 is enough for stats for now.
-                const tymReturns = await db.getReturns(100, 0, org);
-                // Filter returns that are actually from today (getReturns sorts by created_at desc)
-                // Just simpler: sum what we have.
-                const todaysReturns = tymReturns.filter(r => r.timestamp.startsWith(today));
+            // 2. Get Returns for Today
+            // We fetch a batch of returns to calculate stats. 
+            // In a high-volume production scenario, this should be an RPC, 
+            // but for now local calculation guarantees privacy.
+            const recentReturns = await db.getReturns(100, 0, org);
+            const todaysReturns = recentReturns.filter(r => r.timestamp.startsWith(today));
 
-                stats = {
-                    active_routes_count: activeCount,
-                    total_returns_count: todaysReturns.length,
-                    total_returns_value: todaysReturns.reduce((sum, r) => sum + r.total, 0)
-                };
-            }
+            const stats = {
+                active_routes_count: activeCount,
+                total_returns_count: todaysReturns.length,
+                total_returns_value: todaysReturns.reduce((sum, r) => sum + r.total, 0)
+            };
 
             const [routes, returns, users] = await Promise.all([
                 db.getRoutes(org),
@@ -136,14 +128,19 @@ export const renderAdminDashboard = (container, user) => {
 
     const setupRealtime = () => {
         if (!db.sb) return;
+        const userOrg = user.organization || 'TAT';
         const channel = db.sb.channel('devolucion-alerts', { config: { broadcast: { self: true } } })
             .on('broadcast', { event: 'nueva-devolucion' }, (payload) => {
-                showNotification('🔔 Nueva Devolución', 'Se ha registrado una nueva devolución');
-                setTimeout(async () => { await fetchData(); renderSection(); }, 1000);
+                if (payload.payload?.organization === userOrg) {
+                    showNotification('🔔 Nueva Devolución', 'Se ha registrado una nueva devolución');
+                    setTimeout(async () => { await fetchData(); renderSection(); }, 1000);
+                }
             })
             .on('broadcast', { event: 'ruta-completada' }, (payload) => {
-                showNotification('✅ Ruta Finalizada', `La ruta de ${payload.payload?.userName || 'un auxiliar'} ha terminado`);
-                fetchData().then(() => renderSection());
+                if (payload.payload?.organization === userOrg) {
+                    showNotification('✅ Ruta Finalizada', `La ruta de ${payload.payload?.userName || 'un auxiliar'} ha terminado`);
+                    fetchData().then(() => renderSection());
+                }
             })
             .subscribe();
         return channel;
@@ -357,8 +354,9 @@ export const renderAdminDashboard = (container, user) => {
 
 
         document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
-            if (await Alert.confirm('¿Estás seguro de que deseas eliminar TODOS los datos de devoluciones y rutas?', 'Reiniciar Sistema')) {
-                if (await db.resetTestData()) {
+            const org = user.organization || 'TAT';
+            if (await Alert.confirm(`¿Estás seguro de que deseas eliminar TODOS los datos de ${org}?`, 'Reiniciar Sistema')) {
+                if (await db.resetTestData(org)) {
                     Alert.success('Datos eliminados correctamente');
                     location.reload();
                 }
