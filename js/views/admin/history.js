@@ -120,39 +120,48 @@ export const renderHistorial = (cache) => {
         document.getElementById('nextPage')?.addEventListener('click', () => { if (end < filteredReturns.length) { currentPage++; renderResults(); } });
     };
 
-    // Filters and events setup
+    // Filters and events setup - use requestAnimationFrame to ensure DOM is ready
     const setupEvents = () => {
-        applyFilters();
-        const searchInput = document.getElementById('historial-search');
-        const dateFromInput = document.getElementById('historial-date-from');
-        const dateToInput = document.getElementById('historial-date-to');
-        const userSelect = document.getElementById('historial-user');
-        const reasonSelect = document.getElementById('historial-reason');
-        const clearBtn = document.getElementById('clear-filters');
-
-        let searchDebounce;
-        searchInput?.addEventListener('input', (e) => {
-            clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(() => { filters.search = e.target.value; applyFilters(); }, 300);
-        });
-
-        dateFromInput?.addEventListener('change', (e) => { filters.dateFrom = e.target.value; applyFilters(); });
-        dateToInput?.addEventListener('change', (e) => { filters.dateTo = e.target.value; applyFilters(); });
-        userSelect?.addEventListener('change', (e) => { filters.userId = e.target.value; applyFilters(); });
-        reasonSelect?.addEventListener('change', (e) => { filters.reason = e.target.value; applyFilters(); });
-
-        clearBtn?.addEventListener('click', () => {
-            filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
-            if (searchInput) searchInput.value = '';
-            if (dateFromInput) dateFromInput.value = '';
-            if (dateToInput) dateToInput.value = '';
-            if (userSelect) userSelect.value = '';
-            if (reasonSelect) reasonSelect.value = '';
+        // Wait for next frame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
             applyFilters();
+            const searchInput = document.getElementById('historial-search');
+            const dateFromInput = document.getElementById('historial-date-from');
+            const dateToInput = document.getElementById('historial-date-to');
+            const userSelect = document.getElementById('historial-user');
+            const reasonSelect = document.getElementById('historial-reason');
+            const clearBtn = document.getElementById('clear-filters');
+
+            if (!searchInput) {
+                console.error('History filter elements not found in DOM');
+                return;
+            }
+
+            let searchDebounce;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(() => { filters.search = e.target.value; applyFilters(); }, 300);
+            });
+
+            dateFromInput?.addEventListener('change', (e) => { filters.dateFrom = e.target.value; applyFilters(); });
+            dateToInput?.addEventListener('change', (e) => { filters.dateTo = e.target.value; applyFilters(); });
+            userSelect?.addEventListener('change', (e) => { filters.userId = e.target.value; applyFilters(); });
+            reasonSelect?.addEventListener('change', (e) => { filters.reason = e.target.value; applyFilters(); });
+
+            clearBtn?.addEventListener('click', () => {
+                filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
+                if (searchInput) searchInput.value = '';
+                if (dateFromInput) dateFromInput.value = '';
+                if (dateToInput) dateToInput.value = '';
+                if (userSelect) userSelect.value = '';
+                if (reasonSelect) reasonSelect.value = '';
+                applyFilters();
+            });
         });
     };
 
-    setTimeout(setupEvents, 100);
+    // Call setupEvents after a short delay to ensure parent has rendered the HTML
+    setTimeout(setupEvents, 150);
 
     const uniqueReasons = [...new Set(cache.returns.map(r => r.reason))].filter(Boolean);
 
