@@ -144,20 +144,7 @@ export const renderForm = (container, user, state, render) => {
         if (!query) { searchResults.style.display = 'none'; return; }
         clearTimeout(window.searchDebounce);
         window.searchDebounce = setTimeout(async () => {
-            let org = user.organization;
-            // Fallback: If organization is missing (stale login), detect if user is TYM
-            if (!org) {
-                // We suspect user might be TYM but localstorage is old.
-                // Check if they exist in the TYM list
-                const tymUsers = await db.getUsers('TYM');
-                const isTym = tymUsers.some(u => String(u.username) === String(user.username));
-                org = isTym ? 'TYM' : 'TAT';
-
-                // Optional: Auto-fix local user object to avoid future checks
-                user.organization = org;
-                localStorage.setItem('currentUser', JSON.stringify(user));
-            }
-
+            const org = user.organization || 'TAT';
             const results = await db.searchProducts(query, org);
             searchResults.innerHTML = results.map(p => `
                 <li style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}">
@@ -208,12 +195,11 @@ export const renderForm = (container, user, state, render) => {
         const fd = new FormData(e.target);
         const data = {
             routeId: state.currentRouteId,
-            invoice: fd.get('invoice'),
-            sheet: fd.get('sheet'),
+            invoice: fd.get('invoice').trim(),
+            sheet: fd.get('sheet').trim(),
             reason: fd.get('reason'),
             evidence: capturedPhoto,
             timestamp: new Date().toISOString(),
-            // Unique ID for this submission attempt to prevent race conditions
             submissionId: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2)
         };
 

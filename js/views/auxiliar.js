@@ -1,4 +1,4 @@
-import { db } from '../data.js?v=fixed7';
+import { db } from '../data.js';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 
@@ -32,13 +32,22 @@ export const renderAuxiliarDashboard = (container, user) => {
 
             let returns = [];
             if (state.currentRouteId) {
-                returns = await db.getRouteReturns(state.currentRouteId);
-                // Merge with pending local returns
+                const remoteReturns = await db.getRouteReturns(state.currentRouteId);
                 const pending = await db.getPendingReturns();
-                const routePending = pending.filter(p => p.routeId === state.currentRouteId);
-                if (routePending.length > 0) {
-                    returns = [...routePending.map(p => ({ ...p, pending: true })), ...returns];
-                }
+
+                // Deduplicate: Only add pending if it doesn't already exist in remote
+                // Match by invoice + sheet + productCode
+                const routePending = pending.filter(p => {
+                    if (p.routeId !== state.currentRouteId) return false;
+                    const isAlreadyRemote = remoteReturns.some(r =>
+                        String(r.invoice || '').trim() === String(p.invoice || '').trim() &&
+                        String(r.sheet || '').trim() === String(p.sheet || '').trim() &&
+                        String(r.productCode || '').trim() === String(p.productCode || '').trim()
+                    );
+                    return !isAlreadyRemote;
+                });
+
+                returns = [...routePending.map(p => ({ ...p, pending: true })), ...remoteReturns];
             }
 
             // 2. Clear and Render based on view

@@ -1,4 +1,4 @@
-import { db } from '../../data.js?v=fixed7';
+import { db } from '../../data.js';
 import { Alert } from '../../utils/ui.js';
 import { formatPrice, formatTime12h } from '../../utils/formatters.js';
 

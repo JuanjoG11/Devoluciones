@@ -1,4 +1,4 @@
-﻿import { db } from '../data.js?v=fixed7';
+﻿import { db } from '../data.js';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 import { formatTime12h, formatPrice } from '../utils/formatters.js';
@@ -46,23 +46,30 @@ export const renderAdminDashboard = (container, user) => {
                 </div>`;
         }
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const org = user.organization || 'TAT'; // Default to TAT if undefined
+            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
+            const org = user.organization || 'TAT';
 
-            // For Stats: COMPUTE locally to ensure strict organization isolation
-            // We do not rely on RPC 'get_dashboard_stats' as it may not be organization-aware.
+            // 1. Fetch main data sets once
+            const [routes, returns, users] = await Promise.all([
+                db.getRoutes(org),
+                db.getReturns(200, 0, org), // Fetch 200 to cover stats & table reliably
+                db.getUsers(org)
+            ]);
 
-            // 1. Get Routes for Today (Already filtered by db.getRoutes(org))
-            const todaysRoutesAll = await db.getRoutes(org);
-            const todaysRoutes = todaysRoutesAll.filter(r => r.date === today);
+            // 2. Compute stats locally for reliability
+            // Routes use YYYY-MM-DD from toISOString().split('T')[0] but we should be careful.
+            // Actually, because auxiliaries use .toISOString().split('T')[0], they store UTC date.
+            // So we MUST use UTC date for routes.
+            const todayUTC = new Date().toISOString().split('T')[0];
+            const todaysRoutes = routes.filter(r => r.date === todayUTC);
             const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
 
-            // 2. Get Returns for Today
-            // We fetch a batch of returns to calculate stats. 
-            // In a high-volume production scenario, this should be an RPC, 
-            // but for now local calculation guarantees privacy.
-            const recentReturns = await db.getReturns(100, 0, org);
-            const todaysReturns = recentReturns.filter(r => r.timestamp.startsWith(today));
+            // For returns, we check if they happened within the last 24 hours or match today's date
+            const todaysReturns = returns.filter(r => {
+                if (!r.timestamp) return false;
+                // Match either UTC date or local date to be safe
+                return r.timestamp.startsWith(todayUTC) || r.timestamp.startsWith(today);
+            });
 
             const stats = {
                 active_routes_count: activeCount,
@@ -70,21 +77,16 @@ export const renderAdminDashboard = (container, user) => {
                 total_returns_value: todaysReturns.reduce((sum, r) => sum + r.total, 0)
             };
 
-            const [routes, returns, users] = await Promise.all([
-                db.getRoutes(org),
-                db.getReturns(50, 0, org), // For the list view
-                db.getUsers(org)
-            ]);
-
             cache.routes = routes;
             cache.returns = returns;
             cache.users = users.filter(u => u.role === 'auxiliar');
-
-            cache.stats = stats || { active_routes_count: 0, total_returns_count: 0, total_returns_value: 0 };
+            cache.stats = stats;
             cache.lastFetch = Date.now();
             cache.returnsOffset = returns.length;
-            cache.hasMoreReturns = returns.length === 50;
-        } catch (e) { console.error("Fetch error:", e); }
+            cache.hasMoreReturns = returns.length >= 100;
+        } catch (e) {
+            console.error("Fetch error:", e);
+        }
     };
 
     // --- Notifications ---

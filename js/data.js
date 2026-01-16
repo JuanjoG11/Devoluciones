@@ -6,48 +6,44 @@ import { TYM_PRODUCTS_LIST } from './data/tym_products.js';
  * Loads initial users and products if the database is empty.
  * Caches products locally for offline search support.
  */
-export const initializeData = async () => {
-    try {
-        // 1. Always Sync Users (to ensure new ones are added)
-        console.log("Syncing users...");
-        await seedUsers();
 
-        if (localStorage.getItem('db_initialized')) {
-            // Even if initialized, check if we need to sync inventory in the background
-            if (navigator.onLine && !localStorage.getItem('inventory')) {
-                syncInventory();
+
+const _initOfflineDB = async () => {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('AppDevolucionesOffline', 2);
+        request.onupgradeneeded = (e) => {
+            const idb = e.target.result;
+            if (!idb.objectStoreNames.contains('pending_returns')) {
+                idb.createObjectStore('pending_returns', { keyPath: 'id', autoIncrement: true });
             }
-            return;
-        }
-
-        // 2. Seed Products if empty
-        const { count: productCount } = await sb.from('products').select('*', { count: 'exact', head: true });
-        if (productCount === 0) {
-            console.log("Seeding initial products...");
-            const { RAW_INVENTORY_PARTS } = await import('./seed_data.js');
-            const RAW_INVENTORY = RAW_INVENTORY_PARTS.join('');
-            await seedProducts(RAW_INVENTORY);
-        }
-
-        // 3. Sync Local Cache for search performance
-        if (navigator.onLine) {
-            await syncInventory();
-        }
-
-        localStorage.setItem('db_initialized', 'true');
-    } catch (e) {
-        console.error("Error checking DB:", e);
-    }
+            if (!idb.objectStoreNames.contains('inventory')) {
+                idb.createObjectStore('inventory', { keyPath: 'code' });
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
 };
 
 const syncInventory = async () => {
     try {
         console.log("Syncing local inventory cache...");
-        const { data: allProducts, error } = await sb.from('products').select('code, name, price, search_string');
+        const { data: allProducts, error } = await sb.from('products').select('code, name, price');
         if (error) throw error;
         if (allProducts) {
-            localStorage.setItem('inventory', JSON.stringify(allProducts));
-            console.log("Inventory cache updated.");
+            const dbRef = await _initOfflineDB();
+            const transaction = dbRef.transaction(['inventory'], 'readwrite');
+            const store = transaction.objectStore('inventory');
+
+            // Clear old cache and add new one
+            store.clear();
+            allProducts.forEach(p => {
+                store.put({ ...p, search_string: `${p.code} ${p.name}`.toLowerCase() });
+            });
+
+            localStorage.setItem('inventory_last_sync', Date.now().toString());
+            console.log(`Inventory cache updated with ${allProducts.length} items.`);
+            window.dispatchEvent(new CustomEvent('inventory-updated'));
         }
     } catch (e) {
         console.error("Error syncing inventory:", e);
@@ -145,7 +141,7 @@ const seedProducts = async (rawInventory) => {
         const chunkSize = 100;
         for (let i = 0; i < products.length; i += chunkSize) {
             const chunk = products.slice(i, i + chunkSize);
-            const { error } = await sb.from('products').insert(chunk);
+            const { error } = await sb.from('products').upsert(chunk, { onConflict: 'code' });
             if (error) console.error(`Error seeding chunk ${i}:`, error);
         }
     } catch (e) {
@@ -219,87 +215,24 @@ export const db = {
     },
 
     async getUsers(organization = null) {
-        let dbUsers = [];
         try {
             const { data, error } = await sb.from('users').select('*').order('name', { ascending: true });
-            if (!error && data) dbUsers = data;
-        } catch (e) { console.error("Error fetching users:", e); }
+            if (error) throw error;
 
-        if (organization === 'TYM') {
-            const mergedMap = new Map();
+            let users = data.map(u => ({
+                ...u,
+                isActive: u.is_active !== false,
+                organization: this.isTymAccount(u.username) ? 'TYM' : (u.organization || 'TAT')
+            }));
 
-            // 1. Add all static users first (Default Active)
-            TYM_AUX_LIST.forEach(staticUser => {
-                const username = String(staticUser.username).trim();
-                mergedMap.set(username, {
-                    ...staticUser,
-                    id: username, // Fallback ID is username
-                    isActive: true, // Default
-                    organization: 'TYM'
-                });
-            });
-
-            // 2. Overlay or Add DB users
-            dbUsers.forEach(dbUser => {
-                const cleanUsername = String(dbUser.username).trim();
-                if (mergedMap.has(cleanUsername)) {
-                    // Update entry with DB state
-                    const existing = mergedMap.get(cleanUsername);
-                    mergedMap.set(cleanUsername, {
-                        ...existing,
-                        ...dbUser, // Prioritize database data (id, name, etc.)
-                        isActive: dbUser.is_active !== false,
-                        organization: 'TYM'
-                    });
-                } else if (dbUser.organization === 'TYM') {
-                    // Add purely database-driven TYM user
-                    mergedMap.set(cleanUsername, {
-                        ...dbUser,
-                        isActive: dbUser.is_active !== false,
-                        organization: 'TYM'
-                    });
-                }
-            });
-
-            return Array.from(mergedMap.values());
-        }
-
-        // Standard Logic (DB Only)
-        try {
-            const { data, error } = await sb.from('users').select('*').order('name', { ascending: true });
-
-            if (!error && data) {
-                // Pre-calculate known TYM usernames for identification
-                const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
-
-                let finalUsers = data.map(u => {
-                    const cleanUsername = String(u.username).trim();
-                    let org = u.organization;
-
-                    // FORCE TYM organization if user is in the known TYM list or has TYM org in DB
-                    if (tymUsernames.has(cleanUsername) || org === 'TYM') {
-                        org = 'TYM';
-                    } else {
-                        org = 'TAT'; // Default everything else to TAT
-                    }
-
-                    return {
-                        ...u,
-                        isActive: u.is_active !== false,
-                        organization: org
-                    };
-                });
-
-                if (organization) {
-                    finalUsers = finalUsers.filter(u => u.organization === organization);
-                }
-                return finalUsers;
+            if (organization) {
+                users = users.filter(u => u.organization === organization);
             }
+            return users;
         } catch (e) {
             console.error("Error fetching users:", e);
+            return [];
         }
-
-        return organization === 'TYM' ? Array.from(mergedMap.values()) : [];
     },
 
     async updateUserStatus(userId, isActive) {
@@ -383,21 +316,27 @@ export const db = {
         // 1. FETCH FROM DATABASE (OR LOCAL CACHE)
         if (!navigator.onLine) {
             try {
-                const cached = localStorage.getItem('inventory');
-                if (cached) {
-                    const products = JSON.parse(cached);
-                    dbResults = products.filter(p =>
-                        String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
-                    );
-                }
+                const dbRef = await _initOfflineDB();
+                dbResults = await new Promise((resolve) => {
+                    const transaction = dbRef.transaction(['inventory'], 'readonly');
+                    const store = transaction.objectStore('inventory');
+                    const request = store.getAll();
+                    request.onsuccess = () => {
+                        const all = request.result || [];
+                        resolve(all.filter(p =>
+                            String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+                        ));
+                    };
+                    request.onerror = () => resolve([]);
+                });
             } catch (e) { dbResults = []; }
         } else {
-            // Fetch based on search term only, then filter by organization in JS
-            // This is the most robust way to handle the logical isolation
+            // Fetch based on search term only. Organization filtering is handle in-memory
+            // or by merging with static lists below.
             const { data, error } = await sb.from('products')
                 .select('*')
                 .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
-                .limit(organization === 'TYM' ? 300 : 500);
+                .limit(500);
 
             if (!error && data) dbResults = data;
         }
@@ -419,8 +358,8 @@ export const db = {
             const code = String(p.code).trim();
             if (seenCodes.has(code)) continue;
 
-            const pOrg = p.organization || 'TAT';
-            const matchesOrg = (organization === 'TYM') ? (pOrg === 'TYM') : (pOrg === 'TAT');
+            const pOrg = p.organization; // Could be missing in DB
+            const matchesOrg = !pOrg || (organization === 'TYM' ? pOrg === 'TYM' : pOrg === 'TAT');
 
             if (matchesOrg) {
                 seenCodes.add(code);
@@ -437,6 +376,7 @@ export const db = {
     isTymAccount(username) {
         if (!username) return false;
         const clean = String(username).trim();
+        // Strict list-based identification to prevent TAT/TYM leaking
         const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
         return tymUsernames.has(clean) || clean === 'admin_tym' || clean.startsWith('aux_tym');
     },
@@ -468,6 +408,22 @@ export const db = {
         query = query.order('created_at', { ascending: false }).limit(1);
 
         const { data, error } = await query.maybeSingle();
+
+        if (!data && isUUID) {
+            // Fallback: If UUID didn't work but we know the user's username/cedula
+            // Try fetching by username as well
+            const { data: user } = await sb.from('users').select('username').eq('id', normalizedUserId).maybeSingle();
+            if (user && user.username) {
+                const { data: routeByUsername } = await sb.from('routes')
+                    .select('*')
+                    .eq('date', today)
+                    .eq('username', String(user.username).trim())
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (routeByUsername) return this._mapRoute(routeByUsername);
+            }
+        }
 
         if (error) {
             console.error("[getTodaysRoute] Error fetching route:", error);
@@ -501,13 +457,12 @@ export const db = {
     },
 
     async getRoutes(organization = null) {
-        // Increased limit to support >50 auxiliaries per day
-        let query = sb.from('routes').select('*').order('date', { ascending: false }).limit(200);
+        // High limit to ensure we catch all active routes even on busy days
+        let query = sb.from('routes').select('*').order('date', { ascending: false }).limit(500);
 
         const { data: routes, error } = await query;
         if (error) return [];
 
-        // STRICT ISOLATION: Use unified helper to filter routes
         return routes
             .filter(r => {
                 if (!organization) return true;
@@ -522,30 +477,34 @@ export const db = {
         return (data && data.length > 0) ? data[0] : null;
     },
 
-    async getReturns(limit = 50, offset = 0, organization = null) {
-        // If organization is specified, we need to filter by routes belonging to that org
-        let routeIds = null;
-        if (organization) {
-            const routes = await this.getRoutes(organization);
-            routeIds = routes.map(r => r.id);
-            if (routeIds.length === 0) return []; // No routes = no returns
+    async getReturns(limit = 100, offset = 0, organization = null) {
+        // Improved query with join to guarantee accurate organization attribution
+        // Using routes!inner ensures we only get returns linked to valid routes
+        let query = sb.from('return_items')
+            .select('*, routes!inner(username, user_name)')
+            .order('created_at', { ascending: false });
+
+        // Range fetching to handle filtering in JS while maintaining correct limit
+        const fetchLimit = organization ? limit * 3 : limit;
+        const { data, error } = await query.range(offset, offset + fetchLimit - 1);
+        if (error) {
+            console.error("Error fetching returns:", error);
+            return [];
         }
 
-        let query = sb.from('return_items').select('*').order('created_at', { ascending: false });
-
-        if (routeIds) {
-            query = query.in('route_id', routeIds);
-        }
-
-        const { data, error } = await query.range(offset, offset + limit - 1);
-
-        if (error) return [];
-        return data.map(r => ({
-            id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
-            code: r.product_code, name: r.product_name, productName: r.product_name,
-            quantity: r.quantity, total: r.total, reason: r.reason,
-            evidence: r.evidence, timestamp: r.created_at
-        }));
+        return data
+            .filter(r => {
+                if (!organization) return true;
+                const rOrg = this.isTymAccount(r.routes?.username) ? 'TYM' : 'TAT';
+                return rOrg === organization;
+            })
+            .slice(0, limit)
+            .map(r => ({
+                id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
+                code: r.product_code, name: r.product_name, productName: r.product_name,
+                quantity: r.quantity, total: r.total, reason: r.reason,
+                evidence: r.evidence, timestamp: r.created_at
+            }));
     },
 
     async addRoute(routeData) {
@@ -637,22 +596,12 @@ export const db = {
     },
 
     async _initOfflineDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('AppDevolucionesOffline', 1);
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains('pending_returns')) {
-                    db.createObjectStore('pending_returns', { keyPath: 'id', autoIncrement: true });
-                }
-            };
-            request.onsuccess = (e) => resolve(e.target.result);
-            request.onerror = (e) => reject(e.target.error);
-        });
+        return _initOfflineDB();
     },
 
     async saveOfflineReturn(returnData) {
         try {
-            const dbRef = await this._initOfflineDB();
+            const dbRef = await _initOfflineDB();
             return new Promise((resolve, reject) => {
                 const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
                 const store = transaction.objectStore('pending_returns');
@@ -665,7 +614,7 @@ export const db = {
 
     async getPendingReturns() {
         try {
-            const dbRef = await this._initOfflineDB();
+            const dbRef = await _initOfflineDB();
             return new Promise((resolve, reject) => {
                 const transaction = dbRef.transaction(['pending_returns'], 'readonly');
                 const request = transaction.objectStore('pending_returns').getAll();
@@ -677,7 +626,7 @@ export const db = {
 
     async deletePendingReturn(id) {
         try {
-            const dbRef = await this._initOfflineDB();
+            const dbRef = await _initOfflineDB();
             return new Promise((resolve) => {
                 const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
                 const request = transaction.objectStore('pending_returns').delete(id);
@@ -709,29 +658,36 @@ export const db = {
         }
     },
 
-    async checkDuplicate(invoice, sheet, routeId) {
+    async checkDuplicate(invoice, sheet, routeId, productCode = null, ignoreLocal = false) {
         if (!invoice && !sheet) return null;
 
-        // 1. Check Offline Queue first (Prevent local race condition)
-        const pending = await this.getPendingReturns();
-        const localDuplicate = pending.find(p =>
-            p.routeId === routeId &&
-            ((p.invoice === invoice && invoice !== '') ||
-                (p.sheet === sheet && sheet !== ''))
-        );
-        if (localDuplicate) return localDuplicate;
+        const cleanInvoice = String(invoice || '').trim();
+        const cleanSheet = String(sheet || '').trim();
+        const cleanProductCode = String(productCode || '').trim();
+
+        // 1. Check Offline Queue first
+        if (!ignoreLocal) {
+            const pending = await this.getPendingReturns();
+            const localDuplicate = pending.find(p =>
+                p.routeId === routeId &&
+                String(p.invoice || '').trim() === cleanInvoice &&
+                String(p.sheet || '').trim() === cleanSheet &&
+                (cleanProductCode ? String(p.productCode || '').trim() === cleanProductCode : true)
+            );
+            if (localDuplicate) return localDuplicate;
+        }
 
         // 2. Check Database
-        let query = sb.from('return_items').select('*').eq('route_id', routeId);
+        // We use an exact match for invoice, sheet AND product_code if provided
+        // This is much safer than the previous OR logic which was too aggressive.
+        let query = sb.from('return_items')
+            .select('*')
+            .eq('route_id', routeId)
+            .eq('invoice', cleanInvoice)
+            .eq('sheet', cleanSheet);
 
-        const conditions = [];
-        if (invoice) conditions.push(`invoice.eq.${invoice}`);
-        if (sheet) conditions.push(`sheet.eq.${sheet}`);
-
-        if (conditions.length > 0) {
-            query = query.or(conditions.join(','));
-        } else {
-            return null;
+        if (cleanProductCode) {
+            query = query.eq('product_code', cleanProductCode);
         }
 
         const { data } = await query.limit(1);
@@ -742,35 +698,41 @@ export const db = {
         // 1. FAST PATH: UI Call (save local, return instant, sync later)
         if (!skipOfflineQueue) {
             if (_submissionLock) {
-                console.log("[addReturn] Submission locked, skipping duplicate trigger.");
+                console.warn("[addReturn] Submission locked, skipping duplicate trigger.");
                 return true;
             }
             _submissionLock = true;
 
             try {
                 // Double Check for Duplicates (Local + Remote if online)
-                const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId);
+                const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId, returnData.productCode);
 
                 if (existing) {
-                    console.log("Duplicate return detected, skipping.");
+                    console.log("[addReturn] Duplicate return detected, skipping.");
                     return true;
                 }
 
-                await this.saveOfflineReturn(returnData);
-                this.syncOfflineReturns(); // Background trigger
-                return true;
+                const saved = await this.saveOfflineReturn(returnData);
+                if (saved) {
+                    // Trigger sync in background but don't wait for it
+                    this.syncOfflineReturns().catch(console.error);
+                    return true;
+                }
+                return false;
             } catch (e) {
+                console.error("Error in addReturn (local):", e);
                 return false;
             } finally {
-                // Release lock after a short delay to prevent mechanical bounce
-                setTimeout(() => { _submissionLock = false; }, 500);
+                // Release lock after 1 second to prevent mechanical bounce
+                setTimeout(() => { _submissionLock = false; }, 1000);
             }
         }
 
         // 2. SYNC PATH: Background Worker (upload & insert)
         try {
-            // DEEP DUPLICATE CHECK: Before inserting to DB, check if it already exists
-            const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId);
+            // DEEP DUPLICATE CHECK: During sync, ONLY check the remote DB (ignoreLocal: true)
+            // to avoid flagging the item that is currently in the queue as a duplicate of itself.
+            const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId, returnData.productCode, true);
             if (existing) {
                 console.log("Duplicate return found in DB during sync, marking as success to remove from queue.");
                 return true;
@@ -796,8 +758,7 @@ export const db = {
             try {
                 // Determine organization from route for targeted broadcast
                 const { data: route } = await sb.from('routes').select('username').eq('id', returnData.routeId).single();
-                const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
-                const organization = (route && tymUsernames.has(String(route.username).trim())) ? 'TYM' : 'TAT';
+                const organization = (route && this.isTymAccount(route.username)) ? 'TYM' : 'TAT';
 
                 await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() }, organization);
             } catch (e) { }
@@ -836,10 +797,64 @@ export const db = {
             }
 
             localStorage.removeItem('activeRoute');
-            const dbRef = await this._initOfflineDB();
+            const dbRef = await _initOfflineDB();
             const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
             transaction.objectStore('pending_returns').clear();
             return true;
         } catch (e) { return false; }
+    }
+};
+
+/**
+ * Data Initialization
+ * Loads initial users and products if the database is empty.
+ * Caches products locally for offline search support.
+ */
+export const initializeData = async () => {
+    try {
+        // Cleanup old localStorage inventory to free space
+        if (localStorage.getItem('inventory')) {
+            localStorage.removeItem('inventory');
+            console.log("Old localStorage inventory removed.");
+        }
+
+        // 1. Always Sync Users (to ensure new ones are added)
+        console.log("Syncing users...");
+        await seedUsers();
+
+        const version = 'v4'; // Increment this to force a full re-sync
+        const isFirstInit = !localStorage.getItem('db_initialized');
+        const needsVersionSync = localStorage.getItem('inventory_version') !== version;
+
+        if (!isFirstInit && !needsVersionSync) {
+            // Background sync Users
+            seedUsers().catch(e => console.warn("Background user sync failed", e));
+
+            // Background sync Inventory if online
+            if (navigator.onLine) {
+                syncInventory().catch(e => console.warn("Background inventory sync failed", e));
+            }
+            return;
+        }
+
+        localStorage.setItem('inventory_version', version);
+
+        // 2. Seed Products if empty
+        const { count: productCount } = await sb.from('products').select('*', { count: 'exact', head: true });
+        if (productCount === 0) {
+            console.log("Seeding initial products...");
+            const { RAW_INVENTORY_PARTS } = await import('./seed_data.js');
+            const RAW_INVENTORY = RAW_INVENTORY_PARTS.join('');
+            await seedProducts(RAW_INVENTORY);
+        }
+
+        // 3. Sync Local Cache for search performance
+        if (navigator.onLine) {
+            await syncInventory();
+        }
+
+        localStorage.setItem('db_initialized', 'true');
+    } catch (e) {
+        console.error("Error checking DB:", e);
     }
 };
