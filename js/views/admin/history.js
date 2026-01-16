@@ -25,7 +25,8 @@ export const renderHistorial = (cache) => {
         if (filters.userId) {
             results = results.filter(r => {
                 const route = cache.routes.find(rt => rt.id === r.routeId);
-                return route && route.userId === filters.userId;
+                // Compare both userId and username to handle cedula-based IDs
+                return route && (route.userId === filters.userId || route.username === filters.userId);
             });
         }
         if (filters.reason) results = results.filter(r => r.reason === filters.reason);
@@ -179,7 +180,7 @@ export const renderHistorial = (cache) => {
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Búsqueda</label><input type="text" id="historial-search" placeholder="Factura, planilla o producto..." class="input-field" style="width: 100%;"></div>
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Desde</label><input type="date" id="historial-date-from" class="input-field" style="width: 100%;"></div>
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label><input type="date" id="historial-date-to" class="input-field" style="width: 100%;"></div>
-                    <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Auxiliar</label><select id="historial-user" class="input-field" style="width: 100%;"><option value="">Todos</option>${cache.users.filter(u => u.role === 'auxiliar').map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                    <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Auxiliar</label><select id="historial-user" class="input-field" style="width: 100%;"><option value="">Todos</option>${cache.users.filter(u => u.role === 'auxiliar').map(u => `<option value="${u.username}">${u.name}</option>`).join('')}</select></div>
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Motivo</label><select id="historial-reason" class="input-field" style="width: 100%;"><option value="">Todos</option>${uniqueReasons.map(r => `<option value="${r}">${r}</option>`).join('')}</select></div>
                 </div>
                 <button id="clear-filters" class="btn btn-secondary" style="width: auto;"><span class="material-icons-round">clear</span> Limpiar Filtros</button>
