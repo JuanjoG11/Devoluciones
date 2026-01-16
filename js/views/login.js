@@ -35,7 +35,7 @@ export const renderLogin = (container) => {
                     </button>
                     
                     <div style="margin-top: 32px; font-size: 13px; color: var(--text-light); border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                        <p>© 2026 TAT DISTRIBUCIONES - Logística</p>
+                        <p>© 2026 - Logística</p>
                     </div>
                 </form>
             </div>
