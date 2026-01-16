@@ -207,16 +207,54 @@ export const renderForm = (container, user, state, render) => {
             data.reason = manualReasonInput.value.trim();
         }
 
+        // INPUT VALIDATION
+        if (!data.invoice || data.invoice.length === 0) {
+            Alert.error("La factura es requerida");
+            btn.disabled = false;
+            return;
+        }
+        if (!data.sheet || data.sheet.length === 0) {
+            Alert.error("La planilla es requerida");
+            btn.disabled = false;
+            return;
+        }
+        if (!data.reason || data.reason.length === 0) {
+            Alert.error("La razón es requerida");
+            btn.disabled = false;
+            return;
+        }
+
         if (currentType === 'partial') {
             if (!selectedProduct) return Alert.error("Selecciona un producto");
+
+            const qty = parseInt(document.getElementById('qty').value);
+            if (!qty || qty <= 0 || qty > 10000) {
+                Alert.error("Cantidad inválida (1-10000)");
+                btn.disabled = false;
+                return;
+            }
+
             data.productCode = selectedProduct.code;
             data.productName = selectedProduct.name;
-            data.quantity = parseInt(document.getElementById('qty').value);
+            data.quantity = qty;
             data.total = selectedProduct.price * data.quantity;
+
+            if (data.total <= 0) {
+                Alert.error("El total debe ser mayor a 0");
+                btn.disabled = false;
+                return;
+            }
         } else {
+            const totalValue = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
+            if (totalValue <= 0) {
+                Alert.error("El valor total debe ser mayor a 0");
+                btn.disabled = false;
+                return;
+            }
+
             data.productName = "DEVOLUCIÓN TOTAL";
             data.quantity = 1;
-            data.total = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
+            data.total = totalValue;
         }
 
         btn.disabled = true;

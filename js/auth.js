@@ -6,29 +6,11 @@ export const auth = {
         // Optimized: Fetch only the specific user
         let user = await db.getUserByUsername(username);
 
-        // FALLBACK: If user not found in DB (e.g. seeding failed due to schema), use hardcoded values for TYM
+        // FALLBACK: If user not found in DB (e.g. seeding failed due to schema)
+        // This should only happen during initial setup or database issues
         if (!user) {
-            if (username === 'admin_tym' && password === '123') {
-                user = {
-                    id: 'tym-admin-id',
-                    username: 'admin_tym',
-                    password: '123',
-                    role: 'admin',
-                    name: 'Administrador TYM',
-                    organization: 'TYM',
-                    isActive: true
-                };
-            } else if (username === 'aux_tym_1' && password === '123') {
-                user = {
-                    id: 'tym-aux-1',
-                    username: 'aux_tym_1',
-                    password: '123',
-                    role: 'auxiliar',
-                    name: 'AUXILIAR TYM 1',
-                    organization: 'TYM',
-                    isActive: true
-                };
-            }
+            Alert.error("Usuario no encontrado. Por favor, contacta al administrador.");
+            return null;
         }
 
         // Simple plain text password check (legacy)
@@ -44,8 +26,10 @@ export const auth = {
                 user.organization = 'TYM';
             }
 
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            return user;
+            // SECURITY: Don't store password in localStorage
+            const { password: _, ...userWithoutPassword } = user;
+            localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+            return userWithoutPassword;
         }
         return null;
     },

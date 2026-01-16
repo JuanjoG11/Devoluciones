@@ -27,7 +27,7 @@ const _initOfflineDB = async () => {
 
 const syncInventory = async () => {
     try {
-        console.log("Syncing local inventory cache...");
+        // console.log("Syncing local inventory cache...");
         const { data: allProducts, error } = await sb.from('products').select('code, name, price');
         if (error) throw error;
         if (allProducts) {
@@ -42,7 +42,7 @@ const syncInventory = async () => {
             });
 
             localStorage.setItem('inventory_last_sync', Date.now().toString());
-            console.log(`Inventory cache updated with ${allProducts.length} items.`);
+            // console.log(`Inventory cache updated with ${allProducts.length} items.`);
             window.dispatchEvent(new CustomEvent('inventory-updated'));
         }
     } catch (e) {
@@ -137,7 +137,7 @@ const seedUsers = async () => {
 const seedProducts = async (rawInventory) => {
     try {
         const products = parseInventory(rawInventory);
-        console.log(`Seeding ${products.length} products...`);
+        // console.log(`Seeding ${products.length} products...`);
         const chunkSize = 100;
         for (let i = 0; i < products.length; i += chunkSize) {
             const chunk = products.slice(i, i + chunkSize);
@@ -862,11 +862,11 @@ export const initializeData = async () => {
         // Cleanup old localStorage inventory to free space
         if (localStorage.getItem('inventory')) {
             localStorage.removeItem('inventory');
-            console.log("Old localStorage inventory removed.");
+            // console.log("Old localStorage inventory removed.");
         }
 
         // 1. Always Sync Users (to ensure new ones are added)
-        console.log("Syncing users...");
+        // console.log("Syncing users...");
         await seedUsers();
 
         const version = 'v4'; // Increment this to force a full re-sync
@@ -888,8 +888,8 @@ export const initializeData = async () => {
 
         // 2. Seed Products if empty
         const { count: productCount } = await sb.from('products').select('*', { count: 'exact', head: true });
-        if (productCount === 0) {
-            console.log("Seeding initial products...");
+        if (isFirstInit || needsVersionSync) {
+            // console.log("Seeding initial products...");
             const { RAW_INVENTORY_PARTS } = await import('./seed_data.js');
             const RAW_INVENTORY = RAW_INVENTORY_PARTS.join('');
             await seedProducts(RAW_INVENTORY);

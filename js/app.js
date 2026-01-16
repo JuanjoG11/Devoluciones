@@ -15,7 +15,7 @@ const init = async () => {
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         window.deferredPrompt = e;
-        console.log('✅ PWA Install Prompt disponible');
+        // console.log('✅ PWA Install Prompt disponible');
         window.dispatchEvent(new CustomEvent('pwa-installable'));
     });
 
@@ -59,7 +59,7 @@ const init = async () => {
 
     // 2. Initialize Data and Sync in the background (NON-BLOCKING)
     initializeData().then(() => {
-        console.log("Background data initialization complete.");
+        // console.log("Background data initialization complete.");
     });
 };
 
@@ -106,14 +106,14 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
         refreshing = true;
-        console.log('Nueva versión detectada, recargando...');
+        // console.log('Nueva versión detectada, recargando...');
         window.location.reload();
     });
 
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(registration => {
-                console.log('SW registered:', registration);
+                // console.log('SW registered:', registration);
 
                 // Check for updates every 60 seconds
                 setInterval(() => {

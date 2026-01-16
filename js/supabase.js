@@ -9,7 +9,7 @@ let supabaseClient = null;
 
 if (typeof supabase !== 'undefined') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('Supabase client initialized');
+    // console.log('Supabase client initialized');
 } else {
     console.error('Supabase library not loaded!');
 }
@@ -22,7 +22,7 @@ export const checkSupabaseConnection = async () => {
     try {
         const { data, error } = await sb.from('users').select('count', { count: 'exact', head: true });
         if (error) throw error;
-        console.log('Supabase Connected Successfully');
+        // console.log('Supabase Connected Successfully');
         return true;
     } catch (err) {
         console.error('Supabase Connection Failed:', err.message);
