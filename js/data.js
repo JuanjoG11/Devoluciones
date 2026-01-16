@@ -219,18 +219,38 @@ export const db = {
             const { data, error } = await sb.from('users').select('*').order('name', { ascending: true });
             if (error) throw error;
 
-            let users = data.map(u => ({
+            // 1. Map DB users and detect organization
+            let dbUsers = data.map(u => ({
                 ...u,
                 isActive: u.is_active !== false,
                 organization: this.isTymAccount(u.username) ? 'TYM' : (u.organization || 'TAT')
             }));
 
+            // 2. FALLBACK: Ensure all TYM_AUX_LIST users exist in the result if they are missing from DB
+            const dbUsernames = new Set(dbUsers.map(u => String(u.username).trim()));
+
+            TYM_AUX_LIST.forEach(staticUser => {
+                const cleanUsername = String(staticUser.username).trim();
+                if (!dbUsernames.has(cleanUsername)) {
+                    dbUsers.push({
+                        ...staticUser,
+                        id: cleanUsername, // Fallback ID is username
+                        isActive: true
+                    });
+                }
+            });
+
+            // 3. Filter by organization if requested
             if (organization) {
-                users = users.filter(u => u.organization === organization);
+                dbUsers = dbUsers.filter(u => u.organization === organization);
             }
-            return users;
+
+            // Re-sort by name after merge
+            return dbUsers.sort((a, b) => a.name.localeCompare(b.name));
         } catch (e) {
             console.error("Error fetching users:", e);
+            // Absolute fallback: return static list if DB fails completely
+            if (organization === 'TYM') return TYM_AUX_LIST;
             return [];
         }
     },
@@ -376,9 +396,11 @@ export const db = {
     isTymAccount(username) {
         if (!username) return false;
         const clean = String(username).trim();
-        // Strict list-based identification to prevent TAT/TYM leaking
-        const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
-        return tymUsernames.has(clean) || clean === 'admin_tym' || clean.startsWith('aux_tym');
+
+        // Check static list
+        const isStaticTym = TYM_AUX_LIST.some(u => String(u.username).trim() === clean);
+
+        return isStaticTym || clean === 'admin_tym' || clean.startsWith('aux_tym');
     },
 
     async getTodaysRoute(userId) {
