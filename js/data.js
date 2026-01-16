@@ -795,21 +795,60 @@ export const db = {
                 const routeIds = routes.map(r => r.id);
 
                 if (routeIds.length > 0) {
+                    // Delete returns and routes for this organization only
                     await sb.from('return_items').delete().in('route_id', routeIds);
                     await sb.from('routes').delete().in('id', routeIds);
                 }
+
+                // Clear offline data ONLY for this organization
+                const dbRef = await _initOfflineDB();
+                const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
+                const store = transaction.objectStore('pending_returns');
+
+                // Get all pending returns
+                const allPending = await new Promise((resolve) => {
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => resolve([]);
+                });
+
+                // Delete only pending returns that belong to this organization's routes
+                for (const pending of allPending) {
+                    if (routeIds.includes(pending.routeId)) {
+                        store.delete(pending.id);
+                    }
+                }
+
+                // Only clear activeRoute if it belongs to this organization
+                const activeRouteStr = localStorage.getItem('activeRoute');
+                if (activeRouteStr) {
+                    try {
+                        const activeRoute = JSON.parse(activeRouteStr);
+                        if (routeIds.includes(activeRoute.id)) {
+                            localStorage.removeItem('activeRoute');
+                        }
+                    } catch (e) {
+                        // If parsing fails, remove it to be safe
+                        localStorage.removeItem('activeRoute');
+                    }
+                }
             } else {
-                // Delete all (admin override)
+                // Delete all (admin override - should rarely be used)
                 await sb.from('return_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 await sb.from('routes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+                // Clear all offline data
+                localStorage.removeItem('activeRoute');
+                const dbRef = await _initOfflineDB();
+                const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
+                transaction.objectStore('pending_returns').clear();
             }
 
-            localStorage.removeItem('activeRoute');
-            const dbRef = await _initOfflineDB();
-            const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
-            transaction.objectStore('pending_returns').clear();
             return true;
-        } catch (e) { return false; }
+        } catch (e) {
+            console.error('Error resetting test data:', e);
+            return false;
+        }
     }
 };
 
