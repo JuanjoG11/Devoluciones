@@ -2,6 +2,7 @@
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 import { formatTime12h, formatPrice } from '../utils/formatters.js';
+import { CONFIG } from '../config.js';
 
 // Modular Sections
 import { renderDashboard } from './admin/dashboard.js';
@@ -49,10 +50,11 @@ export const renderAdminDashboard = (container, user) => {
             const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
             const org = user.organization || 'TAT';
 
-            // 1. Fetch main data sets once
+            // 1. Fetch main data sets with optimized queries
+            // Use default 7-day filter for routes to reduce load
             const [routes, returns, users] = await Promise.all([
-                db.getRoutes(org),
-                db.getReturns(200, 0, org), // Fetch 200 to cover stats & table reliably
+                db.getRoutes(org), // Uses CONFIG.PERFORMANCE.DEFAULT_DAYS_FILTER internally
+                db.getReturns(CONFIG.PERFORMANCE.DASHBOARD_RETURNS_LIMIT, 0, org),
                 db.getUsers(org)
             ]);
 

@@ -1,5 +1,7 @@
 import { sb } from './supabase.js';
 import { TYM_PRODUCTS_LIST } from './data/tym_products.js';
+import { CONFIG, getDefaultDateRange } from './config.js';
+import { compressImage } from './utils/imageCompression.js';
 
 /**
  * Data Initialization
@@ -464,9 +466,19 @@ export const db = {
         };
     },
 
-    async getRoutes(organization = null) {
-        // High limit to ensure we catch all active routes even on busy days
-        let query = sb.from('routes').select('*').order('date', { ascending: false }).limit(500);
+    async getRoutes(organization = null, daysBack = null) {
+        // Optimize for production: default to recent routes only
+        const dateFilter = daysBack !== null ? daysBack : CONFIG.PERFORMANCE.DEFAULT_DAYS_FILTER;
+
+        let query = sb.from('routes').select('*').order('date', { ascending: false });
+
+        // Apply date filter for performance
+        if (dateFilter > 0) {
+            const { startDate } = getDefaultDateRange();
+            query = query.gte('date', startDate);
+        }
+
+        query = query.limit(CONFIG.PERFORMANCE.ROUTES_LIMIT);
 
         const { data: routes, error } = await query;
         if (error) return [];
@@ -609,6 +621,11 @@ export const db = {
 
     async saveOfflineReturn(returnData) {
         try {
+            // Compress image before saving to IndexedDB
+            if (returnData.evidence && returnData.evidence.startsWith('data:image')) {
+                returnData.evidence = await compressImage(returnData.evidence);
+            }
+
             const dbRef = await _initOfflineDB();
             return new Promise((resolve, reject) => {
                 const transaction = dbRef.transaction(['pending_returns'], 'readwrite');
@@ -617,7 +634,10 @@ export const db = {
                 request.onsuccess = () => resolve(true);
                 request.onerror = () => reject(false);
             });
-        } catch (e) { return false; }
+        } catch (e) {
+            console.error('Error saving offline return:', e);
+            return false;
+        }
     },
 
     async getPendingReturns() {
@@ -650,17 +670,43 @@ export const db = {
         try {
             const pending = await this.getPendingReturns();
             if (pending.length === 0) return 0;
+
             let syncedCount = 0;
-            for (const item of pending) {
-                const tempId = item.id;
-                delete item.id;
-                const success = await this.addReturn(item, true);
-                if (success) {
-                    await this.deletePendingReturn(tempId);
-                    syncedCount++;
+            const batchSize = CONFIG.PERFORMANCE.SYNC_BATCH_SIZE;
+
+            // Process in batches for better performance
+            for (let i = 0; i < pending.length; i += batchSize) {
+                const batch = pending.slice(i, i + batchSize);
+
+                // Process batch items in parallel
+                const results = await Promise.allSettled(
+                    batch.map(async (item) => {
+                        const tempId = item.id;
+                        delete item.id;
+                        const success = await this.addReturn(item, true);
+                        return { success, tempId };
+                    })
+                );
+
+                // Delete successfully synced items
+                for (const result of results) {
+                    if (result.status === 'fulfilled' && result.value.success) {
+                        await this.deletePendingReturn(result.value.tempId);
+                        syncedCount++;
+                    }
+                }
+
+                // Small delay between batches to avoid overwhelming the server
+                if (i + batchSize < pending.length) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
             }
+
+            console.log(`Synced ${syncedCount} of ${pending.length} pending returns`);
             return syncedCount;
+        } catch (e) {
+            console.error('Sync error:', e);
+            return 0;
         } finally {
             this._syncing = false;
         }
