@@ -98,12 +98,34 @@ window.addEventListener('navigate', (e) => {
 // Initial Load
 init();
 
-// Service Worker Registration
+// Service Worker Registration with Auto-Update
 if ('serviceWorker' in navigator) {
+    let refreshing = false;
+
+    // Detect when a new service worker takes control
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        console.log('Nueva versión detectada, recargando...');
+        window.location.reload();
+    });
+
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(registration => {
                 console.log('SW registered:', registration);
+
+                // Check for updates every 60 seconds
+                setInterval(() => {
+                    registration.update();
+                }, 60000);
+
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'RELOAD_PAGE') {
+                        window.location.reload();
+                    }
+                });
             })
             .catch(error => {
                 console.log('SW registration failed:', error);

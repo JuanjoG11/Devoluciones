@@ -331,6 +331,16 @@ export const db = {
         if (!query || query.length < 2) return [];
         const q = query.toLowerCase();
 
+        // STRICT ORGANIZATION SEPARATION
+        if (organization === 'TYM') {
+            // TYM: ONLY show products from static list
+            return TYM_PRODUCTS_LIST.filter(p =>
+                String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+            ).slice(0, 500);
+        }
+
+        // TAT: ONLY show products from database, EXCLUDING TYM products
+        const tymCodes = new Set(TYM_PRODUCTS_LIST.map(p => String(p.code).trim()));
         let dbResults = [];
 
         // 1. FETCH FROM DATABASE (OR LOCAL CACHE)
@@ -344,50 +354,26 @@ export const db = {
                     request.onsuccess = () => {
                         const all = request.result || [];
                         resolve(all.filter(p =>
-                            String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+                            (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
+                            !tymCodes.has(String(p.code).trim()) // Exclude TYM products
                         ));
                     };
                     request.onerror = () => resolve([]);
                 });
             } catch (e) { dbResults = []; }
         } else {
-            // Fetch based on search term only. Organization filtering is handle in-memory
-            // or by merging with static lists below.
             const { data, error } = await sb.from('products')
                 .select('*')
                 .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
                 .limit(500);
 
-            if (!error && data) dbResults = data;
-        }
-
-        // 2. FETCH FROM STATIC LIST IF TYM
-        let staticResults = [];
-        if (organization === 'TYM') {
-            staticResults = TYM_PRODUCTS_LIST.filter(p =>
-                String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
-            );
-        }
-
-        // 3. MERGE AND DEDUPLICATE BY CODE
-        const combined = [...dbResults, ...staticResults];
-        const unique = [];
-        const seenCodes = new Set();
-
-        for (const p of combined) {
-            const code = String(p.code).trim();
-            if (seenCodes.has(code)) continue;
-
-            const pOrg = p.organization; // Could be missing in DB
-            const matchesOrg = !pOrg || (organization === 'TYM' ? pOrg === 'TYM' : pOrg === 'TAT');
-
-            if (matchesOrg) {
-                seenCodes.add(code);
-                unique.push(p);
+            if (!error && data) {
+                // Filter out TYM products from database results
+                dbResults = data.filter(p => !tymCodes.has(String(p.code).trim()));
             }
         }
 
-        return unique.slice(0, 500);
+        return dbResults.slice(0, 500);
     },
 
     /**

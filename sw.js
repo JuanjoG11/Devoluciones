@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v13';
+const CACHE_NAME = 'devoluciones-v14';
 const ASSETS = [
     '/',
     '/index.html',
@@ -26,6 +26,7 @@ self.addEventListener('install', (event) => {
             return cache.addAll(ASSETS);
         })
     );
+    // Force immediate activation
     self.skipWaiting();
 });
 
@@ -37,7 +38,15 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
+    // Take control of all clients immediately
     self.clients.claim();
+
+    // Notify all clients to reload
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+            client.postMessage({ type: 'RELOAD_PAGE' });
+        });
+    });
 });
 
 self.addEventListener('fetch', (event) => {
