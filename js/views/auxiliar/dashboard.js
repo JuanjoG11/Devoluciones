@@ -81,15 +81,17 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
                         ${returns.map(r => {
         const isSelected = state.selectedItems.includes(r.id);
         const isResold = !!r.isResale;
+        const isTotal = (r.productName || r.name) === 'DEVOLUCIÓN TOTAL';
         return `
-                            <div class="list-item ${isSelected ? 'selected-for-resale' : ''} ${isResold ? 'resold-item' : ''}" 
+                            <div class="list-item ${isSelected ? 'selected-for-resale' : ''} ${isResold ? 'resold-item' : ''} ${isTotal ? 'total-return-item' : ''}" 
                                  data-id="${r.id}" 
                                  data-resold="${isResold}"
-                                 style="padding: 12px; border-radius: 12px; cursor: ${isResold ? 'default' : 'pointer'}; border: 2px solid ${isSelected ? 'var(--secondary-accent)' : 'transparent'}; transition: all 0.2s ease; opacity: ${isResold ? '0.85' : '1'}; background: ${isResold ? 'rgba(34, 197, 94, 0.03)' : 'white'};">
+                                 data-is-total="${isTotal}"
+                                 style="padding: 12px; border-radius: 12px; cursor: ${isResold || (isSelecting && isTotal) ? 'default' : 'pointer'}; border: 2px solid ${isSelected ? 'var(--secondary-accent)' : 'transparent'}; transition: all 0.2s ease; opacity: ${isResold || (isSelecting && isTotal) ? '0.75' : '1'}; background: ${isResold ? 'rgba(34, 197, 94, 0.03)' : 'white'};">
                                 ${isSelecting && !isResold ? `
                                     <div style="margin-right: 12px; display: flex; align-items: center;">
-                                        <span class="material-icons-round" style="color: ${isSelected ? 'var(--secondary-accent)' : '#ddd'}; font-size: 24px;">
-                                            ${isSelected ? 'check_box' : 'check_box_outline_blank'}
+                                        <span class="material-icons-round" style="color: ${isTotal ? '#f1f5f9' : (isSelected ? 'var(--secondary-accent)' : '#ddd')}; font-size: 24px;">
+                                            ${isTotal ? 'block' : (isSelected ? 'check_box' : 'check_box_outline_blank')}
                                         </span>
                                     </div>
                                 ` : (isSelecting && isResold ? `<div style="margin-right: 12px; width: 24px;"></div>` : '')}
@@ -205,7 +207,12 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
         document.getElementById('returnsList')?.addEventListener('click', (e) => {
             if (!state.isSelectingForResale) return;
             const item = e.target.closest('.list-item');
-            if (item && item.dataset.resold !== 'true') {
+            if (item) {
+                if (item.dataset.resold === 'true') return;
+                if (item.dataset.isTotal === 'true') {
+                    Alert.error("Las devoluciones TOTALES no pueden ser revendidas. Solo las parciales.");
+                    return;
+                }
                 const id = item.dataset.id;
                 const index = state.selectedItems.indexOf(id);
                 if (index > -1) state.selectedItems.splice(index, 1);

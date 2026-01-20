@@ -15,7 +15,8 @@ export const renderHistorial = (cache) => {
             results = results.filter(r =>
                 (r.invoice && r.invoice.toLowerCase().includes(search)) ||
                 (r.sheet && r.sheet.toLowerCase().includes(search)) ||
-                (r.productName && r.productName.toLowerCase().includes(search))
+                (r.productName && r.productName.toLowerCase().includes(search)) ||
+                (r.code && r.code.toLowerCase().includes(search))
             );
         }
         if (filters.dateFrom) results = results.filter(r => new Date(r.timestamp) >= new Date(filters.dateFrom));
@@ -80,6 +81,7 @@ export const renderHistorial = (cache) => {
                             <th style="padding: 12px; text-align: left;">Auxiliar</th>
                             <th style="padding: 12px; text-align: left;">Factura</th>
                             <th style="padding: 12px; text-align: left;">Planilla</th>
+                            <th style="padding: 12px; text-align: left;">CÓDIGO</th>
                             <th style="padding: 12px; text-align: left;">Producto</th>
                             <th style="padding: 12px; text-align: left;">Cant</th>
                             <th style="padding: 12px; text-align: left;">Motivo</th>
@@ -97,6 +99,7 @@ export const renderHistorial = (cache) => {
                                     <td style="padding: 12px; font-size: 13px;">${route?.userName || 'N/A'}</td>
                                     <td style="padding: 12px; font-size: 13px; font-weight: 600;">${r.invoice || '-'}</td>
                                     <td style="padding: 12px; font-size: 13px;">${r.sheet || '-'}</td>
+                                    <td style="padding: 12px; font-size: 13px; font-weight: 700; color: var(--primary-color);">${r.code || '-'}</td>
                                     <td style="padding: 12px; font-size: 13px;">${r.productName || '-'}</td>
                                     <td style="padding: 12px; font-size: 13px;">${r.quantity}</td>
                                     <td style="padding: 12px; font-size: 12px; color: #64748b;">${r.reason}</td>
