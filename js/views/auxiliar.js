@@ -5,6 +5,7 @@ import { Alert } from '../utils/ui.js';
 // Modular Sections
 import { renderDashboard } from './auxiliar/dashboard.js';
 import { renderForm } from './auxiliar/form.js';
+import { renderResaleForm } from './auxiliar/resale.js';
 
 /**
  * Auxiliary View Orchestrator
@@ -54,8 +55,11 @@ export const renderAuxiliarDashboard = (container, user) => {
             container.innerHTML = '';
             if (state.view === 'dashboard') {
                 renderDashboard(container, user, state, returns, currentRoute, render, updateSyncUI);
-            } else {
+            } else if (state.view === 'form') {
                 renderForm(container, user, state, render);
+            } else if (state.view === 'resale') {
+                const selectedItemsData = returns.filter(r => state.selectedItems.includes(r.id));
+                renderResaleForm(container, user, state, selectedItemsData, render);
             }
 
             // 3. Network listeners

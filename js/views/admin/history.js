@@ -1,4 +1,6 @@
 import { formatPrice, formatDateTime } from '../../utils/formatters.js';
+import { db } from '../../data.js';
+import { Alert } from '../../utils/ui.js';
 
 export const renderHistorial = (cache) => {
     let filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
@@ -83,6 +85,7 @@ export const renderHistorial = (cache) => {
                             <th style="padding: 12px; text-align: left;">Motivo</th>
                             <th style="padding: 12px; text-align: right; width: 120px;">Total</th>
                             <th style="padding: 12px; text-align: center; width: 80px;">EVIDENCIA</th>
+                            <th style="padding: 12px; text-align: center; width: 80px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -100,6 +103,11 @@ export const renderHistorial = (cache) => {
                                     <td style="padding: 12px; font-size: 14px; font-weight: 600; text-align: right;">${formatPrice(r.total)}</td>
                                     <td style="padding: 12px; text-align: center;">
                                         ${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: rgba(0,174,239,0.1); border: none; color: var(--accent-color); padding: 6px; border-radius: 8px; cursor: pointer;"><span class="material-icons-round" style="font-size: 18px;">image</span></button>` : '-'}
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <button class="delete-return-btn" data-id="${r.id}" style="background: rgba(239,68,68,0.1); border: none; color: #ef4444; padding: 6px; border-radius: 8px; cursor: pointer;">
+                                            <span class="material-icons-round" style="font-size: 18px;">delete</span>
+                                        </button>
                                     </td>
                                 </tr>
                             `;
@@ -119,6 +127,23 @@ export const renderHistorial = (cache) => {
         // Attach pagination events
         document.getElementById('prevPage')?.addEventListener('click', () => { if (currentPage > 0) { currentPage--; renderResults(); } });
         document.getElementById('nextPage')?.addEventListener('click', () => { if (end < filteredReturns.length) { currentPage++; renderResults(); } });
+
+        // Attach delete events
+        container.querySelectorAll('.delete-return-btn').forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                if (await Alert.confirm('¿Estás seguro de eliminar este registro? Esta acción no se puede deshacer.', 'Eliminar Devolución')) {
+                    if (await db.deleteReturn(id)) {
+                        Alert.success('Registro eliminado');
+                        // Update cache and re-render
+                        cache.returns = cache.returns.filter(r => r.id !== id);
+                        applyFilters();
+                    } else {
+                        Alert.error('No se pudo eliminar el registro');
+                    }
+                }
+            };
+        });
     };
 
     // Filters and events setup - use requestAnimationFrame to ensure DOM is ready

@@ -7,9 +7,10 @@ import { CONFIG } from '../config.js';
 // Modular Sections
 import { renderDashboard } from './admin/dashboard.js';
 import { renderHistorial } from './admin/history.js';
-import { renderAuxiliares } from './admin/users.js';
+import { renderAuxiliares, renderAuxiliaresTable } from './admin/users.js';
 import { renderProductos } from './admin/products.js';
 import { renderConfig } from './admin/config.js';
+import { renderRefacturacion } from './admin/refacturacion.js';
 import { generatePrintReport, exportToCSV } from './admin/reports.js';
 
 /**
@@ -33,61 +34,66 @@ export const renderAdminDashboard = (container, user) => {
         stats: { active_routes_count: 0, total_returns_count: 0, total_returns_value: 0 },
         lastFetch: 0,
         returnsOffset: 0,
-        hasMoreReturns: true
+        hasMoreReturns: true,
+        resales: []
     };
     let filters = { auxiliares: '', products: '' };
 
-    const fetchData = async () => {
+    const fetchData = async (force = false) => {
         const contentArea = document.getElementById('admin-content');
-        if (contentArea && cache.lastFetch === 0) {
-            contentArea.innerHTML = `
-                <div style="padding:80px; text-align:center; color: var(--primary-color);">
-                    <div class="spinner" style="margin: 0 auto 20px;"></div>
-                    <p style="font-weight: 500;">Sincronizando información...</p>
-                </div>`;
-        }
-        try {
-            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
-            const org = user.organization || 'TAT';
+        if (contentArea && (cache.lastFetch === 0 || force)) {
+            if (cache.lastFetch === 0) {
+                contentArea.innerHTML = `
+                    <div style="padding:80px; text-align:center; color: var(--primary-color);">
+                        <div class="spinner" style="margin: 0 auto 20px;"></div>
+                        <p style="font-weight: 500;">Sincronizando información...</p>
+                    </div>`;
+            }
+            try {
+                const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
+                const org = user.organization || 'TAT';
 
-            // 1. Fetch main data sets with optimized queries
-            // Use default 7-day filter for routes to reduce load
-            const [routes, returns, users] = await Promise.all([
-                db.getRoutes(org), // Uses CONFIG.PERFORMANCE.DEFAULT_DAYS_FILTER internally
-                db.getReturns(CONFIG.PERFORMANCE.DASHBOARD_RETURNS_LIMIT, 0, org),
-                db.getUsers(org)
-            ]);
+                // 1. Fetch main data sets with optimized queries
+                // Use default 7-day filter for routes to reduce load
+                const [routes, returns, users, resales] = await Promise.all([
+                    db.getRoutes(org), // Uses CONFIG.PERFORMANCE.DEFAULT_DAYS_FILTER internally
+                    db.getReturns(CONFIG.PERFORMANCE.DASHBOARD_RETURNS_LIMIT, 0, org),
+                    db.getUsers(org),
+                    db.getResoldReturns(org)
+                ]);
 
-            // 2. Compute stats locally for reliability
-            // Routes use YYYY-MM-DD from toISOString().split('T')[0] but we should be careful.
-            // Actually, because auxiliaries use .toISOString().split('T')[0], they store UTC date.
-            // So we MUST use UTC date for routes.
-            const todayUTC = new Date().toISOString().split('T')[0];
-            const todaysRoutes = routes.filter(r => r.date === todayUTC);
-            const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
+                // 2. Compute stats locally for reliability
+                // Routes use YYYY-MM-DD from toISOString().split('T')[0] but we should be careful.
+                // Actually, because auxiliaries use .toISOString().split('T')[0], they store UTC date.
+                // So we MUST use UTC date for routes.
+                const todayUTC = new Date().toISOString().split('T')[0];
+                const todaysRoutes = routes.filter(r => r.date === todayUTC);
+                const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
 
-            // For returns, we check if they happened within the last 24 hours or match today's date
-            const todaysReturns = returns.filter(r => {
-                if (!r.timestamp) return false;
-                // Match either UTC date or local date to be safe
-                return r.timestamp.startsWith(todayUTC) || r.timestamp.startsWith(today);
-            });
+                // For returns, we check if they happened within the last 24 hours or match today's date
+                const todaysReturns = returns.filter(r => {
+                    if (!r.timestamp) return false;
+                    // Match either UTC date or local date to be safe
+                    return r.timestamp.startsWith(todayUTC) || r.timestamp.startsWith(today);
+                });
 
-            const stats = {
-                active_routes_count: activeCount,
-                total_returns_count: todaysReturns.length,
-                total_returns_value: todaysReturns.reduce((sum, r) => sum + r.total, 0)
-            };
+                const stats = {
+                    active_routes_count: activeCount,
+                    total_returns_count: todaysReturns.length,
+                    total_returns_value: todaysReturns.reduce((sum, r) => sum + r.total, 0)
+                };
 
-            cache.routes = routes;
-            cache.returns = returns;
-            cache.users = users.filter(u => u.role === 'auxiliar');
-            cache.stats = stats;
-            cache.lastFetch = Date.now();
-            cache.returnsOffset = returns.length;
-            cache.hasMoreReturns = returns.length >= 100;
-        } catch (e) {
-            console.error("Fetch error:", e);
+                cache.routes = routes;
+                cache.returns = returns;
+                cache.users = users.filter(u => u.role === 'auxiliar');
+                cache.resales = resales;
+                cache.stats = stats;
+                cache.lastFetch = Date.now();
+                cache.returnsOffset = returns.length;
+                cache.hasMoreReturns = returns.length >= 100;
+            } catch (e) {
+                console.error("Fetch error:", e);
+            }
         }
     };
 
@@ -144,6 +150,13 @@ export const renderAdminDashboard = (container, user) => {
                 if (payload.payload?.organization === userOrg) {
                     showNotification('✅ Ruta Finalizada', `La ruta de ${payload.payload?.userName || 'un auxiliar'} ha terminado`);
                     fetchData().then(() => renderSection());
+                }
+            })
+            .on('broadcast', { event: 'nueva-reventa' }, (payload) => {
+                if (payload.payload?.organization === userOrg) {
+                    const count = payload.payload?.itemsCount || 1;
+                    showNotification('🔄 REVENTA REGISTRADA', `Auxiliar reportó reventa de ${count} item(s) al cliente ${payload.payload?.customerCode || 'N/A'}`);
+                    fetchData(true).then(() => renderSection());
                 }
             })
             .subscribe();
@@ -239,6 +252,7 @@ export const renderAdminDashboard = (container, user) => {
     const renderNavLinks = () => `
         <a href="#" data-section="dashboard" class="sidebar-link ${activeSection === 'dashboard' ? 'active' : ''}"><span class="material-icons-round">dashboard</span> <span>Panel General</span></a>
         <a href="#" data-section="historial" class="sidebar-link ${activeSection === 'historial' ? 'active' : ''}"><span class="material-icons-round">history</span> <span>Historial</span></a>
+        <a href="#" data-section="refacturacion" class="sidebar-link ${activeSection === 'refacturacion' ? 'active' : ''}"><span class="material-icons-round">receipt_long</span> <span>Refacturación</span></a>
         <a href="#" data-section="auxiliares" class="sidebar-link ${activeSection === 'auxiliares' ? 'active' : ''}"><span class="material-icons-round">people</span> <span>Auxiliares</span></a>
         <a href="#" data-section="productos" class="sidebar-link ${activeSection === 'productos' ? 'active' : ''}"><span class="material-icons-round">inventory</span> <span>Productos</span></a>
         <a href="#" data-section="config" class="sidebar-link ${activeSection === 'config' ? 'active' : ''}"><span class="material-icons-round">settings</span> <span>Configuración</span></a>
@@ -253,6 +267,7 @@ export const renderAdminDashboard = (container, user) => {
         switch (activeSection) {
             case 'dashboard': contentArea.innerHTML = renderDashboard(activeRoutes, cache.returns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user); break;
             case 'historial': contentArea.innerHTML = renderHistorial(cache); break;
+            case 'refacturacion': contentArea.innerHTML = renderRefacturacion(cache); break;
             case 'auxiliares': contentArea.innerHTML = renderAuxiliares(cache.users, cache.routes, filters.auxiliares); break;
             case 'productos': contentArea.innerHTML = renderProductos(); break;
             case 'config': contentArea.innerHTML = renderConfig(); break;
@@ -282,10 +297,22 @@ export const renderAdminDashboard = (container, user) => {
         if (auxSearch) {
             auxSearch.addEventListener('input', (e) => {
                 filters.auxiliares = e.target.value;
-                const area = document.getElementById('admin-content');
-                // Partial re-render specifically for the table if we want, but renderSection is fine for now
-                renderSection();
-                document.getElementById('auxiliarSearch').focus(); // Keep focus
+                const tableContainer = document.getElementById('auxiliarTableContainer');
+                if (tableContainer) {
+                    tableContainer.innerHTML = renderAuxiliaresTable(cache.users, cache.routes, filters.auxiliares);
+
+                    // Re-bind action buttons since we replaced the table content
+                    tableContainer.querySelectorAll('.toggle-user-btn').forEach(btn => {
+                        btn.onclick = async () => {
+                            const userId = btn.dataset.userId;
+                            const currentActive = btn.dataset.active === 'true';
+                            if (await db.updateUserStatus(userId, !currentActive)) {
+                                await fetchData();
+                                renderSection();
+                            }
+                        };
+                    });
+                }
             });
         }
 

@@ -3,7 +3,12 @@ import { Alert } from '../../utils/ui.js';
 import { formatPrice, formatTime12h } from '../../utils/formatters.js';
 
 export const renderDashboard = (container, user, state, returns, currentRoute, render, updateSyncUI) => {
-    const totalValue = returns.reduce((sum, r) => sum + r.total, 0);
+    const activeReturns = returns.filter(r => !r.isResale);
+    const totalValue = activeReturns.reduce((sum, r) => sum + r.total, 0);
+    const resoldReturns = returns.filter(r => r.isResale);
+
+    const isSelecting = state.view === 'dashboard' && state.isSelectingForResale;
+    if (!state.selectedItems) state.selectedItems = [];
 
     container.innerHTML = `
         <div id="pwa-install-banner" style="display:none;"></div>
@@ -55,12 +60,13 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
                     <div style="position: absolute; right: -20px; top: -20px; opacity: 0.1;"><span class="material-icons-round" style="font-size: 120px;">payments</span></div>
                     <div class="flex justify-between items-center" style="gap: 16px; position: relative; z-index: 1;">
                         <div style="flex: 1; min-width: 0;">
-                            <small style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; font-size: 10px;">VALOR DEVOLUCIONES</small>
+                            <small style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; font-size: 10px;">TOTAL COBRADO</small>
                             <h2 style="color: white; font-size: 32px; margin: 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; letter-spacing: -1.5px;">${formatPrice(totalValue)}</h2>
+                            ${resoldReturns.length > 0 ? `<div style="font-size: 10px; font-weight: 700; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 10px; display: inline-block;">-${formatPrice(returns.reduce((s, r) => r.isResale ? s + r.total : s, 0))} REVENTA</div>` : ''}
                         </div>
                         <div style="text-align: right; background: var(--grad-lava); padding: 12px 16px; border-radius: 20px; box-shadow: var(--shadow-orange); flex-shrink: 0; min-width: 70px;">
-                            <div style="font-size: 24px; font-weight: 900; color: white; line-height: 1;">${returns.length}</div>
-                            <small style="color: rgba(255,255,255,0.9); font-weight: 800; font-size: 10px; text-transform: uppercase;">Items</small>
+                            <div style="font-size: 24px; font-weight: 900; color: white; line-height: 1;">${activeReturns.length}</div>
+                            <small style="color: rgba(255,255,255,0.9); font-weight: 800; font-size: 10px; text-transform: uppercase;">Activos</small>
                         </div>
                     </div>
                 </div>
@@ -72,32 +78,67 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
                     </div>
                 ` : `
                     <div class="flex flex-col gap-sm" id="returnsList">
-                        ${returns.map(r => `
-                            <div class="swipe-item" data-id="${r.id}" data-pending="${!!r.pending}">
-                                <div class="swipe-action">
-                                    <span class="material-icons-round">delete</span>
-                                </div>
-                                <div class="swipe-content list-item" style="padding: 12px; margin-bottom: 0; border-radius: 0;">
-                                    <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                                        <div style="font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.productName || r.name || 'Producto'}</div>
-                                        <small style="font-size: 11px;"><b>Fac: ${r.invoice || '—'}</b> • ${r.reason} • Cant: ${r.quantity}</small>
+                        ${returns.map(r => {
+        const isSelected = state.selectedItems.includes(r.id);
+        const isResold = !!r.isResale;
+        return `
+                            <div class="list-item ${isSelected ? 'selected-for-resale' : ''} ${isResold ? 'resold-item' : ''}" 
+                                 data-id="${r.id}" 
+                                 data-resold="${isResold}"
+                                 style="padding: 12px; border-radius: 12px; cursor: ${isResold ? 'default' : 'pointer'}; border: 2px solid ${isSelected ? 'var(--secondary-accent)' : 'transparent'}; transition: all 0.2s ease; opacity: ${isResold ? '0.85' : '1'}; background: ${isResold ? 'rgba(34, 197, 94, 0.03)' : 'white'};">
+                                ${isSelecting && !isResold ? `
+                                    <div style="margin-right: 12px; display: flex; align-items: center;">
+                                        <span class="material-icons-round" style="color: ${isSelected ? 'var(--secondary-accent)' : '#ddd'}; font-size: 24px;">
+                                            ${isSelected ? 'check_box' : 'check_box_outline_blank'}
+                                        </span>
                                     </div>
-                                    <div style="text-align: right; flex-shrink: 0;">
-                                        <div style="font-weight: 600; font-size: 14px;">${formatPrice(r.total)}</div>
-                                        <div style="display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px;">
-                                            ${r.pending ? '<span class="material-icons-round" style="font-size: 14px; color: #ffa500;" title="Pendiente de sincronizar">sync_problem</span>' : ''}
-                                            ${r.evidence ? '<span class="material-icons-round" style="font-size: 14px; color: var(--accent-color);">photo_camera</span>' : ''}
-                                        </div>
+                                ` : (isSelecting && isResold ? `<div style="margin-right: 12px; width: 24px;"></div>` : '')}
+                                <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <div style="font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.productName || r.name || 'Producto'}</div>
+                                        ${isResold ? `<span style="background: var(--success-color); color: white; font-size: 9px; font-weight: 900; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);">REVENTA</span>` : ''}
+                                    </div>
+                                    <small style="font-size: 11px;"><b>Fac: ${r.invoice || '—'}</b> ${isResold ? `• <b style="color: var(--success-color);">Cli: ${r.resaleCustomerCode}</b>` : `• ${r.reason}`} • Cant: ${r.quantity}</small>
+                                </div>
+                                <div style="text-align: right; flex-shrink: 0;">
+                                    <div style="font-weight: 600; font-size: 14px;">${formatPrice(r.total)}</div>
+                                    <div style="display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px;">
+                                        ${r.pending ? '<span class="material-icons-round" style="font-size: 14px; color: #ffa500;" title="Pendiente de sincronizar">sync_problem</span>' : ''}
+                                        ${r.evidence ? '<span class="material-icons-round" style="font-size: 14px; color: var(--accent-color);">photo_camera</span>' : ''}
                                     </div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 `}
                 
-                <button id="addReturnBtn" class="fab" style="display: ${currentRoute && currentRoute.status === 'completed' ? 'none' : 'flex'}">
-                    <span class="material-icons-round">add</span>
-                </button>
+                <div style="position: fixed; bottom: 24px; left: 24px; right: 24px; display: flex; justify-content: space-between; pointer-events: none;">
+                    <div>
+                        ${!isSelecting ? `
+                            <button id="resaleModeBtn" class="btn" style="pointer-events: auto; background: var(--secondary-accent); color: white; border-radius: 99px; height: 56px; padding: 0 24px; font-weight: 800; box-shadow: var(--shadow-orange); display: flex; align-items: center; gap: 8px; border: none;">
+                                <span class="material-icons-round">swap_horiz</span>
+                                REVENDER
+                            </button>
+                        ` : `
+                            <button id="cancelResaleBtn" class="btn" style="pointer-events: auto; background: #94a3b8; color: white; border-radius: 99px; height: 56px; padding: 0 24px; font-weight: 800; display: flex; align-items: center; gap: 8px; border: none;">
+                                <span class="material-icons-round">close</span>
+                                CANCELAR
+                            </button>
+                        `}
+                    </div>
+                    <div>
+                        ${isSelecting ? `
+                            <button id="continueResaleBtn" class="btn" style="pointer-events: auto; background: var(--success-color); color: white; border-radius: 99px; height: 56px; padding: 0 24px; font-weight: 800; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); display: flex; align-items: center; gap: 8px; border: none; ${state.selectedItems.length === 0 ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                                <span class="material-icons-round">arrow_forward</span>
+                                CONTINUAR (${state.selectedItems.length})
+                            </button>
+                        ` : `
+                            <button id="addReturnBtn" class="fab" style="pointer-events: auto; position: static; display: ${currentRoute && currentRoute.status === 'completed' ? 'none' : 'flex'}">
+                                <span class="material-icons-round">add</span>
+                            </button>
+                        `}
+                    </div>
+                </div>
             `}
         </div>
     `;
@@ -126,7 +167,6 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
         });
     } else {
         updateSyncUI();
-        setupSwipeToDelete(state, render);
         document.getElementById('endRouteBtn')?.addEventListener('click', async () => {
             const confirmed = await Alert.confirm("¿Estás seguro de finalizar tu jornada? No podrás registrar más devoluciones.", "Finalizar Jornada");
             if (confirmed) {
@@ -145,6 +185,35 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
             render();
         });
 
+        document.getElementById('resaleModeBtn')?.addEventListener('click', () => {
+            state.isSelectingForResale = true;
+            state.selectedItems = [];
+            render();
+        });
+
+        document.getElementById('cancelResaleBtn')?.addEventListener('click', () => {
+            state.isSelectingForResale = false;
+            state.selectedItems = [];
+            render();
+        });
+
+        document.getElementById('continueResaleBtn')?.addEventListener('click', () => {
+            state.view = 'resale';
+            render();
+        });
+
+        document.getElementById('returnsList')?.addEventListener('click', (e) => {
+            if (!state.isSelectingForResale) return;
+            const item = e.target.closest('.list-item');
+            if (item && item.dataset.resold !== 'true') {
+                const id = item.dataset.id;
+                const index = state.selectedItems.indexOf(id);
+                if (index > -1) state.selectedItems.splice(index, 1);
+                else state.selectedItems.push(id);
+                render();
+            }
+        });
+
         // Try showing banner
         if (window.showPwaBanner) {
             window.showPwaBanner();
@@ -153,73 +222,4 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
     }
 };
 
-const setupSwipeToDelete = (state, render) => {
-    const list = document.getElementById('returnsList');
-    if (!list) return;
 
-    let touchStartX = 0;
-    let currentItem = null;
-    let currentContent = null;
-    let isSwiping = false;
-
-    list.addEventListener('touchstart', (e) => {
-        currentItem = e.target.closest('.swipe-item');
-        if (!currentItem) return;
-        currentContent = currentItem.querySelector('.swipe-content');
-        touchStartX = e.touches[0].clientX;
-        isSwiping = true;
-        currentContent.style.transition = 'none';
-    }, { passive: true });
-
-    list.addEventListener('touchmove', (e) => {
-        if (!isSwiping || !currentContent) return;
-        const touchX = e.touches[0].clientX;
-        const diff = touchX - touchStartX;
-
-        // Only allow swiping to the left (negative diff)
-        if (diff < 0) {
-            const translate = Math.max(diff, -100); // Limit swipe distance
-            currentContent.style.transform = `translateX(${translate}px)`;
-        }
-    }, { passive: true });
-
-    list.addEventListener('touchend', async (e) => {
-        if (!isSwiping || !currentContent) return;
-        isSwiping = false;
-
-        const diff = e.changedTouches[0].clientX - touchStartX;
-        currentContent.style.transition = 'transform 0.3s ease';
-
-        if (diff < -70) {
-            // Trigger Delete
-            currentContent.style.transform = 'translateX(-100%)';
-            const returnId = currentItem.dataset.id;
-            const isPending = currentItem.dataset.pending === 'true';
-
-            const confirmed = await Alert.confirm("¿Deseas eliminar esta devolución?", "Eliminar Registro");
-            if (confirmed) {
-                const success = await db.deleteReturn(returnId, isPending);
-                if (success) {
-                    Alert.success("Eliminado correctamente");
-                    render(); // Refresh list
-                } else {
-                    Alert.error("Error al eliminar");
-                    currentContent.style.transform = 'translateX(0)';
-                }
-            } else {
-                currentContent.style.transform = 'translateX(0)';
-            }
-        } else {
-            // Reset position
-            currentContent.style.transform = 'translateX(0)';
-        }
-    });
-
-    list.addEventListener('touchcancel', () => {
-        if (currentContent) {
-            currentContent.style.transition = 'transform 0.3s ease';
-            currentContent.style.transform = 'translateX(0)';
-        }
-        isSwiping = false;
-    });
-};

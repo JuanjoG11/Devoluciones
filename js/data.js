@@ -455,7 +455,8 @@ export const db = {
             id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
             code: r.product_code, name: r.product_name, productName: r.product_name,
             quantity: r.quantity, total: r.total, reason: r.reason,
-            evidence: r.evidence, timestamp: r.created_at
+            evidence: r.evidence, timestamp: r.created_at,
+            isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code
         }));
     },
 
@@ -523,7 +524,9 @@ export const db = {
                 id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
                 code: r.product_code, name: r.product_name, productName: r.product_name,
                 quantity: r.quantity, total: r.total, reason: r.reason,
-                evidence: r.evidence, timestamp: r.created_at
+                evidence: r.evidence, timestamp: r.created_at,
+                isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
+                auxiliarName: r.routes?.user_name
             }));
     },
 
@@ -831,6 +834,99 @@ export const db = {
             const { error } = await sb.from('return_items').delete().eq('id', returnId);
             return !error;
         } catch (e) { return false; }
+    },
+
+    async processResale(resaleData) {
+        try {
+            console.log("[db.processResale] Processing resale:", resaleData);
+
+            for (const resaleItem of resaleData.items) {
+                // 1. Get current item details
+                const { data: original, error: fetchError } = await sb.from('return_items').select('*').eq('id', resaleItem.id).single();
+                if (fetchError || !original) continue;
+
+                if (resaleItem.quantity >= original.quantity) {
+                    // Full resale: update record
+                    await sb.from('return_items')
+                        .update({
+                            is_resale: true,
+                            resale_customer_code: resaleData.customerCode,
+                            resale_timestamp: resaleData.timestamp
+                        })
+                        .eq('id', resaleItem.id);
+                } else {
+                    // Partial resale: 
+                    // a) Update original (subtract)
+                    const remainingQty = original.quantity - resaleItem.quantity;
+                    const remainingTotal = original.total - resaleItem.total;
+
+                    await sb.from('return_items')
+                        .update({
+                            quantity: remainingQty,
+                            total: remainingTotal
+                        })
+                        .eq('id', resaleItem.id);
+
+                    // b) Create new record for the resale portion
+                    const newResaleRecord = {
+                        ...original,
+                        id: undefined, // Let DB generate new ID
+                        created_at: undefined,
+                        quantity: resaleItem.quantity,
+                        total: resaleItem.total,
+                        is_resale: true,
+                        resale_customer_code: resaleData.customerCode,
+                        resale_timestamp: resaleData.timestamp
+                    };
+                    delete newResaleRecord.id;
+                    delete newResaleRecord.created_at;
+
+                    await sb.from('return_items').insert(newResaleRecord);
+                }
+            }
+
+            // 2. Notify Admin
+            const { data: route } = await sb.from('routes').select('username').eq('id', resaleData.routeId).single();
+            const organization = (route && this.isTymAccount(route.username)) ? 'TYM' : 'TAT';
+
+            await broadcastEvent('nueva-reventa', {
+                customerCode: resaleData.customerCode,
+                itemsCount: resaleData.items.length,
+                total: resaleData.total,
+                organization
+            }, organization);
+
+            return true;
+        } catch (e) {
+            console.error("Error processing resale:", e);
+            return false;
+        }
+    },
+
+    async getResoldReturns(organization = null) {
+        let query = sb.from('return_items')
+            .select('*, routes!inner(username, user_name)')
+            .eq('is_resale', true)
+            .order('resale_timestamp', { ascending: false });
+
+        const { data, error } = await query;
+        if (error) return [];
+
+        return data
+            .filter(r => {
+                if (!organization) return true;
+                const rOrg = this.isTymAccount(r.routes?.username) ? 'TYM' : 'TAT';
+                return rOrg === organization;
+            })
+            .map(r => ({
+                id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
+                code: r.product_code, name: r.product_name, productName: r.product_name,
+                quantity: r.quantity, total: r.total, reason: r.reason,
+                evidence: r.evidence, timestamp: r.created_at,
+                isResale: true, resaleCustomerCode: r.resale_customer_code,
+                resaleTimestamp: r.resale_timestamp,
+                auxiliarName: r.routes?.user_name
+            }));
     },
 
     async resetTestData(organization = null) {
