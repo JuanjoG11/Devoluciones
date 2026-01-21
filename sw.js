@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v18';
+const CACHE_NAME = 'devoluciones-v19';
 const ASSETS = [
     '/',
     '/index.html',
@@ -52,6 +52,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     if (!event.request.url.startsWith('http')) return;
     if (event.request.url.includes('supabase.co')) return;
+
+    // Network-First strategy for index.html (ensure latest entry point)
+    if (event.request.mode === 'navigate' || event.request.url.includes('index.html')) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    return caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, response.clone());
+                        return response;
+                    });
+                })
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
 
     event.respondWith(
         caches.match(event.request).then((response) => {
