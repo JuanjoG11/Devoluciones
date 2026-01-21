@@ -196,7 +196,24 @@ export const renderAdminDashboard = (container, user) => {
                     <main id="admin-content" class="admin-content"></main>
                 </div>
             </div>
-            <div id="photoModal" class="hidden modal-overlay-fixed"><div class="modal-card"><div class="modal-header"><h3 style="margin:0">Evidencia</h3><button id="closeModal" class="circle-btn"><span class="material-icons-round">close</span></button></div><div class="modal-body-img"><img id="modalImage" src=""></div></div></div>
+            <div id="photoModal" class="hidden modal-overlay-fixed">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <h3 style="margin:0">Evidencia</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="rotatePhoto" class="circle-btn" style="background: var(--primary-color); color: white;">
+                                <span class="material-icons-round">rotate_right</span>
+                            </button>
+                            <button id="closeModal" class="circle-btn">
+                                <span class="material-icons-round">close</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-body-img">
+                        <img id="modalImage" src="" style="transition: transform 0.3s ease;">
+                    </div>
+                </div>
+            </div>
             <div id="printArea" class="hidden"></div>
         `;
 
@@ -229,15 +246,30 @@ export const renderAdminDashboard = (container, user) => {
         };
         document.getElementById('exportCsvBtn').onclick = () => exportToCSV(cache.returns, cache.routes);
 
+        let currentRotation = 0;
         container.addEventListener('click', (e) => {
             const photoBtn = e.target.closest('.view-photo-btn');
             if (photoBtn) {
                 const img = document.getElementById('modalImage');
-                if (img) img.src = photoBtn.dataset.photo;
+                if (img) {
+                    img.src = photoBtn.dataset.photo;
+                    currentRotation = 0;
+                    img.style.transform = `rotate(${currentRotation}deg)`;
+                }
                 document.getElementById('photoModal').classList.remove('hidden');
             }
+
+            const rotateBtn = e.target.closest('#rotatePhoto');
+            if (rotateBtn) {
+                const img = document.getElementById('modalImage');
+                if (img) {
+                    currentRotation = (currentRotation + 90) % 360;
+                    img.style.transform = `rotate(${currentRotation}deg)`;
+                }
+            }
+
             if (photoBtn || e.target.closest('#closeModal') || e.target.id === 'photoModal') {
-                if (!photoBtn) document.getElementById('photoModal').classList.add('hidden');
+                if (!photoBtn && !rotateBtn) document.getElementById('photoModal').classList.add('hidden');
             }
         });
     };

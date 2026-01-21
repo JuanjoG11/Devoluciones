@@ -66,8 +66,8 @@ export const renderForm = (container, user, state, render) => {
                 </div>
 
                 <div class="input-group">
-                    <label class="input-label">Evidencia</label>
-                    <label for="evidence" class="btn btn-secondary w-full" style="justify-content: flex-start;">
+                    <label class="input-label">Evidencia <span style="color: #ef4444; font-weight: 800;">(OBLIGATORIO)</span></label>
+                    <label for="evidence" class="btn btn-secondary w-full" style="justify-content: flex-start; border: 2px dashed #cbd5e1; background: #f8fafc;">
                         <span class="material-icons-round">camera_alt</span>
                         <span id="evidenceText">Tomar Foto</span>
                     </label>
@@ -220,6 +220,12 @@ export const renderForm = (container, user, state, render) => {
         }
         if (!data.reason || data.reason.length === 0) {
             Alert.error("La razón es requerida");
+            btn.disabled = false;
+            return;
+        }
+
+        if (!capturedPhoto) {
+            Alert.error("La evidencia fotográfica es obligatoria");
             btn.disabled = false;
             return;
         }
