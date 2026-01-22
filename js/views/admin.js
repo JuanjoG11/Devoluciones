@@ -70,11 +70,10 @@ export const renderAdminDashboard = (container, user) => {
                 const todaysRoutes = routes.filter(r => r.date === todayUTC);
                 const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
 
-                // For returns, we check if they happened within the last 24 hours or match today's date
+                // For returns, we strictly use the local business day (en-CA -> YYYY-MM-DD)
                 const todaysReturns = returns.filter(r => {
                     if (!r.timestamp) return false;
-                    // Match either UTC date or local date to be safe
-                    return r.timestamp.startsWith(todayUTC) || r.timestamp.startsWith(today);
+                    return new Date(r.timestamp).toLocaleDateString('en-CA') === todayUTC;
                 });
 
                 const stats = {

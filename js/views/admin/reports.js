@@ -2,7 +2,16 @@ import { db } from '../../data.js';
 
 export const generatePrintReport = async (routes, id) => {
     const route = routes.find(r => r.id === id);
-    const returns = await db.getRouteReturns(id);
+    let returns = await db.getRouteReturns(id);
+
+    // Precise Daily Filtering: Use local date comparison to avoid timezone shifts
+    if (route && route.date) {
+        returns = returns.filter(r => {
+            if (!r.timestamp) return false;
+            const itemDate = new Date(r.timestamp).toLocaleDateString('en-CA');
+            return itemDate === route.date;
+        });
+    }
 
     // FORCED ISOLATION: Always ensure printArea is a direct child of body and clear it
     let printArea = document.getElementById('printArea');
@@ -78,7 +87,7 @@ export const generatePrintReport = async (routes, id) => {
                         <tr>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
-                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${(r.productName || r.name || 'N/A').toUpperCase()}</td>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${(r.code || 'N/A')} - ${(r.productName || r.name || 'N/A').toUpperCase()}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.reason || ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 700;">${r.quantity}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
