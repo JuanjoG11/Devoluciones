@@ -33,6 +33,16 @@ export const generatePrintReport = async (routes, id) => {
     const totalTotalItems = totalReturns.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0);
 
     const today = new Date().toLocaleDateString('es-CO');
+    const isTym = db.isTymAccount(route.username);
+    const orgConfig = isTym ? {
+        logo: 'logo-tym.png',
+        name: 'TIENDAS Y MARCAS DEL EJE CAFETERO',
+        nit: '900973929'
+    } : {
+        logo: 'logo-tat.jpg',
+        name: 'TAT DISTRIBUCIONES',
+        nit: '901568117-1'
+    };
 
     let htmlContent = `
 <div class="print-main-container">
@@ -40,16 +50,16 @@ export const generatePrintReport = async (routes, id) => {
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 10px; margin-bottom: 12px;">
             <div style="width: 100px;">
-                <img src="logo-tat.jpg" alt="TAT Logo" style="width: 100%; height: auto;">
+                <img src="${orgConfig.logo}" alt="Logo" style="width: 100%; height: auto;">
             </div>
             <div style="text-align: center; flex: 1;">
                 <h1 style="margin: 0; font-size: 14pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">CONCENTRADO DE DEVOLUCIONES</h1>
-                <h2 style="margin: 4px 0 0; font-size: 11pt; font-weight: 700;">TAT DISTRIBUCIONES</h2>
+                <h2 style="margin: 4px 0 0; font-size: 11pt; font-weight: 700;">${orgConfig.name}</h2>
                 <p style="margin: 2px 0 0; font-size: 8pt; color: #333;">Control Operativo y Logístico</p>
             </div>
-            <div style="text-align: right; width: 85px; font-size: 8pt;">
+            <div style="text-align: right; width: 100px; font-size: 8pt;">
                 <div style="font-weight: 700;">NIT</div>
-                <div style="font-weight: 600; white-space: nowrap;">901568117-1</div>
+                <div style="font-weight: 600; white-space: nowrap;">${orgConfig.nit}</div>
             </div>
         </div>
 

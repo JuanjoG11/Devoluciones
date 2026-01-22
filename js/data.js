@@ -142,6 +142,7 @@ const seedUsers = async () => {
         // '1076350176' MOVED TO TYM
         { username: '1078456086', password: '123', role: 'auxiliar', name: 'NELWIS DEYVER CORDOBA MOSQUERA', organization: 'TAT' },
         { username: '1085717552', password: '123', role: 'auxiliar', name: 'DANIEL ANDRES OLAYA PEREZ', organization: 'TAT' },
+        { username: '1053849016', password: '123', role: 'auxiliar', name: 'YHONY ALEXANDER LOPEZ LOPEZ', organization: 'TAT' },
 
         // TYM AUXILIARIES (Added via TYM_AUX_LIST)
         ...TYM_AUX_LIST
