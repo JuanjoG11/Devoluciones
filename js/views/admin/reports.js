@@ -163,7 +163,7 @@ export const generatePrintReport = async (routes, id) => {
 
         <div style="margin-top: 20px; border-top: 1px dashed #bbb; padding-top: 8px; text-align: center;">
             <p style="font-size: 8pt; color: #666; margin: 0; font-style: italic;">
-                * Soporte oficial TAT DISTRIBUCIONES - Generado el ${new Date().toLocaleString('es-CO')}
+                * Soporte oficial ${orgConfig.name} - Generado el ${new Date().toLocaleString('es-CO')}
             </p>
         </div>
     </div>
@@ -178,7 +178,7 @@ export const generatePrintReport = async (routes, id) => {
 };
 
 export const exportToCSV = (returns, routes) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
     const rows = [
         ['Fecha', 'Auxiliar', 'Factura', 'Planilla', 'Codigo', 'Producto', 'Cantidad', 'Motivo', 'Total', 'Foto']
     ];

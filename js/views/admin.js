@@ -63,17 +63,14 @@ export const renderAdminDashboard = (container, user) => {
                 ]);
 
                 // 2. Compute stats locally for reliability
-                // Routes use YYYY-MM-DD from toISOString().split('T')[0] but we should be careful.
-                // Actually, because auxiliaries use .toISOString().split('T')[0], they store UTC date.
-                // So we MUST use UTC date for routes.
-                const todayUTC = new Date().toISOString().split('T')[0];
-                const todaysRoutes = routes.filter(r => r.date === todayUTC);
+                const todayLocal = new Date().toLocaleDateString('en-CA');
+                const todaysRoutes = routes.filter(r => r.date === todayLocal);
                 const activeCount = todaysRoutes.filter(r => r.status === 'active').length;
 
                 // For returns, we strictly use the local business day (en-CA -> YYYY-MM-DD)
                 const todaysReturns = returns.filter(r => {
                     if (!r.timestamp) return false;
-                    return new Date(r.timestamp).toLocaleDateString('en-CA') === todayUTC;
+                    return new Date(r.timestamp).toLocaleDateString('en-CA') === todayLocal;
                 });
 
                 const stats = {

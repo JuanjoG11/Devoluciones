@@ -87,6 +87,34 @@ export const renderLogin = (container) => {
         }
     });
 
+    // Add a simple "Restore/Refresh" button for troubleshooting (Sencillo way)
+    const footerDiv = container.querySelector('form + div') || form.parentElement;
+    const restoreBtn = document.createElement('button');
+    restoreBtn.type = 'button';
+    restoreBtn.innerHTML = '<span class="material-icons-round" style="font-size: 16px;">refresh</span> FORZAR ACTUALIZACIÓN (SI NO VES LOS CAMBIOS)';
+    restoreBtn.style = 'background: none; border: 1px solid #ddd; color: #999; font-size: 10px; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-top: 20px; display: inline-flex; align-items: center; gap: 4px; font-weight: 700;';
+    restoreBtn.onclick = async () => {
+        const confirmed = await Alert.confirm("¿Quieres limpiar la memoria de la aplicación para descargar los nuevos cambios?", "Restaurar Aplicación");
+        if (confirmed) {
+            try {
+                // 1. Unregister all service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+                }
+                // 2. Clear local storage
+                localStorage.clear();
+                // 3. Force reload
+                window.location.reload(true);
+            } catch (e) {
+                window.location.reload(true);
+            }
+        }
+    };
+    form.appendChild(restoreBtn);
+
     // Try showing PWA banner
     if (window.showPwaBanner) {
         window.showPwaBanner();

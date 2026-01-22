@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v19';
+const CACHE_NAME = 'devoluciones-v19_2'; // Force refresh again for user visibility
 const ASSETS = [
     '/',
     '/index.html',

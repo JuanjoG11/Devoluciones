@@ -95,6 +95,28 @@ const TYM_AUX_LIST = [
     { username: '1010159801', name: 'BRANDON ESTIVEN TORO GALVIS' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
 
+const TAT_AUX_LIST = [
+    { username: '1193105349', name: 'MICHAEL CONTRERAS HURTADO' },
+    { username: '75071571', name: 'LUIS ALFONSO RIOS GONZALEZ' },
+    { username: '1088017580', name: 'JOHN ANDRES CASTILLO GIRALDO' },
+    { username: '1089097145', name: 'MANUEL ALEJANDRO RAMIREZ OVALLE' },
+    { username: '1088305468', name: 'JULIAN DAVID RODRIGUEZ MONTOYA' },
+    { username: '1058842716', name: 'MAIKOL ESTIVEN CARDONA TORO' },
+    { username: '1094956074', name: 'YERFREY FLORES ARROYAVE' },
+    { username: '18519387', name: 'FIDEL HERNANDO GARCIA CORREA' },
+    { username: '10030398', name: 'JOHN RAUL GRAJALES CANO' },
+    { username: '1004667097', name: 'JUAN GUILLERMO FERNANDEZ GIRALDO' },
+    { username: '18516953', name: 'JOSE ARLEY MARIN HERRERA' },
+    { username: '1055831421', name: 'SAMUEL ANDRES ARIAS ARCILA' },
+    { username: '1005048479', name: 'NATALY MOLINA BECERRA' },
+    { username: '80433929', name: 'LINO LOPEZ SIMONS' },
+    { username: '1060506540', name: 'YENIFER ANDREA SOTO GARZON' },
+    { username: '1060586518', name: 'NELLY YURANNY SALDARRIAGA CAÑAS' },
+    { username: '1078456086', name: 'NELWIS DEYVER CORDOBA MOSQUERA' },
+    { username: '1085717552', name: 'DANIEL ANDRES OLAYA PEREZ' },
+    { username: '1053849016', name: 'YHONY ALEXANDER LOPEZ LOPEZ' }
+].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TAT' }));
+
 /**
  * List of usernames (Cedulas) that belong to the Carnicos Team.
  * They only see meat products (ZENU/RANCHERA/RICA).
@@ -122,34 +144,11 @@ const seedUsers = async () => {
         // TYM ADMIN
         { username: 'admin_tym', password: '123', role: 'admin', name: 'Administrador TYM', organization: 'TYM' },
 
-        // TAT AUXILIARIES
-        { username: '1193105349', password: '123', role: 'auxiliar', name: 'MICHAEL CONTRERAS HURTADO', organization: 'TAT' },
-        { username: '75071571', password: '123', role: 'auxiliar', name: 'LUIS ALFONSO RIOS GONZALEZ', organization: 'TAT' },
-        { username: '1088017580', password: '123', role: 'auxiliar', name: 'JOHN ANDRES CASTILLO GIRALDO', organization: 'TAT' },
-        { username: '1089097145', password: '123', role: 'auxiliar', name: 'MANUEL ALEJANDRO RAMIREZ OVALLE', organization: 'TAT' },
-        { username: '1088305468', password: '123', role: 'auxiliar', name: 'JULIAN DAVID RODRIGUEZ MONTOYA', organization: 'TAT' },
-        { username: '1058842716', password: '123', role: 'auxiliar', name: 'MAIKOL ESTIVEN CARDONA TORO', organization: 'TAT' },
-        { username: '1094956074', password: '123', role: 'auxiliar', name: 'YERFREY FLORES ARROYAVE', organization: 'TAT' },
-        { username: '18519387', password: '123', role: 'auxiliar', name: 'FIDEL HERNANDO GARCIA CORREA', organization: 'TAT' },
-        { username: '10030398', password: '123', role: 'auxiliar', name: 'JOHN RAUL GRAJALES CANO', organization: 'TAT' },
-        { username: '1004667097', password: '123', role: 'auxiliar', name: 'JUAN GUILLERMO FERNANDEZ GIRALDO', organization: 'TAT' },
-        { username: '18516953', password: '123', role: 'auxiliar', name: 'JOSE ARLEY MARIN HERRERA', organization: 'TAT' },
-        { username: '1055831421', password: '123', role: 'auxiliar', name: 'SAMUEL ANDRES ARIAS ARCILA', organization: 'TAT' },
-        { username: '1005048479', password: '123', role: 'auxiliar', name: 'NATALY MOLINA BECERRA', organization: 'TAT' },
-        { username: '80433929', password: '123', role: 'auxiliar', name: 'LINO LOPEZ SIMONS', organization: 'TAT' },
-        { username: '1060506540', password: '123', role: 'auxiliar', name: 'YENIFER ANDREA SOTO GARZON', organization: 'TAT' },
-        { username: '1060586518', password: '123', role: 'auxiliar', name: 'NELLY YURANNY SALDARRIAGA CAÑAS', organization: 'TAT' },
-        // '1076350176' MOVED TO TYM
-        { username: '1078456086', password: '123', role: 'auxiliar', name: 'NELWIS DEYVER CORDOBA MOSQUERA', organization: 'TAT' },
-        { username: '1085717552', password: '123', role: 'auxiliar', name: 'DANIEL ANDRES OLAYA PEREZ', organization: 'TAT' },
-        { username: '1053849016', password: '123', role: 'auxiliar', name: 'YHONY ALEXANDER LOPEZ LOPEZ', organization: 'TAT' },
-
-        // TYM AUXILIARIES (Added via TYM_AUX_LIST)
+        // AUXILIARIES FROM STATIC LISTS
+        ...TAT_AUX_LIST,
         ...TYM_AUX_LIST
     ];
     // Use upsert to insert or update existing users
-    // Silently try to seed. If it fails (e.g. schema missing 'organization'), we ignore it
-    // because we have fallbacks in the getters.
     try {
         await sb.from('users').upsert(users, { onConflict: 'username' });
     } catch (e) {
@@ -249,7 +248,6 @@ export const db = {
                 organization: this.isTymAccount(u.username) ? 'TYM' : (u.organization || 'TAT')
             }));
 
-            // 2. FALLBACK: Ensure all TYM_AUX_LIST users exist in the result if they are missing from DB
             const dbUsernames = new Set(dbUsers.map(u => String(u.username).trim()));
 
             TYM_AUX_LIST.forEach(staticUser => {
@@ -257,7 +255,18 @@ export const db = {
                 if (!dbUsernames.has(cleanUsername)) {
                     dbUsers.push({
                         ...staticUser,
-                        id: cleanUsername, // Fallback ID is username
+                        id: cleanUsername,
+                        isActive: true
+                    });
+                }
+            });
+
+            TAT_AUX_LIST.forEach(staticUser => {
+                const cleanUsername = String(staticUser.username).trim();
+                if (!dbUsernames.has(cleanUsername)) {
+                    dbUsers.push({
+                        ...staticUser,
+                        id: cleanUsername,
                         isActive: true
                     });
                 }
@@ -272,9 +281,10 @@ export const db = {
             return dbUsers.sort((a, b) => a.name.localeCompare(b.name));
         } catch (e) {
             console.error("Error fetching users:", e);
-            // Absolute fallback: return static list if DB fails completely
+            // Absolute fallback: return static lists if DB fails completely
             if (organization === 'TYM') return TYM_AUX_LIST;
-            return [];
+            if (organization === 'TAT') return TAT_AUX_LIST;
+            return [...TAT_AUX_LIST, ...TYM_AUX_LIST];
         }
     },
 
@@ -423,7 +433,7 @@ export const db = {
     },
 
     async getTodaysRoute(userId) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA');
         // Normalize userId to string for consistent comparison
         const normalizedUserId = String(userId).trim();
         console.log("[getTodaysRoute] Fetching route for userId:", normalizedUserId, "date:", today);
@@ -457,7 +467,7 @@ export const db = {
             if (user && user.username) {
                 const { data: routeByUsername } = await sb.from('routes')
                     .select('*')
-                    .eq('date', today)
+                    .eq('date', new Date().toLocaleDateString('en-CA'))
                     .eq('username', String(user.username).trim())
                     .order('created_at', { ascending: false })
                     .limit(1)
@@ -1042,7 +1052,7 @@ export const initializeData = async () => {
         // console.log("Syncing users...");
         await seedUsers();
 
-        const version = 'v5'; // Increment this to force a full re-sync
+        const version = 'v6'; // Increment this to force a full re-sync
         const isFirstInit = !localStorage.getItem('db_initialized');
         const needsVersionSync = localStorage.getItem('inventory_version') !== version;
 

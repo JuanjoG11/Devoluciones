@@ -67,9 +67,10 @@ export const getDefaultDateRange = () => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - CONFIG.PERFORMANCE.DEFAULT_DAYS_FILTER);
 
+    // Use local business day (YYYY-MM-DD) instead of UTC to avoid timezone shifts
     return {
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0]
+        startDate: startDate.toLocaleDateString('en-CA'),
+        endDate: endDate.toLocaleDateString('en-CA')
     };
 };
 

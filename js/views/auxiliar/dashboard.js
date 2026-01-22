@@ -151,7 +151,7 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
             const newRoute = {
                 userId: user.id, username: user.username, userName: user.name,
                 startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-                date: new Date().toISOString().split('T')[0]
+                date: new Date().toLocaleDateString('en-CA')
             };
             console.log("[startRouteBtn] Creating route with data:", newRoute);
             const createdRoute = await db.addRoute(newRoute);

@@ -49,3 +49,13 @@ export const formatDateTime = (dateStr) => {
         hour12: true
     })}`;
 };
+
+/**
+ * Gets the current date or provided date in YYYY-MM-DD local format
+ * Consistently uses 'en-CA' locale which provides the desired ISO format locally.
+ */
+export const getLocalDateISO = (date = new Date()) => {
+    // If input is a string that might be a timestamp or a date
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('en-CA');
+};

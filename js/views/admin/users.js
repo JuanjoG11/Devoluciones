@@ -4,7 +4,7 @@ export const renderAuxiliaresTable = (users, routes, filterTerm) => {
         u.username.toLowerCase().includes(filterTerm.toLowerCase())
     );
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
 
     return `
         <table style="width: 100%; border-collapse: collapse;">
