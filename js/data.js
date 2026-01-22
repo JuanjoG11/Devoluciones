@@ -1,5 +1,6 @@
 import { sb } from './supabase.js';
 import { TYM_PRODUCTS_LIST } from './data/tym_products.js';
+import { CARNICOS_PRODUCTS_LIST } from './data/carnicos_products.js';
 import { CONFIG, getDefaultDateRange } from './config.js';
 import { compressImage } from './utils/imageCompression.js';
 
@@ -93,6 +94,25 @@ const TYM_AUX_LIST = [
     { username: '1089601941', name: 'FELIPE MONTES RIVERA' },
     { username: '1010159801', name: 'BRANDON ESTIVEN TORO GALVIS' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
+
+/**
+ * List of usernames (Cedulas) that belong to the Carnicos Team.
+ * They only see meat products (ZENU/RANCHERA/RICA).
+ */
+const CARNICOS_USERNAMES = new Set([
+    '1010159801', // BRANDON ESTIVEN TORO GALVIS
+    '1088037094', // DANIEL FELIPE MURILLO GRANDA
+    '1112776419', // JAMMES ALBERTO RAMIREZ NIETO
+    '1098724347', // SEBASTIAN SALAZAR HENAO
+    '1089601941', // FELIPE MONTES RIVERA
+    '10033035'    // CESAR AUGUSTO CASTILLO LONDOÑO
+]);
+
+/**
+ * Set of product codes that are considered "Meat Products".
+ * Used to filter them out for regular TYM auxiliaries.
+ */
+const CARNICOS_CODES = new Set(CARNICOS_PRODUCTS_LIST.map(p => String(p.code).trim()));
 
 const seedUsers = async () => {
     const users = [
@@ -329,16 +349,26 @@ export const db = {
         return null;
     },
 
-    async searchProducts(query, organization = 'TAT') {
+    async searchProducts(query, organization = 'TAT', username = null) {
         if (!query || query.length < 2) return [];
         const q = query.toLowerCase();
 
-        // STRICT ORGANIZATION SEPARATION
+        // 0. CARNICOS TEAM RESTRICTION (Mutual Exclusion within TYM)
         if (organization === 'TYM') {
-            // TYM: ONLY show products from static list
-            return TYM_PRODUCTS_LIST.filter(p =>
-                String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
-            ).slice(0, 500);
+            const isCarnicoUser = username && CARNICOS_USERNAMES.has(String(username).trim());
+
+            if (isCarnicoUser) {
+                // TEAM CARNICOS: ONLY see meat products
+                return CARNICOS_PRODUCTS_LIST.filter(p =>
+                    String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+                ).slice(0, 500);
+            } else {
+                // REGULAR TYM: See regular items, EXCLUDE meat products
+                return TYM_PRODUCTS_LIST.filter(p =>
+                    (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
+                    !CARNICOS_CODES.has(String(p.code).trim())
+                ).slice(0, 500);
+            }
         }
 
         // TAT: ONLY show products from database, EXCLUDING TYM products

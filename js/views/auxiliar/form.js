@@ -67,11 +67,22 @@ export const renderForm = (container, user, state, render) => {
 
                 <div class="input-group">
                     <label class="input-label">Evidencia <span style="color: #ef4444; font-weight: 800;">(OBLIGATORIO)</span></label>
-                    <label for="evidence" class="btn btn-secondary w-full" style="justify-content: flex-start; border: 2px dashed #cbd5e1; background: #f8fafc;">
-                        <span class="material-icons-round">camera_alt</span>
-                        <span id="evidenceText">Tomar Foto</span>
-                    </label>
-                    <input type="file" id="evidence" accept="image/*" capture="environment" class="hidden">
+                    <div style="display: flex; gap: 8px;">
+                        <label for="evidenceCamera" class="btn btn-secondary" style="flex: 1; justify-content: center; border: 2px dashed #cbd5e1; background: #f8fafc;">
+                            <span class="material-icons-round">camera_alt</span>
+                            <span>Tomar Foto</span>
+                        </label>
+                        <label for="evidenceGallery" class="btn btn-secondary" style="flex: 1; justify-content: center; border: 2px dashed #cbd5e1; background: #f8fafc;">
+                            <span class="material-icons-round">photo_library</span>
+                            <span>Galería</span>
+                        </label>
+                    </div>
+                    <input type="file" id="evidenceCamera" accept="image/*" capture="environment" class="hidden">
+                    <input type="file" id="evidenceGallery" accept="image/*" class="hidden">
+                    <div id="evidenceStatus" style="margin-top: 8px; padding: 8px; border-radius: 6px; background: #f1f5f9; display: none; font-size: 14px; font-weight: 600; color: var(--success-color); text-align: center;">
+                        <span class="material-icons-round" style="font-size: 16px; vertical-align: middle;">check_circle</span>
+                        Foto capturada
+                    </div>
                     <img id="evidencePreview" src="" alt="Preview" style="max-width: 100%; margin-top: 10px; display: none; border-radius: 8px;">
                 </div>
 
@@ -85,7 +96,10 @@ export const renderForm = (container, user, state, render) => {
     const searchResults = document.getElementById('searchResults');
     const totalSpan = document.getElementById('totalValue');
     const manualTotalInput = document.getElementById('manualTotalInput');
-    const evidenceInput = document.getElementById('evidence');
+    const evidenceCameraInput = document.getElementById('evidenceCamera');
+    const evidenceGalleryInput = document.getElementById('evidenceGallery');
+    const evidenceStatus = document.getElementById('evidenceStatus');
+    const evidencePreview = document.getElementById('evidencePreview');
     const reasonSelect = document.getElementById('reasonSelect');
     const manualReasonGroup = document.getElementById('manualReasonGroup');
     const manualReasonInput = document.getElementById('manualReasonInput');
@@ -145,7 +159,7 @@ export const renderForm = (container, user, state, render) => {
         clearTimeout(window.searchDebounce);
         window.searchDebounce = setTimeout(async () => {
             const org = user.organization || 'TAT';
-            const results = await db.searchProducts(query, org);
+            const results = await db.searchProducts(query, org, user.username);
             searchResults.innerHTML = results.map(p => `
                 <li style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}">
                     <div style="font-weight: 600;">${p.code} - ${p.name}</div>
@@ -173,18 +187,22 @@ export const renderForm = (container, user, state, render) => {
         e.target.value = val ? new Intl.NumberFormat('es-CO').format(val) : '';
     };
 
-    evidenceInput.onchange = (e) => {
+    // Shared handler for both camera and gallery inputs
+    const handleEvidenceChange = (e) => {
         if (e.target.files.length) {
             const reader = new FileReader();
             reader.onload = (ev) => {
                 capturedPhoto = ev.target.result;
-                document.getElementById('evidenceText').textContent = "Foto OK ✓";
-                document.getElementById('evidencePreview').src = capturedPhoto;
-                document.getElementById('evidencePreview').style.display = 'block';
+                evidenceStatus.style.display = 'block';
+                evidencePreview.src = capturedPhoto;
+                evidencePreview.style.display = 'block';
             };
             reader.readAsDataURL(e.target.files[0]);
         }
     };
+
+    evidenceCameraInput.onchange = handleEvidenceChange;
+    evidenceGalleryInput.onchange = handleEvidenceChange;
 
     document.getElementById('returnForm').onsubmit = async (e) => {
         e.preventDefault();

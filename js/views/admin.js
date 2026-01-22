@@ -380,7 +380,7 @@ export const renderAdminDashboard = (container, user) => {
                     container.innerHTML = `<div class="spinner" style="margin: 40px auto;"></div>`;
 
                     const org = user.organization || 'TAT';
-                    const results = await db.searchProducts(query, org);
+                    const results = await db.searchProducts(query, org, user.username);
 
                     if (results.length === 0) {
                         container.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-light);">No se encontraron productos.</div>`;
