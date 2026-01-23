@@ -92,7 +92,8 @@ const TYM_AUX_LIST = [
     { username: '1128904709', name: 'BRAHIAN ECHEVERRY ALVAREZ' },
     { username: '1088348091', name: 'JEISON STIVEN LAVADO MARIN' },
     { username: '1089601941', name: 'FELIPE MONTES RIVERA' },
-    { username: '1010159801', name: 'BRANDON ESTIVEN TORO GALVIS' }
+    { username: '1010159801', name: 'BRANDON ESTIVEN TORO GALVIS' },
+    { username: '1004700767', name: 'DAVID ALEJANDRO RIVERA' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
 
 const TAT_AUX_LIST = [
