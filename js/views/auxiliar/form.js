@@ -109,8 +109,8 @@ export const renderForm = (container, user, state, render) => {
     let currentType = 'partial';
     let capturedPhoto = null;
 
-    const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Otro"];
-    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Otro"];
+    const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
+    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
 
     const updateUIForType = (type) => {
         currentType = type;
