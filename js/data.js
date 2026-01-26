@@ -55,7 +55,6 @@ const syncInventory = async () => {
 
 const TYM_AUX_LIST = [
     { username: '1002730727', name: 'JHON WILSON GIRALDO CARVAJAL' },
-    { username: '1076350176', name: 'DANIELA CASTIBLANCO RAMIREZ' },
     { username: '9976558', name: 'EDWIN FELIPE RINCON RAMIREZ' },
     { username: '1087990176', name: 'ESTIVEN GUTIERREZ SALAZAR' },
     { username: '10138323', name: 'ROVINSON TORRES RIVERA' },
@@ -94,7 +93,8 @@ const TYM_AUX_LIST = [
     { username: '1089601941', name: 'FELIPE MONTES RIVERA' },
     { username: '1010159801', name: 'BRANDON ESTIVEN TORO GALVIS' },
     { username: '1004700767', name: 'DAVID ALEJANDRO RIVERA' },
-    { username: '1022364037', name: 'RONALD ADOLFO ANGULO MACUASE' }
+    { username: '1022364037', name: 'RONALD ADOLFO ANGULO MACUASE' },
+    { username: '1112763651', name: 'JULIAN DAVID CORTES' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
 
 const TAT_AUX_LIST = [
@@ -116,7 +116,8 @@ const TAT_AUX_LIST = [
     { username: '1060586518', name: 'NELLY YURANNY SALDARRIAGA CAÑAS' },
     { username: '1078456086', name: 'NELWIS DEYVER CORDOBA MOSQUERA' },
     { username: '1085717552', name: 'DANIEL ANDRES OLAYA PEREZ' },
-    { username: '1053849016', name: 'YHONY ALEXANDER LOPEZ LOPEZ' }
+    { username: '1053849016', name: 'YHONY ALEXANDER LOPEZ LOPEZ' },
+    { username: '1076350176', name: 'DANIELA CASTIBLANCO RAMIREZ' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TAT' }));
 
 /**
