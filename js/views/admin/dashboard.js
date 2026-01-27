@@ -109,3 +109,6 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
         </div>
     </div>
 `;
+
+// Export empty init function to maintain compatibility until admin.js is updated
+export const initDashboardCharts = () => { };

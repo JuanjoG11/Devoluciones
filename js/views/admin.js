@@ -5,13 +5,14 @@ import { formatTime12h, formatPrice } from '../utils/formatters.js';
 import { CONFIG } from '../config.js';
 
 // Modular Sections
-import { renderDashboard } from './admin/dashboard.js';
+import { renderDashboard, initDashboardCharts } from './admin/dashboard.js';
 import { renderHistorial } from './admin/history.js';
 import { renderAuxiliares, renderAuxiliaresTable } from './admin/users.js';
 import { renderProductos } from './admin/products.js';
 import { renderConfig } from './admin/config.js';
 import { renderRefacturacion } from './admin/refacturacion.js';
 import { generatePrintReport, exportToCSV } from './admin/reports.js';
+import { renderStatistics, initStatisticsCharts } from './admin/statistics.js';
 
 /**
  * Admin Dashboard View Orchestrator
@@ -279,6 +280,7 @@ export const renderAdminDashboard = (container, user) => {
 
     const renderNavLinks = () => `
         <a href="#" data-section="dashboard" class="sidebar-link ${activeSection === 'dashboard' ? 'active' : ''}"><span class="material-icons-round">dashboard</span> <span>Panel General</span></a>
+        <a href="#" data-section="estadisticas" class="sidebar-link ${activeSection === 'estadisticas' ? 'active' : ''}"><span class="material-icons-round">insights</span> <span>Estadísticas</span></a>
         <a href="#" data-section="historial" class="sidebar-link ${activeSection === 'historial' ? 'active' : ''}"><span class="material-icons-round">history</span> <span>Historial</span></a>
         <a href="#" data-section="refacturacion" class="sidebar-link ${activeSection === 'refacturacion' ? 'active' : ''}"><span class="material-icons-round">receipt_long</span> <span>Refacturación</span></a>
         <a href="#" data-section="auxiliares" class="sidebar-link ${activeSection === 'auxiliares' ? 'active' : ''}"><span class="material-icons-round">people</span> <span>Auxiliares</span></a>
@@ -293,7 +295,14 @@ export const renderAdminDashboard = (container, user) => {
         const activeRoutes = cache.routes.filter(r => r.date === todayStr);
 
         switch (activeSection) {
-            case 'dashboard': contentArea.innerHTML = renderDashboard(activeRoutes, cache.returns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user); break;
+            case 'dashboard':
+                contentArea.innerHTML = renderDashboard(activeRoutes, cache.returns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user);
+                initDashboardCharts(cache.returns, cache.routes);
+                break;
+            case 'estadisticas':
+                contentArea.innerHTML = renderStatistics(cache.returns, cache.routes, cache.stats);
+                initStatisticsCharts(cache.returns, cache.routes);
+                break;
             case 'historial': contentArea.innerHTML = renderHistorial(cache); break;
             case 'refacturacion': contentArea.innerHTML = renderRefacturacion(cache); break;
             case 'auxiliares': contentArea.innerHTML = renderAuxiliares(cache.users, cache.routes, filters.auxiliares); break;
