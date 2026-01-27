@@ -796,14 +796,14 @@ export const db = {
         return (data && data.length > 0) ? data[0] : null;
     },
 
-    async addReturn(returnData, skipOfflineQueue = false) {
+    async addReturn(returnData, skipOfflineQueue = false, isBatchPart = false) {
         // 1. FAST PATH: UI Call (save local, return instant, sync later)
         if (!skipOfflineQueue) {
-            if (_submissionLock) {
+            if (_submissionLock && !isBatchPart) {
                 console.warn("[addReturn] Submission locked, skipping duplicate trigger.");
                 return true;
             }
-            _submissionLock = true;
+            if (!isBatchPart) _submissionLock = true;
 
             try {
                 // Double Check for Duplicates (Local + Remote if online)
@@ -826,7 +826,7 @@ export const db = {
                 return false;
             } finally {
                 // Release lock after 1 second to prevent mechanical bounce
-                setTimeout(() => { _submissionLock = false; }, 1000);
+                if (!isBatchPart) setTimeout(() => { _submissionLock = false; }, 1000);
             }
         }
 
@@ -868,6 +868,30 @@ export const db = {
         } catch (e) {
             console.error("Exception in addReturn (sync):", e);
             return false;
+        }
+    },
+
+    async addReturnsBatch(returnsArray) {
+        if (!returnsArray || returnsArray.length === 0) return true;
+
+        if (_submissionLock) {
+            console.warn("[addReturnsBatch] Submission locked.");
+            return false;
+        }
+        _submissionLock = true;
+
+        try {
+            let allSaved = true;
+            for (const item of returnsArray) {
+                const saved = await this.addReturn(item, false, true);
+                if (!saved) allSaved = false;
+            }
+            return allSaved;
+        } catch (e) {
+            console.error("Error in batch add:", e);
+            return false;
+        } finally {
+            setTimeout(() => { _submissionLock = false; }, 1000);
         }
     },
 

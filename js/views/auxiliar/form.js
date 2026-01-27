@@ -32,27 +32,49 @@ export const renderForm = (container, user, state, render) => {
                     <input type="text" name="sheet" class="input-field" placeholder="001" required>
                 </div>
 
-                <div id="productSection" class="input-group" style="position: relative;">
-                    <label class="input-label">Producto</label>
-                    <input type="text" id="productSearch" class="input-field" placeholder="Escribe para buscar..." autocomplete="off">
-                    <ul id="searchResults" class="search-results-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1); z-index:10; max-height:200px; overflow-y:auto; list-style:none; padding:0; margin:4px 0 0 0;"></ul>
+                <!-- Multi-Product Section (Only for Partial) -->
+                <div id="multiProductSection" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--text-secondary); border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Productos a Devolver</h4>
+                    
+                    <div id="productSelectionGroup">
+                        <div class="input-group" style="position: relative; margin-bottom: 12px;">
+                            <label class="input-label">Buscar Producto</label>
+                            <input type="text" id="productSearch" class="input-field" placeholder="Escribe para buscar..." autocomplete="off">
+                            <ul id="searchResults" class="search-results-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:100; max-height:200px; overflow-y:auto; list-style:none; padding:0; margin:4px 0 0 0;"></ul>
+                        </div>
+
+                        <div class="flex gap-md" style="margin-bottom: 12px;">
+                            <div class="input-group w-full">
+                                <label class="input-label">Cantidad</label>
+                                <input type="number" id="qty" class="input-field" min="1" value="1">
+                            </div>
+                            <div class="input-group w-full">
+                                <label class="input-label">Precio Unit.</label>
+                                <input type="text" id="price" class="input-field" readonly style="background-color: #f1f5f9;">
+                            </div>
+                        </div>
+
+                        <button type="button" id="addProductBtn" class="btn btn-secondary" style="width: 100%; background: var(--primary-color); color: white; border: none;">
+                            <span class="material-icons-round">add</span> Agregar Producto
+                        </button>
+                    </div>
+
+                    <div id="addedProductsList" style="margin-top: 16px;">
+                        <!-- List of items will appear here -->
+                        <div style="text-align: center; color: var(--text-light); padding: 12px; font-size: 13px;">No se han agregado productos</div>
+                    </div>
                 </div>
 
-                <div id="qtyPriceSection" class="flex gap-md">
-                    <div class="input-group w-full">
-                        <label class="input-label">Cantidad</label>
-                        <input type="number" id="qty" class="input-field" min="1" value="1">
-                    </div>
-                    <div class="input-group w-full">
-                        <label class="input-label">Precio Unit.</label>
-                        <input type="text" id="price" class="input-field" readonly style="background-color: #f1f5f9;">
+                <div id="totalReturnSection" class="hidden">
+                    <div class="input-group">
+                        <label class="input-label">Valor Total Devolución</label>
+                        <input type="text" inputmode="numeric" id="manualTotalInput" class="input-field" placeholder="Ingrese el valor total">
                     </div>
                 </div>
 
-                <div class="input-group">
-                    <label class="input-label">Valor Total</label>
-                    <div id="computedTotalDisplay" style="font-size: 24px; font-weight: 700; color: var(--accent-color);">$ <span id="totalValue">0</span></div>
-                    <input type="text" inputmode="numeric" id="manualTotalInput" class="input-field hidden" placeholder="Ingrese el valor total">
+                <div class="input-group" id="totalDisplaySection">
+                    <label class="input-label">Resumen de Valor</label>
+                    <div style="font-size: 28px; font-weight: 800; color: var(--accent-color);">$ <span id="totalValue">0</span></div>
                 </div>
 
                 <div class="input-group">
@@ -70,7 +92,7 @@ export const renderForm = (container, user, state, render) => {
                     <div style="display: flex; gap: 8px;">
                         <label for="evidenceCamera" class="btn btn-secondary" style="flex: 1; justify-content: center; border: 2px dashed #cbd5e1; background: #f8fafc;">
                             <span class="material-icons-round">camera_alt</span>
-                            <span>Tomar Foto</span>
+                            <span>Foto</span>
                         </label>
                         <label for="evidenceGallery" class="btn btn-secondary" style="flex: 1; justify-content: center; border: 2px dashed #cbd5e1; background: #f8fafc;">
                             <span class="material-icons-round">photo_library</span>
@@ -81,21 +103,29 @@ export const renderForm = (container, user, state, render) => {
                     <input type="file" id="evidenceGallery" accept="image/*" class="hidden">
                     <div id="evidenceStatus" style="margin-top: 8px; padding: 8px; border-radius: 6px; background: #f1f5f9; display: none; font-size: 14px; font-weight: 600; color: var(--success-color); text-align: center;">
                         <span class="material-icons-round" style="font-size: 16px; vertical-align: middle;">check_circle</span>
-                        Foto capturada
+                        Evidencia lista
                     </div>
-                    <img id="evidencePreview" src="" alt="Preview" style="max-width: 100%; margin-top: 10px; display: none; border-radius: 8px;">
+                    <img id="evidencePreview" src="" alt="Preview" style="max-width: 100%; margin-top: 10px; display: none; border-radius: 8px; box-shadow: var(--shadow-premium);">
                 </div>
 
-                <button type="submit" class="btn btn-primary mt-md"><span class="material-icons-round">save</span> Guardar</button>
+                <button type="submit" id="submitBtn" class="btn btn-primary mt-md" style="height: 56px; font-size: 18px;"><span class="material-icons-round">save</span> Guardar Registro</button>
                 <button type="button" id="cancelBtn" class="btn btn-secondary mt-sm">Cancelar</button>
             </form>
         </div>
     `;
 
+    // Elements
+    const form = document.getElementById('returnForm');
     const productInput = document.getElementById('productSearch');
     const searchResults = document.getElementById('searchResults');
+    const qtyInput = document.getElementById('qty');
+    const priceInput = document.getElementById('price');
+    const addProductBtn = document.getElementById('addProductBtn');
+    const addedProductsList = document.getElementById('addedProductsList');
     const totalSpan = document.getElementById('totalValue');
     const manualTotalInput = document.getElementById('manualTotalInput');
+    const multiProductSection = document.getElementById('multiProductSection');
+    const totalReturnSection = document.getElementById('totalReturnSection');
     const evidenceCameraInput = document.getElementById('evidenceCamera');
     const evidenceGalleryInput = document.getElementById('evidenceGallery');
     const evidenceStatus = document.getElementById('evidenceStatus');
@@ -104,8 +134,11 @@ export const renderForm = (container, user, state, render) => {
     const manualReasonGroup = document.getElementById('manualReasonGroup');
     const manualReasonInput = document.getElementById('manualReasonInput');
     const typeOptions = document.querySelectorAll('.type-option');
+    const submitBtn = document.getElementById('submitBtn');
 
-    let selectedProduct = null;
+    // State for multiple products
+    let selectedProducts = [];
+    let tempSelectedProduct = null;
     let currentType = 'partial';
     let capturedPhoto = null;
 
@@ -117,15 +150,19 @@ export const renderForm = (container, user, state, render) => {
         const isPartial = type === 'partial';
         typeOptions.forEach(opt => opt.classList.toggle('active', opt.dataset.value === type));
 
-        document.getElementById('productSection').classList.toggle('hidden', !isPartial);
-        document.getElementById('qtyPriceSection').classList.toggle('hidden', !isPartial);
-        document.getElementById('computedTotalDisplay').classList.toggle('hidden', !isPartial);
-        manualTotalInput.classList.toggle('hidden', isPartial);
-
-        productInput.required = isPartial;
+        multiProductSection.classList.toggle('hidden', !isPartial);
+        totalReturnSection.classList.toggle('hidden', isPartial);
         manualTotalInput.required = !isPartial;
 
-        // Reset manual reason
+        // Reset
+        selectedProducts = [];
+        tempSelectedProduct = null;
+        productInput.value = '';
+        priceInput.value = '';
+        qtyInput.value = '1';
+        renderProductsList();
+        updateTotal();
+
         manualReasonGroup.classList.add('hidden');
         manualReasonInput.value = '';
         manualReasonInput.required = false;
@@ -134,6 +171,43 @@ export const renderForm = (container, user, state, render) => {
         (isPartial ? REASONS_PARTIAL : REASONS_TOTAL).forEach(r => {
             const opt = document.createElement('option'); opt.value = r; opt.textContent = r; reasonSelect.appendChild(opt);
         });
+    };
+
+    const renderProductsList = () => {
+        if (selectedProducts.length === 0) {
+            addedProductsList.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 12px; font-size: 13px;">No se han agregado productos</div>';
+            return;
+        }
+
+        addedProductsList.innerHTML = selectedProducts.map((p, index) => `
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 14px;">${p.name}</div>
+                    <div style="font-size: 12px; color: var(--text-light);">${p.quantity} x $ ${p.price.toLocaleString()} = <b>$ ${p.total.toLocaleString()}</b></div>
+                </div>
+                <button type="button" class="remove-product" data-index="${index}" style="background: #fee2e2; border: none; color: #ef4444; padding: 6px; border-radius: 6px; cursor: pointer;">
+                    <span class="material-icons-round" style="font-size: 18px;">delete</span>
+                </button>
+            </div>
+        `).join('');
+
+        document.querySelectorAll('.remove-product').forEach(btn => {
+            btn.onclick = () => {
+                selectedProducts.splice(parseInt(btn.dataset.index), 1);
+                renderProductsList();
+                updateTotal();
+            };
+        });
+    };
+
+    const updateTotal = () => {
+        if (currentType === 'partial') {
+            const total = selectedProducts.reduce((sum, p) => sum + p.total, 0);
+            totalSpan.textContent = total.toLocaleString();
+        } else {
+            const val = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
+            totalSpan.textContent = val.toLocaleString();
+        }
     };
 
     updateUIForType('partial');
@@ -146,12 +220,6 @@ export const renderForm = (container, user, state, render) => {
         manualReasonInput.required = isOtro;
         if (!isOtro) manualReasonInput.value = '';
     });
-
-    const calculate = () => {
-        if (currentType === 'partial' && selectedProduct) {
-            totalSpan.textContent = (parseInt(document.getElementById('qty').value || 1) * selectedProduct.price).toLocaleString();
-        }
-    };
 
     productInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -173,21 +241,40 @@ export const renderForm = (container, user, state, render) => {
     searchResults.onclick = (e) => {
         const li = e.target.closest('li');
         if (li && li.dataset.code) {
-            selectedProduct = { code: li.dataset.code, name: li.dataset.name, price: parseInt(li.dataset.price) };
-            productInput.value = `${selectedProduct.code} - ${selectedProduct.name}`;
-            document.getElementById('price').value = `$ ${selectedProduct.price.toLocaleString()}`;
+            tempSelectedProduct = { code: li.dataset.code, name: li.dataset.name, price: parseInt(li.dataset.price) };
+            productInput.value = `${tempSelectedProduct.code} - ${tempSelectedProduct.name}`;
+            priceInput.value = `$ ${tempSelectedProduct.price.toLocaleString()}`;
             searchResults.style.display = 'none';
-            calculate();
         }
     };
 
-    document.getElementById('qty').oninput = calculate;
+    addProductBtn.onclick = () => {
+        if (!tempSelectedProduct) return Alert.error("Seleccione un producto");
+        const qty = parseInt(qtyInput.value) || 0;
+        if (qty <= 0) return Alert.error("Ingrese una cantidad válida");
+
+        selectedProducts.push({
+            ...tempSelectedProduct,
+            quantity: qty,
+            total: tempSelectedProduct.price * qty
+        });
+
+        // Reset selectors
+        productInput.value = '';
+        priceInput.value = '';
+        qtyInput.value = '1';
+        tempSelectedProduct = null;
+
+        renderProductsList();
+        updateTotal();
+    };
+
     manualTotalInput.oninput = (e) => {
         let val = e.target.value.replace(/\D/g, '');
         e.target.value = val ? new Intl.NumberFormat('es-CO').format(val) : '';
+        updateTotal();
     };
 
-    // Shared handler for both camera and gallery inputs
     const handleEvidenceChange = (e) => {
         if (e.target.files.length) {
             const reader = new FileReader();
@@ -204,97 +291,71 @@ export const renderForm = (container, user, state, render) => {
     evidenceCameraInput.onchange = handleEvidenceChange;
     evidenceGalleryInput.onchange = handleEvidenceChange;
 
-    document.getElementById('returnForm').onsubmit = async (e) => {
+    form.onsubmit = async (e) => {
         e.preventDefault();
+        if (submitBtn.disabled) return;
 
-        const btn = e.target.querySelector('button[type="submit"]');
-        if (btn.disabled) return; // Fail-safe
+        const fd = new FormData(form);
+        const invoice = fd.get('invoice').trim();
+        const sheet = fd.get('sheet').trim();
+        let reason = fd.get('reason');
+        if (reason === 'Otro') reason = manualReasonInput.value.trim();
 
-        const fd = new FormData(e.target);
-        const data = {
-            routeId: state.currentRouteId,
-            invoice: fd.get('invoice').trim(),
-            sheet: fd.get('sheet').trim(),
-            reason: fd.get('reason'),
-            evidence: capturedPhoto,
-            timestamp: new Date().toISOString(),
-            submissionId: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2)
-        };
+        // Validation
+        if (!invoice || !sheet) return Alert.error("Factura y Planilla son obligatorias");
+        if (!reason) return Alert.error("Seleccione una razón");
+        if (!capturedPhoto) return Alert.error("La evidencia fotográfica es obligatoria");
 
-        if (data.reason === 'Otro') {
-            data.reason = manualReasonInput.value.trim();
-        }
-
-        // INPUT VALIDATION
-        if (!data.invoice || data.invoice.length === 0) {
-            Alert.error("La factura es requerida");
-            btn.disabled = false;
-            return;
-        }
-        if (!data.sheet || data.sheet.length === 0) {
-            Alert.error("La planilla es requerida");
-            btn.disabled = false;
-            return;
-        }
-        if (!data.reason || data.reason.length === 0) {
-            Alert.error("La razón es requerida");
-            btn.disabled = false;
-            return;
-        }
-
-        if (!capturedPhoto) {
-            Alert.error("La evidencia fotográfica es obligatoria");
-            btn.disabled = false;
-            return;
-        }
+        const submissions = [];
+        const timestamp = new Date().toISOString();
 
         if (currentType === 'partial') {
-            if (!selectedProduct) return Alert.error("Selecciona un producto");
+            if (selectedProducts.length === 0) return Alert.error("Agregue al menos un producto");
 
-            const qty = parseInt(document.getElementById('qty').value);
-            if (!qty || qty <= 0 || qty > 10000) {
-                Alert.error("Cantidad inválida (1-10000)");
-                btn.disabled = false;
-                return;
-            }
-
-            data.productCode = selectedProduct.code;
-            data.productName = selectedProduct.name;
-            data.quantity = qty;
-            data.total = selectedProduct.price * data.quantity;
-
-            if (data.total <= 0) {
-                Alert.error("El total debe ser mayor a 0");
-                btn.disabled = false;
-                return;
-            }
+            selectedProducts.forEach(p => {
+                submissions.push({
+                    routeId: state.currentRouteId,
+                    invoice, sheet, reason,
+                    evidence: capturedPhoto,
+                    timestamp,
+                    productCode: p.code,
+                    productName: p.name,
+                    quantity: p.quantity,
+                    total: p.total,
+                    submissionId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)
+                });
+            });
         } else {
             const totalValue = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
-            if (totalValue <= 0) {
-                Alert.error("El valor total debe ser mayor a 0");
-                btn.disabled = false;
-                return;
-            }
+            if (totalValue <= 0) return Alert.error("Ingrese un valor total válido");
 
-            data.productName = "DEVOLUCIÓN TOTAL";
-            data.quantity = 1;
-            data.total = totalValue;
+            submissions.push({
+                routeId: state.currentRouteId,
+                invoice, sheet, reason,
+                evidence: capturedPhoto,
+                timestamp,
+                productName: "DEVOLUCIÓN TOTAL",
+                quantity: 1,
+                total: totalValue,
+                submissionId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)
+            });
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<span class="material-icons-round spinning">sync</span> Guardando...';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="material-icons-round spinning">sync</span> Guardando...';
 
-        if (await db.addReturn(data)) {
-            Alert.success("Registrado correctamente");
-            // Delay redirection slightly to allow UI to settle and prevent re-clicks
+        const success = await db.addReturnsBatch(submissions);
+
+        if (success) {
+            Alert.success("Devoluciones registradas");
             setTimeout(() => {
                 state.view = 'dashboard';
                 render();
             }, 500);
         } else {
-            Alert.error("Error al guardar");
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-icons-round">save</span> Guardar';
+            Alert.error("Error al guardar algunos registros");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span class="material-icons-round">save</span> Guardar Registro';
         }
     };
 
