@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v19_2'; // Force refresh again for user visibility
+const CACHE_NAME = 'devoluciones-v20'; // Major performance update
 const ASSETS = [
     '/',
     '/index.html',
@@ -16,6 +16,15 @@ const ASSETS = [
     '/js/views/login.js',
     '/js/views/admin.js',
     '/js/views/auxiliar.js',
+    '/js/views/auxiliar/dashboard.js',
+    '/js/views/auxiliar/form.js',
+    '/js/views/auxiliar/resale.js',
+    '/js/views/admin/dashboard.js',
+    '/js/views/admin/history.js',
+    '/js/views/admin/reports.js',
+    '/js/views/admin/statistics.js',
+    '/js/views/admin/users.js',
+    '/js/views/admin/refacturacion.js',
     '/logo-app.png'
 ];
 

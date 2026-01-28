@@ -1,4 +1,4 @@
-import { sb } from './supabase.js';
+import { sb, withTimeout } from './supabase.js';
 import { TYM_PRODUCTS_LIST } from './data/tym_products.js';
 import { CARNICOS_PRODUCTS_LIST } from './data/carnicos_products.js';
 import { CONFIG, getDefaultDateRange } from './config.js';
@@ -31,7 +31,10 @@ const _initOfflineDB = async () => {
 const syncInventory = async () => {
     try {
         // console.log("Syncing local inventory cache...");
-        const { data: allProducts, error } = await sb.from('products').select('code, name, price');
+        const { data: allProducts, error } = await withTimeout(
+            sb.from('products').select('code, name, price'),
+            15000
+        );
         if (error) throw error;
         if (allProducts) {
             const dbRef = await _initOfflineDB();
@@ -390,33 +393,46 @@ export const db = {
         const tymCodes = new Set(TYM_PRODUCTS_LIST.map(p => String(p.code).trim()));
         let dbResults = [];
 
-        // 1. FETCH FROM DATABASE (OR LOCAL CACHE)
-        if (!navigator.onLine) {
-            try {
-                const dbRef = await _initOfflineDB();
-                dbResults = await new Promise((resolve) => {
-                    const transaction = dbRef.transaction(['inventory'], 'readonly');
-                    const store = transaction.objectStore('inventory');
-                    const request = store.getAll();
-                    request.onsuccess = () => {
-                        const all = request.result || [];
-                        resolve(all.filter(p =>
-                            (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
-                            !tymCodes.has(String(p.code).trim()) // Exclude TYM products
-                        ));
-                    };
-                    request.onerror = () => resolve([]);
-                });
-            } catch (e) { dbResults = []; }
-        } else {
-            const { data, error } = await sb.from('products')
-                .select('*')
-                .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
-                .limit(500);
+        // 1. FETCH FROM LOCAL CACHE FIRST (FASTEST)
+        try {
+            const dbRef = await _initOfflineDB();
+            const localResults = await new Promise((resolve) => {
+                const transaction = dbRef.transaction(['inventory'], 'readonly');
+                const store = transaction.objectStore('inventory');
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const all = request.result || [];
+                    resolve(all.filter(p =>
+                        (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
+                        !tymCodes.has(String(p.code).trim())
+                    ));
+                };
+                request.onerror = () => resolve([]);
+            });
 
-            if (!error && data) {
-                // Filter out TYM products from database results
-                dbResults = data.filter(p => !tymCodes.has(String(p.code).trim()));
+            if (localResults.length > 0) {
+                return localResults.slice(0, 500);
+            }
+        } catch (e) {
+            console.warn("Local search failed, falling back to network", e);
+        }
+
+        // 2. FALLBACK TO NETWORK IF ONLINE AND NO LOCAL RESULTS
+        if (navigator.onLine) {
+            try {
+                const { data, error } = await withTimeout(
+                    sb.from('products')
+                        .select('*')
+                        .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
+                        .limit(500),
+                    8000
+                );
+
+                if (!error && data) {
+                    return data.filter(p => !tymCodes.has(String(p.code).trim())).slice(0, 500);
+                }
+            } catch (e) {
+                console.warn("Network search timed out or failed", e);
             }
         }
 
@@ -1085,9 +1101,6 @@ export const initializeData = async () => {
         const needsVersionSync = localStorage.getItem('inventory_version') !== version;
 
         if (!isFirstInit && !needsVersionSync) {
-            // Background sync Users
-            seedUsers().catch(e => console.warn("Background user sync failed", e));
-
             // Background sync Inventory if online
             if (navigator.onLine) {
                 syncInventory().catch(e => console.warn("Background inventory sync failed", e));
