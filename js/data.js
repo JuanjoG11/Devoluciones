@@ -1080,7 +1080,7 @@ export const initializeData = async () => {
         // console.log("Syncing users...");
         await seedUsers();
 
-        const version = 'v7'; // Increment this to force a full re-sync
+        const version = 'v9'; // Increment this to force a full re-sync
         const isFirstInit = !localStorage.getItem('db_initialized');
         const needsVersionSync = localStorage.getItem('inventory_version') !== version;
 
