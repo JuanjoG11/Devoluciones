@@ -94,19 +94,31 @@ export const renderLogin = (container) => {
     restoreBtn.innerHTML = '<span class="material-icons-round" style="font-size: 16px;">refresh</span> FORZAR ACTUALIZACIÓN (SI NO VES LOS CAMBIOS)';
     restoreBtn.style = 'background: none; border: 1px solid #ddd; color: #999; font-size: 10px; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-top: 20px; display: inline-flex; align-items: center; gap: 4px; font-weight: 700;';
     restoreBtn.onclick = async () => {
-        const confirmed = await Alert.confirm("¿Quieres limpiar la memoria de la aplicación para descargar los nuevos cambios?", "Restaurar Aplicación");
+        const confirmed = await Alert.confirm("¿Quieres actualizar la aplicación para descargar los nuevos cambios? (Tus datos y sesión se mantendrán)", "Actualizar Aplicación");
         if (confirmed) {
             try {
-                // 1. Unregister all service workers
+                // 1. Unregister all service workers (to force fetch new ones)
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
                     for (let registration of registrations) {
                         await registration.unregister();
                     }
                 }
-                // 2. Clear local storage
+
+                // 2. Clear only asset caches, NOT user data
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    for (let key of keys) {
+                        await caches.delete(key);
+                    }
+                }
+
+                // 3. Clear only technical localStorage, PRESERVE session
+                const user = localStorage.getItem('currentUser');
                 localStorage.clear();
-                // 3. Force reload
+                if (user) localStorage.setItem('currentUser', user);
+
+                // 4. Force reload
                 window.location.reload(true);
             } catch (e) {
                 window.location.reload(true);

@@ -12,6 +12,13 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
 
     container.innerHTML = `
         <div id="pwa-install-banner" style="display:none;"></div>
+        <div id="update-available-banner" style="display:none; background: var(--accent-color); color: white; padding: 12px; text-align: center; font-size: 13px; font-weight: 700; position: sticky; top: 0; z-index: 1001; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <div class="flex items-center justify-center gap-md">
+                <span class="material-icons-round">info</span>
+                Nueva versión disponible 
+                <button id="refreshAppBtn" style="background: white; color: var(--accent-color); border: none; padding: 4px 12px; border-radius: 6px; font-weight: 800; cursor: pointer; margin-left: 8px;">ACTUALIZAR</button>
+            </div>
+        </div>
         <header class="app-header">
             <div style="flex: 1; min-width: 0;">
                 <h3 style="color: white; margin: 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -220,6 +227,15 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
                 render();
             }
         });
+
+        // Update notification logic
+        if (window.updateAvailable) {
+            const updateBanner = document.getElementById('update-available-banner');
+            if (updateBanner) {
+                updateBanner.style.display = 'block';
+                document.getElementById('refreshAppBtn').onclick = () => window.location.reload();
+            }
+        }
 
         // Try showing banner
         if (window.showPwaBanner) {

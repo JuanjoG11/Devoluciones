@@ -105,9 +105,9 @@ if ('serviceWorker' in navigator) {
     // Detect when a new service worker takes control
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
-        refreshing = true;
-        // console.log('Nueva versión detectada, recargando...');
-        window.location.reload();
+        // console.log('Nueva versión disponible en segundo plano.');
+        // We no longer reload automatically to prevent data loss for auxiliaries
+        window.updateAvailable = true;
     });
 
     window.addEventListener('load', () => {

@@ -142,6 +142,46 @@ export const renderForm = (container, user, state, render) => {
     let currentType = 'partial';
     let capturedPhoto = null;
 
+    // --- Auto-save Persistence Logic ---
+    const STORAGE_KEY = `return_draft_${user.id}`;
+
+    const saveState = () => {
+        const draft = {
+            invoice: form.invoice.value,
+            sheet: form.sheet.value,
+            selectedProducts,
+            currentType,
+            reason: reasonSelect.value,
+            manualReason: manualReasonInput.value
+        };
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    };
+
+    const loadState = () => {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+        try {
+            const draft = JSON.parse(saved);
+            form.invoice.value = draft.invoice || '';
+            form.sheet.value = draft.sheet || '';
+            selectedProducts = draft.selectedProducts || [];
+            currentType = draft.currentType || 'partial';
+
+            updateUIForType(currentType);
+
+            if (draft.reason) {
+                reasonSelect.value = draft.reason;
+                reasonSelect.dispatchEvent(new Event('change'));
+            }
+            if (draft.manualReason) manualReasonInput.value = draft.manualReason;
+
+            renderProductsList();
+            updateTotal();
+        } catch (e) { console.error("Error loading draft", e); }
+    };
+
+    const clearState = () => sessionStorage.removeItem(STORAGE_KEY);
+
     const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
     const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
 
@@ -154,23 +194,21 @@ export const renderForm = (container, user, state, render) => {
         totalReturnSection.classList.toggle('hidden', isPartial);
         manualTotalInput.required = !isPartial;
 
-        // Reset
-        selectedProducts = [];
+        // Reset inputs but preserve business identity
         tempSelectedProduct = null;
         productInput.value = '';
         priceInput.value = '';
         qtyInput.value = '1';
+
         renderProductsList();
         updateTotal();
-
-        manualReasonGroup.classList.add('hidden');
-        manualReasonInput.value = '';
-        manualReasonInput.required = false;
 
         reasonSelect.innerHTML = '<option value="">Seleccionar...</option>';
         (isPartial ? REASONS_PARTIAL : REASONS_TOTAL).forEach(r => {
             const opt = document.createElement('option'); opt.value = r; opt.textContent = r; reasonSelect.appendChild(opt);
         });
+
+        saveState();
     };
 
     const renderProductsList = () => {
@@ -196,6 +234,7 @@ export const renderForm = (container, user, state, render) => {
                 selectedProducts.splice(parseInt(btn.dataset.index), 1);
                 renderProductsList();
                 updateTotal();
+                saveState();
             };
         });
     };
@@ -210,7 +249,18 @@ export const renderForm = (container, user, state, render) => {
         }
     };
 
+    // Initial Setup
     updateUIForType('partial');
+    loadState(); // Restore draft if exists
+
+    // Listeners for auto-save
+    form.invoice.oninput = form.sheet.oninput = saveState;
+    manualTotalInput.oninput = (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        e.target.value = val ? new Intl.NumberFormat('es-CO').format(val) : '';
+        updateTotal();
+        saveState();
+    };
 
     typeOptions.forEach(opt => opt.addEventListener('click', () => updateUIForType(opt.dataset.value)));
 
@@ -219,7 +269,10 @@ export const renderForm = (container, user, state, render) => {
         manualReasonGroup.classList.toggle('hidden', !isOtro);
         manualReasonInput.required = isOtro;
         if (!isOtro) manualReasonInput.value = '';
+        saveState();
     });
+
+    manualReasonInput.oninput = saveState;
 
     productInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
@@ -267,12 +320,7 @@ export const renderForm = (container, user, state, render) => {
 
         renderProductsList();
         updateTotal();
-    };
-
-    manualTotalInput.oninput = (e) => {
-        let val = e.target.value.replace(/\D/g, '');
-        e.target.value = val ? new Intl.NumberFormat('es-CO').format(val) : '';
-        updateTotal();
+        saveState();
     };
 
     const handleEvidenceChange = (e) => {
@@ -347,6 +395,7 @@ export const renderForm = (container, user, state, render) => {
         const success = await db.addReturnsBatch(submissions);
 
         if (success) {
+            clearState();
             Alert.success("Devoluciones registradas");
             setTimeout(() => {
                 state.view = 'dashboard';
