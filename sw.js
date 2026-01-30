@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v20'; // Major performance update
+const CACHE_NAME = 'devoluciones-v21'; // Major update required for user to see changes
 const ASSETS = [
     '/',
     '/index.html',
