@@ -296,35 +296,61 @@ export const db = {
     },
 
     async updateUserStatus(userId, isActive) {
-        // Check if it's a static user ID (Cedula/Numeric)
-        const isStaticUser = /^\d+$/.test(String(userId));
+        try {
+            const cleanId = String(userId).trim();
+            const isStaticUser = /^\d+$/.test(cleanId);
+            console.log(`[updateUserStatus] Target: ${cleanId}, isStatic: ${isStaticUser}, nextStatus: ${isActive}`);
 
-        if (isStaticUser) {
-            // Find in DB by username (Cedula)
-            const { data: existing } = await sb.from('users').select('id').eq('username', userId).maybeSingle();
-
-            if (existing) {
-                const { error } = await sb.from('users').update({ is_active: isActive }).eq('id', existing.id);
-                return !error;
-            } else {
-                // Not in DB yet, create it
-                const staticUser = TYM_AUX_LIST.find(u => u.username == userId);
-                if (staticUser) {
-                    const { error } = await sb.from('users').insert({
-                        username: userId,
-                        name: staticUser.name,
-                        role: 'auxiliar',
-                        organization: 'TYM',
-                        is_active: isActive,
-                        password: '123' // Default
-                    });
-                    return !error;
+            if (isStaticUser) {
+                const { data: existing, error: findError } = await sb.from('users').select('id, username').eq('username', cleanId).maybeSingle();
+                if (findError) {
+                    console.error("[updateUserStatus] Error finding user:", findError);
+                    throw findError;
                 }
-            }
-        }
 
-        const { error } = await sb.from('users').update({ is_active: isActive }).eq('id', userId);
-        return !error;
+                if (existing) {
+                    const { error } = await sb.from('users').update({ is_active: isActive }).eq('id', existing.id);
+                    if (error) {
+                        console.error("[updateUserStatus] Update failed for existing static user:", error);
+                        throw error;
+                    }
+                    return true;
+                } else {
+                    let staticUser = TYM_AUX_LIST.find(u => String(u.username).trim() === cleanId);
+                    let org = 'TYM';
+                    if (!staticUser) {
+                        staticUser = TAT_AUX_LIST.find(u => String(u.username).trim() === cleanId);
+                        org = 'TAT';
+                    }
+
+                    if (staticUser) {
+                        const { error } = await sb.from('users').insert({
+                            username: cleanId,
+                            name: staticUser.name,
+                            role: 'auxiliar',
+                            organization: org,
+                            is_active: isActive,
+                            password: '123'
+                        });
+                        if (error) {
+                            console.error("[updateUserStatus] Insert failed:", error);
+                            throw error;
+                        }
+                        return true;
+                    }
+                }
+            } else {
+                const { error } = await sb.from('users').update({ is_active: isActive }).eq('id', userId);
+                if (error) {
+                    console.error("[updateUserStatus] Update failed for UUID user:", error);
+                    throw error;
+                }
+                return true;
+            }
+        } catch (e) {
+            console.error("[updateUserStatus] Final Catch:", e);
+        }
+        return false;
     },
 
     async getUserByUsername(username) {
@@ -1074,6 +1100,53 @@ export const db = {
             return true;
         } catch (e) {
             console.error('Error resetting test data:', e);
+            return false;
+        }
+    },
+
+    // --- Product CRUD Methods ---
+    async addProduct(product) {
+        try {
+            const { error } = await sb.from('products').insert([product]);
+            if (error) throw error;
+            await syncInventory(); // Refresh local cache
+            await broadcastEvent('inventory-updated', { type: 'add', code: product.code }, product.organization || 'TAT');
+            return true;
+        } catch (e) {
+            console.error("Error adding product:", e);
+            return false;
+        }
+    },
+
+    async updateProduct(code, updates) {
+        try {
+            const { error } = await sb.from('products').update(updates).eq('code', code);
+            if (error) throw error;
+            await syncInventory(); // Refresh local cache
+
+            // Get org for broadcast
+            const { data } = await sb.from('products').select('organization').eq('code', code).maybeSingle();
+            await broadcastEvent('inventory-updated', { type: 'update', code }, data?.organization || 'TAT');
+
+            return true;
+        } catch (e) {
+            console.error("Error updating product:", e);
+            return false;
+        }
+    },
+
+    async deleteProduct(code) {
+        try {
+            // Get org before delete for broadcast
+            const { data } = await sb.from('products').select('organization').eq('code', code).maybeSingle();
+
+            const { error } = await sb.from('products').delete().eq('code', code);
+            if (error) throw error;
+            await syncInventory(); // Refresh local cache
+            await broadcastEvent('inventory-updated', { type: 'delete', code }, data?.organization || 'TAT');
+            return true;
+        } catch (e) {
+            console.error("Error deleting product:", e);
             return false;
         }
     }

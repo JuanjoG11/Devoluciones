@@ -66,6 +66,24 @@ export const renderAuxiliarDashboard = (container, user) => {
             window.addEventListener('online', updateSyncUI);
             window.addEventListener('offline', updateSyncUI);
 
+            // 4. Realtime Listeners (Inventory)
+            const setupRealtime = () => {
+                if (!db.sb) return null;
+                const userOrg = user.organization || 'TAT';
+                const channel = db.sb.channel('inventory-alerts')
+                    .on('broadcast', { event: 'inventory-updated' }, (payload) => {
+                        if (payload.payload?.organization === userOrg) {
+                            console.log("🔔 Inventory update detected, syncing...");
+                            // Re-sync local products without blocking UI
+                            import('../data.js').then(({ syncInventory }) => syncInventory());
+                        }
+                    })
+                    .subscribe();
+                return channel;
+            };
+
+            state.realtimeChannel = setupRealtime();
+
         } catch (err) {
             console.error("Auxiliar Render Error:", err);
             container.innerHTML = `<div class="card m-lg text-center"><h3>Error al cargar</h3><button onclick="location.reload()" class="btn btn-primary mt-md">Reintentar</button></div>`;
@@ -109,6 +127,9 @@ export const renderAuxiliarDashboard = (container, user) => {
         dispose: () => {
             window.removeEventListener('online', updateSyncUI);
             window.removeEventListener('offline', updateSyncUI);
+            if (state.realtimeChannel) {
+                db.sb.removeChannel(state.realtimeChannel);
+            }
         }
     };
 };

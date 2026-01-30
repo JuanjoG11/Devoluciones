@@ -343,9 +343,24 @@ export const renderAdminDashboard = (container, user) => {
                         btn.onclick = async () => {
                             const userId = btn.dataset.userId;
                             const currentActive = btn.dataset.active === 'true';
+
+                            // Confirmation before deactivating
+                            if (currentActive) {
+                                const confirmed = await Alert.confirm("¿Seguro que quieres DESACTIVAR este auxiliar? No podrá entrar a la App hasta que lo reactives.");
+                                if (!confirmed) return;
+                            }
+
+                            btn.disabled = true;
+                            btn.textContent = 'Actualizando...';
+
                             if (await db.updateUserStatus(userId, !currentActive)) {
-                                await fetchData();
+                                Alert.success('Estado actualizado');
+                                await fetchData(true);
                                 renderSection();
+                            } else {
+                                Alert.error('Error al actualizar');
+                                btn.disabled = false;
+                                btn.textContent = currentActive ? 'Desactivar' : 'Reactivar';
                             }
                         };
                     });
@@ -357,15 +372,53 @@ export const renderAdminDashboard = (container, user) => {
             btn.onclick = async () => {
                 const userId = btn.dataset.userId;
                 const currentActive = btn.dataset.active === 'true';
+
+                if (currentActive) {
+                    const confirmed = await Alert.confirm("¿Seguro que quieres DESACTIVAR este auxiliar?");
+                    if (!confirmed) return;
+                }
+
+                btn.disabled = true;
+                btn.textContent = 'Actualizando...';
+
                 if (await db.updateUserStatus(userId, !currentActive)) {
-                    await fetchData();
+                    Alert.success('Estado actualizado');
+                    await fetchData(true);
                     renderSection();
+                } else {
+                    Alert.error('Error al actualizar');
+                    btn.disabled = false;
+                    btn.textContent = currentActive ? 'Desactivar' : 'Reactivar';
                 }
             };
         });
 
         // PRODUCT SEARCH LOGIC
         const prodSearch = document.getElementById('productSearch');
+        const addNewBtn = document.getElementById('addNewProductBtn');
+
+        if (addNewBtn) {
+            addNewBtn.onclick = async () => {
+                const code = await Alert.prompt("Ingrese el Código del Producto:", "Nuevo Producto");
+                if (!code) return;
+                const name = await Alert.prompt("Ingrese el Nombre del Producto:", "Nuevo Producto");
+                if (!name) return;
+                const priceStr = await Alert.prompt("Ingrese el Precio del Producto:", "Nuevo Producto");
+                if (!priceStr) return;
+
+                const price = parseInt(priceStr.replace(/\D/g, ''));
+                if (isNaN(price)) return Alert.error("Precio inválido");
+
+                if (await db.addProduct({ code, name, price, organization: user.organization || 'TAT', search_string: `${code} ${name}`.toLowerCase() })) {
+                    Alert.success("Producto agregado correctamente");
+                    // Trigger search refresh if there's a query
+                    prodSearch.dispatchEvent(new Event('input'));
+                } else {
+                    Alert.error("Error al agregar producto. Posible código duplicado.");
+                }
+            };
+        }
+
         if (prodSearch) {
             let debounceTimer;
             prodSearch.addEventListener('input', (e) => {
@@ -398,6 +451,7 @@ export const renderAdminDashboard = (container, user) => {
                                             <th style="padding: 12px 16px; text-align: left;">Código</th>
                                             <th style="padding: 12px 16px; text-align: left;">Nombre</th>
                                             <th style="padding: 12px 16px; text-align: right;">Precio</th>
+                                            <th style="padding: 12px 16px; text-align: center;">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -406,20 +460,96 @@ export const renderAdminDashboard = (container, user) => {
                                                 <td style="padding: 12px 16px; font-weight: 600; font-size: 13px;">${p.code}</td>
                                                 <td style="padding: 12px 16px; font-size: 13px;">${p.name}</td>
                                                 <td style="padding: 12px 16px; text-align: right; font-weight: 700;">${formatPrice(p.price)}</td>
+                                                <td style="padding: 12px 16px; text-align: center;">
+                                                    <div style="display: flex; gap: 8px; justify-content: center;">
+                                                        <button class="edit-prod-btn" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}" style="background: #eff6ff; color: #1d4ed8; border: none; padding: 6px; border-radius: 6px; cursor: pointer;">
+                                                            <span class="material-icons-round" style="font-size: 18px;">edit</span>
+                                                        </button>
+                                                        <button class="delete-prod-btn" data-code="${p.code}" style="background: #fef2f2; color: #dc2626; border: none; padding: 6px; border-radius: 6px; cursor: pointer;">
+                                                            <span class="material-icons-round" style="font-size: 18px;">delete</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
                                 </table>
                             </div>
                         `;
+
+                        // Attach listeners for Edit/Delete
+                        container.querySelectorAll('.edit-prod-btn').forEach(btn => {
+                            btn.onclick = async () => {
+                                const code = btn.dataset.code;
+                                const oldName = btn.dataset.name;
+                                const oldPrice = btn.dataset.price;
+
+                                // Custom Unified Modal for Edit
+                                const result = await new Promise((resolve) => {
+                                    const overlay = document.createElement('div');
+                                    overlay.className = 'modal-overlay';
+                                    overlay.innerHTML = `
+                                        <div class="modal-card">
+                                            <div class="modal-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                                                <span class="material-icons-round">edit</span>
+                                            </div>
+                                            <h2 class="modal-title">Editar Producto</h2>
+                                            <p class="modal-body">Código: <strong>${code}</strong></p>
+                                            
+                                            <div style="margin-top: 16px; text-align: left;">
+                                                <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; display: block;">Nombre del Producto</label>
+                                                <input type="text" id="edit-name" class="input-field" value="${oldName}" style="width: 100%; box-sizing: border-box; margin-bottom: 12px;">
+                                                
+                                                <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; display: block;">Precio ($)</label>
+                                                <input type="number" id="edit-price" class="input-field" value="${oldPrice}" style="width: 100%; box-sizing: border-box;">
+                                            </div>
+
+                                            <div class="modal-actions">
+                                                <button class="btn-cancel" id="edit-cancel">Cancelar</button>
+                                                <button class="btn-confirm" id="edit-confirm" style="background: var(--primary-color); color: white;">Guardar Cambios</button>
+                                            </div>
+                                        </div>
+                                    `;
+                                    document.body.appendChild(overlay);
+
+                                    document.getElementById('edit-cancel').onclick = () => { overlay.remove(); resolve(null); };
+                                    document.getElementById('edit-confirm').onclick = () => {
+                                        const name = document.getElementById('edit-name').value.trim();
+                                        const price = parseInt(document.getElementById('edit-price').value);
+                                        overlay.remove();
+                                        resolve({ name, price });
+                                    };
+                                });
+
+                                if (!result) return;
+
+                                if (await db.updateProduct(code, {
+                                    name: result.name,
+                                    price: result.price,
+                                    search_string: `${code} ${result.name}`.toLowerCase()
+                                })) {
+                                    Alert.success("Producto actualizado");
+                                    prodSearch.dispatchEvent(new Event('input'));
+                                }
+                            };
+                        });
+
+                        container.querySelectorAll('.delete-prod-btn').forEach(btn => {
+                            btn.onclick = async () => {
+                                const code = btn.dataset.code;
+                                if (await Alert.confirm(`¿Seguro que deseas eliminar el producto ${code}?`, "Eliminar Producto")) {
+                                    if (await db.deleteProduct(code)) {
+                                        Alert.success("Producto eliminado");
+                                        prodSearch.dispatchEvent(new Event('input'));
+                                    }
+                                }
+                            };
+                        });
                     }
-                    // Keep focus? No need, we are just rendering table below
                 }, 400);
             });
             prodSearch.focus();
         }
-
-
 
         document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
             const org = user.organization || 'TAT';
