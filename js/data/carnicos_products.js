@@ -740,5 +740,12 @@ export const CARNICOS_PRODUCTS_LIST = [
         "price": 3753,
         "organization": "TYM",
         "category": "carnicos"
+    },
+    {
+        "code": "1043468",
+        "name": "SCHON. CERVEC. Snack. ZENU x 100g",
+        "price": 4648,
+        "organization": "TYM",
+        "category": "carnicos"
     }
 ];
