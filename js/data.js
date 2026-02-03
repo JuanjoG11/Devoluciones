@@ -100,7 +100,8 @@ const TYM_AUX_LIST = [
     { username: '1112763651', name: 'JULIAN DAVID CORTES' },
     { username: '1093220521', name: 'JUAN DIEGO FRANCO' },
     { username: '1087559558', name: 'JUAN ALEJANDRO FRANCO MARIN' },
-    { username: '1057304668', name: 'JUAN ESTEBAN ALZATE VASQUEZ' }
+    { username: '1057304668', name: 'JUAN ESTEBAN ALZATE VASQUEZ' },
+    { username: '1088308341', name: 'JUAN DAVID QUINTERO' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
 
 const TAT_AUX_LIST = [
@@ -259,27 +260,9 @@ export const db = {
 
             const dbUsernames = new Set(dbUsers.map(u => String(u.username).trim()));
 
-            TYM_AUX_LIST.forEach(staticUser => {
-                const cleanUsername = String(staticUser.username).trim();
-                if (!dbUsernames.has(cleanUsername)) {
-                    dbUsers.push({
-                        ...staticUser,
-                        id: cleanUsername,
-                        isActive: true
-                    });
-                }
-            });
-
-            TAT_AUX_LIST.forEach(staticUser => {
-                const cleanUsername = String(staticUser.username).trim();
-                if (!dbUsernames.has(cleanUsername)) {
-                    dbUsers.push({
-                        ...staticUser,
-                        id: cleanUsername,
-                        isActive: true
-                    });
-                }
-            });
+            // Note: We no longer add static list users who aren't in the DB
+            // This prevents showing incorrect "Activo" status for users who don't exist
+            // or have been suspended. Users must exist in the database to appear in the admin panel.
 
             // 3. Filter by organization if requested
             if (organization) {

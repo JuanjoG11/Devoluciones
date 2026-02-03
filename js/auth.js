@@ -16,7 +16,7 @@ export const auth = {
         // Simple plain text password check (legacy)
         if (user && user.password === password) {
             if (user.isActive === false) {
-                Alert.error("Tu cuenta ha sido desactivada. Por favor, contacta al administrador.");
+                Alert.error(`Tu cuenta (${username}) ha sido DESACTIVADA por el administrador. No puedes ingresar a la aplicación. Por favor, contacta al administrador para reactivar tu cuenta.`);
                 return null;
             }
             // Ensure organization is set
