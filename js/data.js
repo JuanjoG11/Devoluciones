@@ -621,8 +621,20 @@ export const db = {
                 quantity: r.quantity, total: r.total, reason: r.reason,
                 evidence: r.evidence, timestamp: r.created_at,
                 isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
-                auxiliarName: r.routes?.user_name
+                auxiliarName: Array.isArray(r.routes) ? r.routes[0]?.user_name : r.routes?.user_name,
+                auxiliarUsername: Array.isArray(r.routes) ? r.routes[0]?.username : r.routes?.username
             }));
+    },
+
+    async deleteReturn(id) {
+        try {
+            const { error } = await sb.from('return_items').delete().eq('id', id);
+            if (error) throw error;
+            return true;
+        } catch (e) {
+            console.error("Error deleting return:", e);
+            return false;
+        }
     },
 
     async addRoute(routeData) {

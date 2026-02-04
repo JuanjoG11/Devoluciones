@@ -6,7 +6,7 @@ import { CONFIG } from '../config.js';
 
 // Modular Sections
 import { renderDashboard, initDashboardCharts } from './admin/dashboard.js';
-import { renderHistorial } from './admin/history.js';
+import { renderHistorial, initHistorial } from './admin/history.js';
 import { renderAuxiliares, renderAuxiliaresTable } from './admin/users.js';
 import { renderProductos } from './admin/products.js';
 import { renderConfig } from './admin/config.js';
@@ -303,11 +303,22 @@ export const renderAdminDashboard = (container, user) => {
                 contentArea.innerHTML = renderStatistics(cache.returns, cache.routes, cache.stats);
                 initStatisticsCharts(cache.returns, cache.routes);
                 break;
-            case 'historial': contentArea.innerHTML = renderHistorial(cache); break;
-            case 'refacturacion': contentArea.innerHTML = renderRefacturacion(cache); break;
-            case 'auxiliares': contentArea.innerHTML = renderAuxiliares(cache.users, cache.routes, filters.auxiliares); break;
-            case 'productos': contentArea.innerHTML = renderProductos(); break;
-            case 'config': contentArea.innerHTML = renderConfig(); break;
+            case 'historial':
+                contentArea.innerHTML = renderHistorial(cache);
+                initHistorial(cache);
+                break;
+            case 'refacturacion':
+                contentArea.innerHTML = renderRefacturacion(cache);
+                break;
+            case 'auxiliares':
+                contentArea.innerHTML = renderAuxiliares(cache.users, cache.routes, filters.auxiliares);
+                break;
+            case 'productos':
+                contentArea.innerHTML = renderProductos();
+                break;
+            case 'config':
+                contentArea.innerHTML = renderConfig();
+                break;
         }
         attachEventListeners();
     };
