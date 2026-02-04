@@ -260,9 +260,31 @@ export const db = {
 
             const dbUsernames = new Set(dbUsers.map(u => String(u.username).trim()));
 
-            // Note: We no longer add static list users who aren't in the DB
-            // This prevents showing incorrect "Activo" status for users who don't exist
-            // or have been suspended. Users must exist in the database to appear in the admin panel.
+            // 2. Add static list users who aren't in DB yet
+            // They will show as "Activo" by default until they're added to DB
+            TYM_AUX_LIST.forEach(staticUser => {
+                const cleanUsername = String(staticUser.username).trim();
+                if (!dbUsernames.has(cleanUsername)) {
+                    dbUsers.push({
+                        ...staticUser,
+                        id: cleanUsername,
+                        isActive: true,
+                        organization: 'TYM'
+                    });
+                }
+            });
+
+            TAT_AUX_LIST.forEach(staticUser => {
+                const cleanUsername = String(staticUser.username).trim();
+                if (!dbUsernames.has(cleanUsername)) {
+                    dbUsers.push({
+                        ...staticUser,
+                        id: cleanUsername,
+                        isActive: true,
+                        organization: 'TAT'
+                    });
+                }
+            });
 
             // 3. Filter by organization if requested
             if (organization) {
