@@ -326,6 +326,29 @@ export const renderAdminDashboard = (container, user) => {
             renderSection();
         });
 
+        document.querySelectorAll('.reactivate-route-btn').forEach(btn => {
+            btn.onclick = async () => {
+                // Prevent accidental double clicks
+                if (btn.disabled) return;
+
+                const routeId = btn.dataset.routeId;
+                const confirmed = await Alert.confirm("¿Seguro que deseas REACTIVAR esta ruta? El auxiliar podrá volver a gestionar devoluciones.", "Reactivar Ruta");
+
+                if (confirmed) {
+                    btn.disabled = true;
+                    // Reactivate: Set status to 'active' and clear the end_time
+                    if (await db.updateRoute(routeId, { status: 'active', endTime: null })) {
+                        Alert.success("Ruta reactivada correctamente");
+                        await fetchData(true);
+                        renderSection();
+                    } else {
+                        Alert.error("Error al reactivar la ruta");
+                        btn.disabled = false;
+                    }
+                }
+            };
+        });
+
         document.querySelectorAll('.print-route-btn').forEach(btn => {
             btn.onclick = () => generatePrintReport(cache.routes, btn.dataset.routeId);
         });

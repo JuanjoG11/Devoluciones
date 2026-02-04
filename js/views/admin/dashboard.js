@@ -101,7 +101,16 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
                             <div style="font-weight: 600; font-size: 14px;">${r.userName}</div>
                             <small style="color: var(--text-light);">${formatTime12h(r.startTime)}${r.endTime ? ' - ' + formatTime12h(r.endTime) : ''}</small>
                         </div>
-                        <button class="print-route-btn" data-route-id="${r.id}" style="background: rgba(99, 102, 241, 0.1); border: none; color: var(--accent-color); padding: 8px; border-radius: 8px; cursor: pointer;"><span class="material-icons-round" style="font-size: 18px;">print</span></button>
+                        <div style="display: flex; gap: 8px;">
+                            ${r.status === 'completed' ? `
+                                <button class="reactivate-route-btn" data-route-id="${r.id}" title="Reactivar Ruta" style="background: rgba(34, 197, 94, 0.1); border: none; color: var(--success-color); padding: 8px; border-radius: 8px; cursor: pointer;">
+                                    <span class="material-icons-round" style="font-size: 18px;">restore</span>
+                                </button>
+                            ` : ''}
+                            <button class="print-route-btn" data-route-id="${r.id}" title="Imprimir Reporte" style="background: rgba(99, 102, 241, 0.1); border: none; color: var(--accent-color); padding: 8px; border-radius: 8px; cursor: pointer;">
+                                <span class="material-icons-round" style="font-size: 18px;">print</span>
+                            </button>
+                        </div>
                     </div>
                 `).join('')}
                 ${activeRoutes.length === 0 ? '<div style="text-align: center; color: var(--text-light); padding: 20px;">No hay rutas activas.</div>' : ''}
