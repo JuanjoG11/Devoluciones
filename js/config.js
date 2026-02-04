@@ -10,7 +10,7 @@ export const CONFIG = {
         DEFAULT_DAYS_FILTER: 7,
 
         // Pagination limits
-        DASHBOARD_RETURNS_LIMIT: 100,
+        DASHBOARD_RETURNS_LIMIT: 300,
         HISTORY_PAGE_SIZE: 50,
         ROUTES_LIMIT: 100,
 

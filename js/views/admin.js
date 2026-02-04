@@ -87,7 +87,7 @@ export const renderAdminDashboard = (container, user) => {
                 cache.stats = stats;
                 cache.lastFetch = Date.now();
                 cache.returnsOffset = returns.length;
-                cache.hasMoreReturns = returns.length >= 100;
+                cache.hasMoreReturns = returns.length >= 300;
             } catch (e) {
                 console.error("Fetch error:", e);
             }
@@ -305,7 +305,7 @@ export const renderAdminDashboard = (container, user) => {
                 break;
             case 'historial':
                 contentArea.innerHTML = renderHistorial(cache);
-                initHistorial(cache);
+                initHistorial(cache, user.organization || 'TAT');
                 break;
             case 'refacturacion':
                 contentArea.innerHTML = renderRefacturacion(cache);
@@ -332,9 +332,34 @@ export const renderAdminDashboard = (container, user) => {
             const org = user.organization || 'TAT';
             const more = await db.getReturns(50, cache.returnsOffset, org);
             cache.returns = [...cache.returns, ...more];
-            cache.returnsOffset += more.length;
-            cache.hasMoreReturns = more.length === 50;
-            renderSection();
+            const btn = e.target;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = 'Cargando...';
+
+            try {
+                const org = user.organization || 'TAT';
+                // Offset should be the total number of items we've *fetched from DB*, 
+                // but for simplicity we'll use the current count if the organization filter is active at DB level.
+                const more = await db.getReturns(100, cache.returnsOffset, org);
+
+                if (more.length > 0) {
+                    cache.returns = [...cache.returns, ...more];
+                    cache.returnsOffset += more.length;
+                    cache.hasMoreReturns = more.length === 100;
+                    renderSection();
+                } else {
+                    cache.hasMoreReturns = false;
+                    btn.style.display = 'none';
+                    Alert.info("No hay más registros para cargar");
+                }
+            } catch (err) {
+                console.error("Error loading more:", err);
+                Alert.error("Error al cargar más registros");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
         });
 
         document.querySelectorAll('.reactivate-route-btn').forEach(btn => {

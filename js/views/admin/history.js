@@ -8,7 +8,12 @@ let currentPage = 0;
 const PAGE_SIZE = 50;
 
 export const renderHistorial = (cache) => {
-    const uniqueReasons = [...new Set(cache.returns.map(r => r.reason))].filter(Boolean);
+    const allReasons = [
+        "Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero",
+        "Error de facturación", "Error de vendedor", "Faltante", "Otro",
+        "Negocio cerrado", "Fuera de ruta"
+    ];
+    const uniqueReasons = [...new Set([...allReasons, ...cache.returns.map(r => r.reason)])].filter(Boolean).sort();
 
     // We don't apply filters here, we just return the shell. 
     // The initHistorial will take care of the first run.
@@ -37,52 +42,44 @@ export const renderHistorial = (cache) => {
     `;
 };
 
-export const initHistorial = (cache) => {
-    const applyFilters = () => {
-        let results = [...cache.returns];
+export const initHistorial = (cache, org) => {
+    let hasMore = true;
+    let isLoading = false;
 
-        if (filters.search) {
-            const search = filters.search.toLowerCase();
-            results = results.filter(r =>
-                (r.invoice && r.invoice.toLowerCase().includes(search)) ||
-                (r.sheet && r.sheet.toLowerCase().includes(search)) ||
-                (r.productName && r.productName.toLowerCase().includes(search)) ||
-                (r.code && r.code.toLowerCase().includes(search))
-            );
+    const applyFilters = async (isLoadMore = false) => {
+        if (isLoading) return;
+        isLoading = true;
+
+        if (!isLoadMore) {
+            filteredReturns = [];
+            renderLoading();
         }
 
-        if (filters.dateFrom) {
-            results = results.filter(r => {
-                const itemDate = new Date(r.timestamp).toLocaleDateString('en-CA');
-                return itemDate >= filters.dateFrom;
-            });
+        const offset = filteredReturns.length;
+        const limit = PAGE_SIZE;
+
+        const results = await db.getReturns(limit, offset, org, filters);
+
+        if (isLoadMore) {
+            filteredReturns = [...filteredReturns, ...results];
+        } else {
+            filteredReturns = results;
         }
 
-        if (filters.dateTo) {
-            results = results.filter(r => {
-                const itemDate = new Date(r.timestamp).toLocaleDateString('en-CA');
-                return itemDate <= filters.dateTo;
-            });
-        }
-
-        if (filters.userId) {
-            results = results.filter(r => {
-                // 1. Try directly mapped username (fastest)
-                if (r.auxiliarUsername && String(r.auxiliarUsername) === String(filters.userId)) return true;
-
-                // 2. Fallback: Search in routes cache using routeId
-                const route = cache.routes.find(rt => rt.id === r.routeId);
-                return route && (String(route.username) === String(filters.userId) || String(route.userId) === String(filters.userId));
-            });
-        }
-
-        if (filters.reason) {
-            results = results.filter(r => r.reason === filters.reason);
-        }
-
-        filteredReturns = results;
-        currentPage = 0;
+        hasMore = results.length === limit;
+        isLoading = false;
         renderResults();
+    };
+
+    const renderLoading = () => {
+        const container = document.getElementById('historial-results');
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <p style="color: #64748b;">Buscando en toda la base de datos...</p>
+                </div>`;
+        }
     };
 
     const renderResults = () => {
@@ -90,38 +87,36 @@ export const initHistorial = (cache) => {
         const statsContainer = document.getElementById('historial-stats');
         if (!container || !statsContainer) return;
 
+        // Note: Stats here only represent LOADED data.
+        // For full stats, we would need a separate RPC, but for history visibility, this matches the user request.
         const totalValue = filteredReturns.reduce((sum, r) => sum + (r.total || 0), 0);
         const totalCount = filteredReturns.length;
 
         statsContainer.innerHTML = `
             <div style="display: flex; gap: 24px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 200px; background: var(--grad-electric); padding: 20px; border-radius: 12px; color: white; box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Total Devoluciones</div>
+                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Mostrando Registros</div>
                     <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${totalCount}</div>
                 </div>
                 <div style="flex: 1; min-width: 200px; background: var(--grad-lava); padding: 20px; border-radius: 12px; color: white; box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Valor Total</div>
+                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Valor de Vista</div>
                     <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${formatPrice(totalValue)}</div>
                 </div>
             </div>
         `;
 
-        const start = currentPage * PAGE_SIZE;
-        const end = start + PAGE_SIZE;
-        const pageReturns = filteredReturns.slice(start, end);
-
-        if (pageReturns.length === 0) {
+        if (filteredReturns.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 60px 20px; opacity: 0.6;">
                     <span class="material-icons-round" style="font-size: 64px;">search_off</span>
-                    <p style="margin-top: 16px; font-size: 16px;">No se encontraron devoluciones</p>
+                    <p style="margin-top: 16px; font-size: 16px;">No se encontraron resultados en toda la base de datos</p>
                 </div>`;
             return;
         }
 
         container.innerHTML = `
             <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
+                <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
                     <thead>
                         <tr style="background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
                             <th style="padding: 12px; text-align: left;">Fecha / Hora</th>
@@ -138,10 +133,10 @@ export const initHistorial = (cache) => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${pageReturns.map(r => `
+                        ${filteredReturns.map(r => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
                                 <td style="padding: 12px; font-size: 12px; white-space: nowrap;">${formatDateTime(r.timestamp)}</td>
-                                <td style="padding: 12px; font-size: 12px; font-weight: 500;">${r.auxiliarName || 'N/A'}</td>
+                                <td style="padding: 12px; font-size: 12px; font-weight: 600;">${r.auxiliarName || 'N/A'}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700;">${r.invoice || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px;">${r.sheet || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700; color: var(--primary-color);">${r.code || '-'}</td>
@@ -162,18 +157,17 @@ export const initHistorial = (cache) => {
                     </tbody>
                 </table>
              </div>
-            ${filteredReturns.length > PAGE_SIZE ? `
-                <div style="display: flex; justify-content: center; gap: 12px; margin: 24px 0; align-items: center;">
-                    <button id="prevPage" class="btn btn-secondary" ${currentPage === 0 ? 'disabled' : ''}><span class="material-icons-round">chevron_left</span> Anterior</button>
-                    <span style="color: #64748b; font-size: 14px; font-weight: 600;">Página ${currentPage + 1} de ${Math.ceil(filteredReturns.length / PAGE_SIZE)}</span>
-                    <button id="nextPage" class="btn btn-secondary" ${end >= filteredReturns.length ? 'disabled' : ''}>Siguiente <span class="material-icons-round">chevron_right</span></button>
+            ${hasMore ? `
+                <div style="text-align: center; padding: 24px;">
+                    <button id="loadMoreHistory" class="btn btn-secondary" style="width: auto; padding: 12px 32px;">
+                        <span class="material-icons-round">expand_more</span> Cargar más registros antiguos
+                    </button>
                 </div>
-            ` : ''}
+            ` : (filteredReturns.length > 0 ? `<div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; opacity: 0.7;">— Fin del historial —</div>` : '')}
         `;
 
         // Attach pagination events
-        document.getElementById('prevPage')?.addEventListener('click', () => { if (currentPage > 0) { currentPage--; renderResults(); } });
-        document.getElementById('nextPage')?.addEventListener('click', () => { if (end < filteredReturns.length) { currentPage++; renderResults(); } });
+        document.getElementById('loadMoreHistory')?.addEventListener('click', () => applyFilters(true));
 
         // Attach delete events
         container.querySelectorAll('.delete-return-btn').forEach(btn => {
@@ -182,12 +176,30 @@ export const initHistorial = (cache) => {
                 if (await Alert.confirm('¿Estás seguro de eliminar este registro? Esta acción no se puede deshacer.', 'Eliminar Devolución')) {
                     if (await db.deleteReturn(id)) {
                         Alert.success('Registro eliminado');
-                        cache.returns = cache.returns.filter(r => String(r.id) !== String(id));
-                        applyFilters();
+                        filteredReturns = filteredReturns.filter(r => String(r.id) !== String(id));
+                        renderResults();
                     } else {
                         Alert.error('No se pudo eliminar el registro del historial');
                     }
                 }
+            };
+        });
+
+        // Photo view listener
+        container.querySelectorAll('.view-photo-btn').forEach(btn => {
+            btn.onclick = () => {
+                const photo = btn.dataset.photo;
+                const overlay = document.createElement('div');
+                overlay.style = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.9); z-index:10000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;';
+                overlay.innerHTML = `
+                    <div style="position:relative; max-width:100%; max-height:100%;">
+                        <img src="${photo}" style="max-width:100%; max-height:80vh; border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+                        <button id="close-photo" style="position:absolute; top:-40px; right:0; background:white; border:none; border-radius:50%; padding:8px; cursor:pointer;"><span class="material-icons-round">close</span></button>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                document.getElementById('close-photo').onclick = () => overlay.remove();
+                overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
             };
         });
     };
@@ -204,7 +216,7 @@ export const initHistorial = (cache) => {
         let searchDebounce;
         searchInput.oninput = (e) => {
             clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(() => { filters.search = e.target.value; applyFilters(); }, 300);
+            searchDebounce = setTimeout(() => { filters.search = e.target.value; applyFilters(); }, 400);
         };
     }
 

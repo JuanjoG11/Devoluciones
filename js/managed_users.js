@@ -42,7 +42,9 @@ export const TYM_AUX_LIST = [
     { username: '1112763651', name: 'JULIAN DAVID CORTES' },
     { username: '1093220521', name: 'JUAN DIEGO FRANCO' },
     { username: '1087559558', name: 'JUAN ALEJANDRO FRANCO MARIN' },
-    { username: '1057304668', name: 'JUAN ESTEBAN ALZATE VASQUEZ' }
+    { username: '1057304668', name: 'JUAN ESTEBAN ALZATE VASQUEZ' },
+    { username: '1088308341', name: 'JUAN DAVID QUINTERO' },
+    { username: '1057758040', name: 'ALEJANDRO RAMIREZ' }
 ];
 
 export const TAT_AUX_LIST = [

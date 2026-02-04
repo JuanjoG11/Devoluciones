@@ -593,37 +593,55 @@ export const db = {
         return (data && data.length > 0) ? data[0] : null;
     },
 
-    async getReturns(limit = 100, offset = 0, organization = null) {
-        // Improved query with join to guarantee accurate organization attribution
-        // Using routes!inner ensures we only get returns linked to valid routes
+    async getReturns(limit = 100, offset = 0, organization = null, filters = {}) {
         let query = sb.from('return_items')
             .select('*, routes!inner(username, user_name)')
             .order('created_at', { ascending: false });
 
-        // Range fetching to handle filtering in JS while maintaining correct limit
-        const fetchLimit = organization ? limit * 3 : limit;
-        const { data, error } = await query.range(offset, offset + fetchLimit - 1);
+        // 1. Organization Filter
+        if (organization) {
+            const tymUsernames = TYM_AUX_LIST.map(u => String(u.username).trim());
+            if (organization === 'TYM') {
+                query = query.in('routes.username', tymUsernames);
+            } else {
+                query = query.not('routes.username', 'in', `(${tymUsernames.join(',')})`);
+            }
+        }
+
+        // 2. Advanced Filters (Server-side)
+        if (filters.userId) {
+            query = query.eq('routes.username', filters.userId);
+        }
+        if (filters.reason) {
+            query = query.eq('reason', filters.reason);
+        }
+        if (filters.dateFrom) {
+            query = query.gte('created_at', filters.dateFrom);
+        }
+        if (filters.dateTo) {
+            // Include full day until 23:59:59
+            query = query.lte('created_at', filters.dateTo + 'T23:59:59');
+        }
+        if (filters.search) {
+            const s = `%${filters.search}%`;
+            query = query.or(`invoice.ilike.${s},sheet.ilike.${s},product_name.ilike.${s},product_code.ilike.${s}`);
+        }
+
+        const { data, error } = await query.range(offset, offset + limit - 1);
         if (error) {
             console.error("Error fetching returns:", error);
             return [];
         }
 
-        return data
-            .filter(r => {
-                if (!organization) return true;
-                const rOrg = this.isTymAccount(r.routes?.username) ? 'TYM' : 'TAT';
-                return rOrg === organization;
-            })
-            .slice(0, limit)
-            .map(r => ({
-                id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
-                code: r.product_code, name: r.product_name, productName: r.product_name,
-                quantity: r.quantity, total: r.total, reason: r.reason,
-                evidence: r.evidence, timestamp: r.created_at,
-                isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
-                auxiliarName: Array.isArray(r.routes) ? r.routes[0]?.user_name : r.routes?.user_name,
-                auxiliarUsername: Array.isArray(r.routes) ? r.routes[0]?.username : r.routes?.username
-            }));
+        return data.map(r => ({
+            id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
+            code: r.product_code, name: r.product_name, productName: r.product_name,
+            quantity: r.quantity, total: r.total, reason: r.reason,
+            evidence: r.evidence, timestamp: r.created_at,
+            isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
+            auxiliarName: Array.isArray(r.routes) ? r.routes[0]?.user_name : r.routes?.user_name,
+            auxiliarUsername: Array.isArray(r.routes) ? r.routes[0]?.username : r.routes?.username
+        }));
     },
 
     async deleteReturn(id) {
