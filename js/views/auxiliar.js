@@ -52,7 +52,7 @@ export const renderAuxiliarDashboard = (container, user) => {
             }
 
             // 2. Clear and Render based on view
-            container.innerHTML = '';
+            container.innerHTML = '<div id="pwa-install-banner" style="display:none;"></div>';
             if (state.view === 'dashboard') {
                 renderDashboard(container, user, state, returns, currentRoute, render, updateSyncUI);
             } else if (state.view === 'form') {
@@ -60,6 +60,12 @@ export const renderAuxiliarDashboard = (container, user) => {
             } else if (state.view === 'resale') {
                 const selectedItemsData = returns.filter(r => state.selectedItems.includes(r.id));
                 renderResaleForm(container, user, state, selectedItemsData, render);
+            }
+
+            // PWA Banner support
+            if (window.showPwaBanner) {
+                window.showPwaBanner();
+                window.addEventListener('pwa-installable', () => window.showPwaBanner());
             }
 
             // 3. Network listeners

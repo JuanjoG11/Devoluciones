@@ -119,6 +119,7 @@ export const initHistorial = (cache, org) => {
                 <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
                     <thead>
                         <tr style="background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 12px; text-align: center; width: 60px;">OK</th>
                             <th style="padding: 12px; text-align: left;">Fecha / Hora</th>
                             <th style="padding: 12px; text-align: left;">Auxiliar</th>
                             <th style="padding: 12px; text-align: left;">Factura</th>
@@ -128,14 +129,17 @@ export const initHistorial = (cache, org) => {
                             <th style="padding: 12px; text-align: middle;">Cant</th>
                             <th style="padding: 12px; text-align: left;">Motivo</th>
                             <th style="padding: 12px; text-align: right; width: 120px;">Total</th>
-                            <th style="padding: 12px; text-align: center; width: 80px;">FOTO</th>
-                            <th style="padding: 12px; text-align: center; width: 80px;">BORRAR</th>
+                            <th style="padding: 12px; text-align: center; width: 50px;">FOTO</th>
+                            <th style="padding: 12px; text-align: center; width: 50px;">BORRAR</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${filteredReturns.map(r => `
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 12px; font-size: 12px; white-space: nowrap;">${formatDateTime(r.timestamp)}</td>
+                            <tr style="border-bottom: 1px solid #e2e8f0; ${r.verified ? 'background: #f8fafc; opacity: 0.7;' : ''}">
+                                <td style="padding: 12px; text-align: center;">
+                                    <input type="checkbox" class="verify-return-chk" data-id="${r.id}" ${r.verified ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--success-color);">
+                                </td>
+                                <td style="padding: 12px; font-size: 11px; white-space: nowrap;">${formatDateTime(r.timestamp)}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 600;">${r.auxiliarName || 'N/A'}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700;">${r.invoice || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px;">${r.sheet || '-'}</td>
@@ -181,6 +185,41 @@ export const initHistorial = (cache, org) => {
                     } else {
                         Alert.error('No se pudo eliminar el registro del historial');
                     }
+                }
+            };
+        });
+
+        // Attach verification events
+        container.querySelectorAll('.verify-return-chk').forEach(chk => {
+            chk.onchange = async (e) => {
+                const id = chk.dataset.id;
+                const verified = e.target.checked;
+
+                // Visual feedback immediate
+                const row = chk.closest('tr');
+                if (verified) {
+                    row.style.background = '#f8fafc';
+                    row.style.opacity = '0.7';
+                } else {
+                    row.style.background = 'transparent';
+                    row.style.opacity = '1';
+                }
+
+                if (!await db.updateReturnVerification(id, verified)) {
+                    Alert.error('No se pudo actualizar el estado de verificación');
+                    e.target.checked = !verified; // Revert
+                    // Revert visual
+                    if (!verified) {
+                        row.style.background = '#f8fafc';
+                        row.style.opacity = '0.7';
+                    } else {
+                        row.style.background = 'transparent';
+                        row.style.opacity = '1';
+                    }
+                } else {
+                    // Update local state for consistency if we render again
+                    const item = filteredReturns.find(r => String(r.id) === String(id));
+                    if (item) item.verified = verified;
                 }
             };
         });

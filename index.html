@@ -36,13 +36,13 @@
     <link rel="icon" type="image/png" href="logo-app.png">
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('SW Registered'))
-                    .catch(err => console.log('SW Error', err));
-            });
-        }
+        // Catch PWA Install Prompt as early as possible
+        window.deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            window.dispatchEvent(new CustomEvent('pwa-installable'));
+        });
     </script>
 </head>
 

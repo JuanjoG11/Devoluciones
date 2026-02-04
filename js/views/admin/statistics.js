@@ -49,8 +49,14 @@ export const initStatisticsCharts = (returns, routes) => {
         // Calculate auxiliaries
         const auxCounts = {};
         returns.forEach(r => {
-            const route = routes.find(rt => String(rt.id) === String(r.routeId));
-            const auxName = route ? route.userName : 'Desconocido';
+            // Priority: r.auxiliarName (mapped in db.getReturns) > route lookup > fallback
+            let auxName = r.auxiliarName;
+
+            if (!auxName) {
+                const route = routes.find(rt => String(rt.id) === String(r.routeId));
+                auxName = route ? route.userName : 'Desconocido';
+            }
+
             auxCounts[auxName] = (auxCounts[auxName] || 0) + 1;
         });
 

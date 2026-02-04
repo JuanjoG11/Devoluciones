@@ -11,15 +11,6 @@ const init = async () => {
     window.handleLogout = () => auth.logout();
 
     // PWA Installation Handling
-    window.deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        window.deferredPrompt = e;
-        // console.log('✅ PWA Install Prompt disponible');
-        window.dispatchEvent(new CustomEvent('pwa-installable'));
-    });
-
-    // Global Installer Banner Injector
     window.showPwaBanner = (selector = '#pwa-install-banner') => {
         const container = document.querySelector(selector);
         if (!container || !window.deferredPrompt) return;
@@ -111,7 +102,7 @@ if ('serviceWorker' in navigator) {
     });
 
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('sw.js')
             .then(registration => {
                 // console.log('SW registered:', registration);
 

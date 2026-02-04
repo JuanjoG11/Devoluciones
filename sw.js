@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v22'; // Updated: Fix user activation system
+const CACHE_NAME = 'devoluciones-v23'; // Updated: PWA Install Reliability Fix
 const ASSETS = [
     '/',
     '/index.html',
