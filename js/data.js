@@ -628,7 +628,11 @@ export const db = {
 
     async deleteReturn(id) {
         try {
-            const { error } = await sb.from('return_items').delete().eq('id', id);
+            const cleanId = String(id).trim();
+            // Try numeric if it looks like a number, otherwise use as is
+            const queryId = /^\d+$/.test(cleanId) ? parseInt(cleanId) : cleanId;
+
+            const { error } = await sb.from('return_items').delete().eq('id', queryId);
             if (error) throw error;
             return true;
         } catch (e) {

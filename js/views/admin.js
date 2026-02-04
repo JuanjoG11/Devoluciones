@@ -575,6 +575,8 @@ export const renderAdminDashboard = (container, user) => {
                                     if (await db.deleteProduct(code)) {
                                         Alert.success("Producto eliminado");
                                         prodSearch.dispatchEvent(new Event('input'));
+                                    } else {
+                                        Alert.error("No se pudo eliminar el producto. Quizás tiene devoluciones asociadas.");
                                     }
                                 }
                             };

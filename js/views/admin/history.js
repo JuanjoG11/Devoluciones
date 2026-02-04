@@ -184,6 +184,8 @@ export const initHistorial = (cache) => {
                         Alert.success('Registro eliminado');
                         cache.returns = cache.returns.filter(r => String(r.id) !== String(id));
                         applyFilters();
+                    } else {
+                        Alert.error('No se pudo eliminar el registro del historial');
                     }
                 }
             };
