@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v21'; // Major update required for user to see changes
+const CACHE_NAME = 'devoluciones-v22'; // Updated: Fix user activation system
 const ASSETS = [
     '/',
     '/index.html',
