@@ -309,19 +309,23 @@ export const renderAdminDashboard = (container, user) => {
                 if (a.status === 'active' && b.status === 'completed') return -1;
                 if (a.status === 'completed' && b.status === 'active') return 1;
 
-                // If both are completed, newest finish time first
-                if (a.status === 'completed' && b.status === 'completed') {
-                    return (b.endTime || '').localeCompare(a.endTime || '');
+                // Both Active: Earliest start time first ("primero que inicie")
+                if (a.status === 'active' && b.status === 'active') {
+                    return (a.startTime || '').localeCompare(b.startTime || '');
                 }
 
-                // If both are active, newest start time first
-                return (b.startTime || '').localeCompare(a.startTime || '');
+                // Both Completed: Earliest finish time first ("primero que finalicen")
+                return (a.endTime || '').localeCompare(b.endTime || '');
             });
 
         switch (activeSection) {
             case 'dashboard':
-                contentArea.innerHTML = renderDashboard(activeRoutes, cache.returns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user);
-                initDashboardCharts(cache.returns, cache.routes);
+                const todaysReturns = cache.returns.filter(r => {
+                    if (!r.timestamp) return false;
+                    return new Date(r.timestamp).toLocaleDateString('en-CA') === todayStr;
+                });
+                contentArea.innerHTML = renderDashboard(activeRoutes, todaysReturns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user);
+                initDashboardCharts(todaysReturns, cache.routes);
                 break;
             case 'estadisticas':
                 contentArea.innerHTML = renderStatistics(cache.returns, cache.routes, cache.stats);

@@ -2,7 +2,15 @@ import { formatPrice, formatDateTime } from '../../utils/formatters.js';
 import { db } from '../../data.js';
 import { Alert } from '../../utils/ui.js';
 
-let filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
+const getTodayDate = () => new Date().toLocaleDateString('en-CA');
+
+let filters = {
+    search: '',
+    dateFrom: getTodayDate(),
+    dateTo: getTodayDate(),
+    userId: '',
+    reason: ''
+};
 let filteredReturns = [];
 let currentPage = 0;
 const PAGE_SIZE = 50;
@@ -266,10 +274,11 @@ export const initHistorial = (cache, org) => {
 
     if (clearBtn) {
         clearBtn.onclick = () => {
-            filters = { search: '', dateFrom: '', dateTo: '', userId: '', reason: '' };
+            const today = getTodayDate();
+            filters = { search: '', dateFrom: today, dateTo: today, userId: '', reason: '' };
             if (searchInput) searchInput.value = '';
-            if (dateFromInput) dateFromInput.value = '';
-            if (dateToInput) dateToInput.value = '';
+            if (dateFromInput) dateFromInput.value = today;
+            if (dateToInput) dateToInput.value = today;
             if (userSelect) userSelect.value = '';
             if (reasonSelect) reasonSelect.value = '';
             applyFilters();

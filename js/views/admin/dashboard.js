@@ -41,7 +41,7 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
 
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
         <div class="card" style="padding: 0; overflow: hidden;">
-            <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; background: white;"><h3 style="margin: 0;">Últimas Devoluciones</h3></div>
+            <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; background: white;"><h3 style="margin: 0;">Devoluciones de Hoy</h3></div>
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: rgba(0,34,77,0.03); color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -92,7 +92,7 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
         </div>
         
         <div class="card" style="height: fit-content;">
-            <h3 class="mb-md">Estado de Rutas</h3>
+            <h3 class="mb-md">Rutas del Día</h3>
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 ${activeRoutes.map(r => `
                     <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid ${r.status === 'completed' ? 'var(--primary-color)' : '#f1f5f9'}; border-radius: 12px; background: ${r.status === 'completed' ? 'rgba(99, 102, 241, 0.05)' : 'transparent'};">
