@@ -95,10 +95,13 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
             <h3 class="mb-md">Rutas del Día</h3>
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 ${activeRoutes.map(r => `
-                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid ${r.status === 'completed' ? 'var(--primary-color)' : '#f1f5f9'}; border-radius: 12px; background: ${r.status === 'completed' ? 'rgba(99, 102, 241, 0.05)' : 'transparent'};">
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid ${r.status === 'completed' ? 'var(--primary-color)' : '#f1f5f9'}; border-radius: 12px; background: ${r.status === 'completed' ? 'rgba(99, 102, 241, 0.05)' : 'transparent'}; opacity: ${r.verified ? '0.6' : '1'};">
+                        <div style="display: flex; align-items: center; padding-right: 4px;">
+                            <input type="checkbox" class="verify-route-chk" data-route-id="${r.id}" ${r.verified ? 'checked' : ''} title="Marcar como ingresado en sistema" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--success-color);">
+                        </div>
                         <div style="width: 8px; height: 8px; background: ${r.status === 'completed' ? 'var(--primary-color)' : 'var(--success-color)'}; border-radius: 50%;"></div>
                         <div style="flex-grow: 1;">
-                            <div style="font-weight: 600; font-size: 14px;">${r.userName}</div>
+                            <div style="font-weight: 600; font-size: 14px; ${r.verified ? 'text-decoration: line-through;' : ''}">${r.userName}</div>
                             <small style="color: var(--text-light);">${formatTime12h(r.startTime)}${r.endTime ? ' - ' + formatTime12h(r.endTime) : ''}</small>
                         </div>
                         <div style="display: flex; gap: 8px;">

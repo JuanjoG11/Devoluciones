@@ -558,7 +558,8 @@ export const db = {
     _mapRoute(r) {
         return {
             id: r.id, userId: r.user_id, username: r.username, userName: r.user_name,
-            date: r.date, startTime: r.start_time, endTime: r.end_time, status: r.status
+            date: r.date, startTime: r.start_time, endTime: r.end_time, status: r.status,
+            verified: !!r.verified
         };
     },
 
@@ -722,7 +723,8 @@ export const db = {
     async updateRoute(routeId, updates) {
         const dbUpdates = {};
         if (updates.status) dbUpdates.status = updates.status;
-        if (updates.endTime) dbUpdates.end_time = updates.endTime;
+        if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+        if (updates.verified !== undefined) dbUpdates.verified = updates.verified;
         const { error } = await sb.from('routes').update(dbUpdates).eq('id', routeId);
 
         // Notify Admin if route is completed

@@ -391,6 +391,30 @@ export const renderAdminDashboard = (container, user) => {
             }
         });
 
+        document.querySelectorAll('.verify-route-chk').forEach(chk => {
+            chk.onchange = async (e) => {
+                const routeId = chk.dataset.routeId;
+                const verified = e.target.checked;
+
+                // Immediate visual feedback
+                const container = chk.closest('div[style*="border-radius: 12px"]');
+                const nameLabel = container?.querySelector('div[style*="font-size: 14px"]');
+                if (container) container.style.opacity = verified ? '0.6' : '1';
+                if (nameLabel) nameLabel.style.textDecoration = verified ? 'line-through' : 'none';
+
+                if (!await db.updateRoute(routeId, { verified })) {
+                    Alert.error("No se pudo actualizar el estado de la ruta");
+                    e.target.checked = !verified; // Revert
+                    if (container) container.style.opacity = !verified ? '0.6' : '1';
+                    if (nameLabel) nameLabel.style.textDecoration = !verified ? 'line-through' : 'none';
+                } else {
+                    // Update local cache for consistency
+                    const route = cache.routes.find(r => String(r.id) === String(routeId));
+                    if (route) route.verified = verified;
+                }
+            };
+        });
+
         document.querySelectorAll('.reactivate-route-btn').forEach(btn => {
             btn.onclick = async () => {
                 // Prevent accidental double clicks
