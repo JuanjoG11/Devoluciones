@@ -127,13 +127,14 @@ export const initHistorial = (cache, org) => {
                 <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
                     <thead>
                         <tr style="background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 12px; text-align: center; width: 40px;">OK</th>
                             <th style="padding: 12px; text-align: left;">Fecha / Hora</th>
                             <th style="padding: 12px; text-align: left;">Auxiliar</th>
                             <th style="padding: 12px; text-align: left;">Factura</th>
                             <th style="padding: 12px; text-align: left;">Planilla</th>
                             <th style="padding: 12px; text-align: left;">CÓDIGO</th>
                             <th style="padding: 12px; text-align: left;">Producto</th>
-                            <th style="padding: 12px; text-align: middle;">Cant</th>
+                            <th style="padding: 12px; text-align: middle; width: 50px;">Cant</th>
                             <th style="padding: 12px; text-align: left;">Motivo</th>
                             <th style="padding: 12px; text-align: right; width: 120px;">Total</th>
                             <th style="padding: 12px; text-align: center; width: 50px;">FOTO</th>
@@ -142,7 +143,10 @@ export const initHistorial = (cache, org) => {
                     </thead>
                     <tbody>
                         ${filteredReturns.map(r => `
-                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <tr style="border-bottom: 1px solid #e2e8f0; background: ${r.verified ? 'rgba(34, 197, 94, 0.03)' : 'transparent'};">
+                                <td style="padding: 12px; text-align: center;">
+                                    <input type="checkbox" class="verify-return-check" data-id="${r.id}" ${r.verified ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--success-color);">
+                                </td>
                                 <td style="padding: 12px; font-size: 11px; white-space: nowrap;">${formatDateTime(r.timestamp)}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 600;">${r.auxiliarName || 'N/A'}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700;">${r.invoice || '-'}</td>
@@ -176,6 +180,24 @@ export const initHistorial = (cache, org) => {
 
         // Attach pagination events
         document.getElementById('loadMoreHistory')?.addEventListener('click', () => applyFilters(true));
+
+        // Attach verification events
+        container.querySelectorAll('.verify-return-check').forEach(check => {
+            check.onchange = async () => {
+                const id = check.dataset.id;
+                const isVerified = check.checked;
+                const row = check.closest('tr');
+
+                if (await db.updateReturnVerification(id, isVerified)) {
+                    if (row) {
+                        row.style.background = isVerified ? 'rgba(34, 197, 94, 0.03)' : 'transparent';
+                    }
+                } else {
+                    Alert.error('Error al actualizar verificación');
+                    check.checked = !isVerified; // Revert
+                }
+            };
+        });
 
         // Attach delete events
         container.querySelectorAll('.delete-return-btn').forEach(btn => {
