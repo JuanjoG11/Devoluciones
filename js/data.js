@@ -573,7 +573,8 @@ export const db = {
             code: r.product_code, name: r.product_name, productName: r.product_name,
             quantity: r.quantity, total: r.total, reason: r.reason,
             evidence: r.evidence, timestamp: r.created_at,
-            isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code
+            isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
+            verified: !!r.verified
         }));
     },
 

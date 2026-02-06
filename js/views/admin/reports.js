@@ -67,7 +67,10 @@ export const generatePrintReport = async (routes, id) => {
             <tr>
                 <td style="padding: 8px 0; width: 60%; border: none;">
                     <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">AUXILIAR / RUTA</div>
-                    <div style="font-weight: 700; font-size: 9pt;">${route.userName.toUpperCase()}</div>
+                    <div style="font-weight: 700; font-size: 9pt;">
+                        ${route.userName.toUpperCase()}
+                        ${route.verified ? '<span style="color: #15803d; margin-left: 8px;">(VERIFICADA ✓)</span>' : ''}
+                    </div>
                 </td>
                 <td style="padding: 8px 0; width: 40%; text-align: right; border: none;">
                     <div style="font-size: 7pt; font-weight: 800; text-transform: uppercase; color: #555; margin-bottom: 2px;">FECHA</div>
@@ -84,10 +87,11 @@ export const generatePrintReport = async (routes, id) => {
             <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
                 <thead>
                     <tr style="background: #f4f4f4;">
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">OK</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 12%;">FACTURA</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 10%;">PLANILLA</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 33%;">PRODUCTO</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">MOTIVO</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 30%;">PRODUCTO</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 18%;">MOTIVO</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                     </tr>
@@ -95,6 +99,7 @@ export const generatePrintReport = async (routes, id) => {
                 <tbody>
                     ${partialReturns.map(r => `
                         <tr>
+                            <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 10pt; font-weight: 900; color: #15803d;">${(r.verified || route.verified) ? '✓' : ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${(r.code || 'N/A')} - ${(r.productName || r.name || 'N/A').toUpperCase()}</td>
@@ -104,7 +109,7 @@ export const generatePrintReport = async (routes, id) => {
                         </tr>
                     `).join('')}
                     <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                        <td colspan="4" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL PARCIAL:</td>
+                        <td colspan="5" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL PARCIAL:</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 8pt; font-weight: 800;">${partialTotalItems}</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">$ ${partialTotalValue.toLocaleString()}</td>
                     </tr>
@@ -121,9 +126,10 @@ export const generatePrintReport = async (routes, id) => {
             <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
                 <thead>
                     <tr style="background: #f4f4f4;">
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">OK</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">PLANILLA</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 45%;">MOTIVO</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 40%;">MOTIVO</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                     </tr>
@@ -131,6 +137,7 @@ export const generatePrintReport = async (routes, id) => {
                 <tbody>
                     ${totalReturns.map(r => `
                         <tr>
+                            <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 10pt; font-weight: 900; color: #15803d;">${(r.verified || route.verified) ? '✓' : ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.reason ? r.reason.toUpperCase() : 'DEVOLUCIÓN TOTAL'}</td>
@@ -139,7 +146,7 @@ export const generatePrintReport = async (routes, id) => {
                         </tr>
                     `).join('')}
                     <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                        <td colspan="3" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL:</td>
+                        <td colspan="4" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL:</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 8pt; font-weight: 800;">${totalTotalItems}</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">$ ${totalTotalValue.toLocaleString()}</td>
                     </tr>
@@ -180,7 +187,7 @@ export const generatePrintReport = async (routes, id) => {
 export const exportToCSV = (returns, routes) => {
     const today = new Date().toLocaleDateString('en-CA');
     const rows = [
-        ['Fecha', 'Auxiliar', 'Factura', 'Planilla', 'Codigo', 'Producto', 'Cantidad', 'Motivo', 'Total', 'Foto']
+        ['Fecha', 'Auxiliar', 'Factura', 'Planilla', 'Codigo', 'Producto', 'Cantidad', 'Motivo', 'Total', 'Foto', 'Verificado']
     ];
 
     returns.forEach(r => {
@@ -195,7 +202,8 @@ export const exportToCSV = (returns, routes) => {
             r.quantity,
             r.reason,
             r.total,
-            r.evidence || ''
+            r.evidence || '',
+            (r.verified || (route && route.verified)) ? 'S' : 'N'
         ]);
     });
 
