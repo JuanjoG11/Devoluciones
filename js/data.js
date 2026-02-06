@@ -32,7 +32,7 @@ const syncInventory = async () => {
     try {
         // console.log("Syncing local inventory cache...");
         const { data: allProducts, error } = await withTimeout(
-            sb.from('products').select('code, name, price'),
+            sb.from('products').select('code, name, price').eq('is_active', true),
             15000
         );
         if (error) throw error;
@@ -205,11 +205,14 @@ const broadcastEvent = async (event, payload, organization = null) => {
     try {
         if (!_broadcastChannel) {
             _broadcastChannel = sb.channel('devolucion-alerts');
-            await new Promise((resolve) => {
+            // Timeout promise to prevent hanging
+            const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 3000));
+            const subscribePromise = new Promise((resolve) => {
                 _broadcastChannel.subscribe((status) => {
                     if (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR') resolve();
                 });
             });
+            await Promise.race([subscribePromise, timeoutPromise]);
         }
         await _broadcastChannel.send({ type: 'broadcast', event, payload: { ...payload, organization } });
     } catch (e) {
@@ -405,29 +408,73 @@ export const db = {
         if (!query || query.length < 2) return [];
         const q = query.toLowerCase();
 
-        // 0. CARNICOS TEAM RESTRICTION (Mutual Exclusion within TYM)
-        if (organization === 'TYM') {
-            const isCarnicoUser = username && CARNICOS_USERNAMES.has(String(username).trim());
-
-            if (isCarnicoUser) {
-                // TEAM CARNICOS: ONLY see meat products
-                return CARNICOS_PRODUCTS_LIST.filter(p =>
-                    String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
-                ).slice(0, 500);
-            } else {
-                // REGULAR TYM: See regular items, EXCLUDE meat products
-                return TYM_PRODUCTS_LIST.filter(p =>
-                    (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
-                    !CARNICOS_CODES.has(String(p.code).trim())
-                ).slice(0, 500);
+        // 1. Fetch from Database first (Dynamic Content)
+        let dbResults = [];
+        let allDbMatches = []; // Including inactive ones to mask static list
+        if (navigator.onLine) {
+            try {
+                const { data, error } = await withTimeout(
+                    sb.from('products')
+                        .select('*')
+                        .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
+                        .eq('organization', organization)
+                        .limit(500),
+                    8000
+                );
+                if (!error && data) {
+                    allDbMatches = data;
+                    dbResults = data.filter(p => p.is_active !== false);
+                }
+            } catch (e) {
+                console.warn("Network search failed", e);
             }
         }
 
-        // TAT: ONLY show products from database, EXCLUDING TYM products
-        const tymCodes = new Set(TYM_PRODUCTS_LIST.map(p => String(p.code).trim()));
-        let dbResults = [];
+        // 2. Organization Specific Logic & Static Fallbacks
+        if (organization === 'TYM') {
+            const isCarnicoUser = username && CARNICOS_USERNAMES.has(String(username).trim());
+            let staticResults = [];
 
-        // 1. FETCH FROM LOCAL CACHE FIRST (FASTEST)
+            if (isCarnicoUser) {
+                // TEAM CARNICOS: ONLY see meat products
+                staticResults = CARNICOS_PRODUCTS_LIST.filter(p =>
+                    String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)
+                );
+            } else {
+                // REGULAR TYM: See regular items, EXCLUDE meat products
+                staticResults = TYM_PRODUCTS_LIST.filter(p =>
+                    (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
+                    !CARNICOS_CODES.has(String(p.code).trim())
+                );
+            }
+
+            // Merge Logic:
+            // - Database results (active) are always first.
+            // - Static results are added ONLY if they are NOT in the database (at all).
+            // - If a static product is in the DB with is_active = false, it stays hidden.
+            const dbMap = new Map(allDbMatches.map(p => [String(p.code).trim(), p]));
+            const merged = [...dbResults];
+            const seenCodes = new Set(dbResults.map(p => String(p.code).trim()));
+
+            staticResults.forEach(p => {
+                const code = String(p.code).trim();
+                if (!dbMap.has(code) && !seenCodes.has(code)) {
+                    merged.push(p);
+                    seenCodes.add(code);
+                }
+            });
+
+            return merged.slice(0, 500);
+        }
+
+        // TAT Logic: ONLY database active results
+        if (dbResults.length > 0) return dbResults;
+
+        // If we found the product in DB but it was INACTIVE, don't fall back to local cache
+        const isMaskedInDb = allDbMatches.some(p => p.is_active === false);
+        if (isMaskedInDb) return [];
+
+        // Fallback to local cache for TAT if offline or no DB results
         try {
             const dbRef = await _initOfflineDB();
             const localResults = await new Promise((resolve) => {
@@ -437,40 +484,15 @@ export const db = {
                 request.onsuccess = () => {
                     const all = request.result || [];
                     resolve(all.filter(p =>
-                        (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q)) &&
-                        !tymCodes.has(String(p.code).trim())
+                        (String(p.name).toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q))
                     ));
                 };
                 request.onerror = () => resolve([]);
             });
-
-            if (localResults.length > 0) {
-                return localResults.slice(0, 500);
-            }
+            return localResults.slice(0, 500);
         } catch (e) {
-            console.warn("Local search failed, falling back to network", e);
+            return [];
         }
-
-        // 2. FALLBACK TO NETWORK IF ONLINE AND NO LOCAL RESULTS
-        if (navigator.onLine) {
-            try {
-                const { data, error } = await withTimeout(
-                    sb.from('products')
-                        .select('*')
-                        .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
-                        .limit(500),
-                    8000
-                );
-
-                if (!error && data) {
-                    return data.filter(p => !tymCodes.has(String(p.code).trim())).slice(0, 500);
-                }
-            } catch (e) {
-                console.warn("Network search timed out or failed", e);
-            }
-        }
-
-        return dbResults.slice(0, 500);
     },
 
     /**
@@ -1193,13 +1215,41 @@ export const db = {
 
     async deleteProduct(code) {
         try {
-            // Get org before delete for broadcast
-            const { data } = await sb.from('products').select('organization').eq('code', code).maybeSingle();
+            // 1. Check if it's a known static product (to get its full data for masking)
+            const allStatic = [...TYM_PRODUCTS_LIST, ...CARNICOS_PRODUCTS_LIST];
+            const staticItem = allStatic.find(p => String(p.code).trim() === String(code).trim());
 
-            const { error } = await sb.from('products').delete().eq('code', code);
-            if (error) throw error;
-            await syncInventory(); // Refresh local cache
-            await broadcastEvent('inventory-updated', { type: 'delete', code }, data?.organization || 'TAT');
+            // 2. We ALWAYS use soft-delete (is_active = false)
+            // This prevents static products from reappearing AND handles IndexedDB sync better
+            let productToMask;
+
+            if (staticItem) {
+                productToMask = {
+                    ...staticItem,
+                    is_active: false,
+                    search_string: `${staticItem.code} ${staticItem.name}`.toLowerCase()
+                };
+            } else {
+                // For other products, we just need to mark the code as inactive
+                // We fetch the current data first to avoid losing name/price in the DB record
+                const { data: existing } = await sb.from('products').select('*').eq('code', code).maybeSingle();
+                productToMask = {
+                    ...(existing || { code }),
+                    code,
+                    is_active: false
+                };
+            }
+
+            const { error: upsertError } = await sb.from('products').upsert([productToMask], { onConflict: 'code' });
+            if (upsertError) {
+                // If it fails (maybe foreign key constraint?), we try a direct delete as fallback
+                // but soft-delete is preferred.
+                const { error: deleteError } = await sb.from('products').delete().eq('code', code);
+                if (deleteError) throw deleteError;
+            }
+
+            await syncInventory(); // Refresh local cache (will now exclude inactive)
+            await broadcastEvent('inventory-updated', { type: 'delete', code }, staticItem?.organization || existing?.organization || 'TAT');
             return true;
         } catch (e) {
             console.error("Error deleting product:", e);
