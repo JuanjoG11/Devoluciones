@@ -3,7 +3,38 @@ import { Alert } from '../../utils/ui.js';
 
 export const renderForm = (container, user, state, render) => {
     container.innerHTML = `
+        <style>
+            .size-option {
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 10px 4px;
+                text-align: center;
+                cursor: pointer;
+                font-weight: 700;
+                font-size: 14px;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                background: white;
+                color: #64748b;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                user-select: none;
+            }
+            .size-option:hover {
+                border-color: var(--primary-color);
+                background: #f8fafc;
+            }
+            .size-option.selected {
+                background: var(--primary-color) !important;
+                border-color: var(--primary-color) !important;
+                color: white !important;
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 112, 243, 0.2);
+            }
+        </style>
+
         <header class="app-header">
+
             <button id="backBtn" style="background:none; border:none; color:white; margin-right: 16px;">
                 <span class="material-icons-round">arrow_back</span>
             </button>
@@ -53,6 +84,18 @@ export const renderForm = (container, user, state, render) => {
                                 <input type="text" id="price" class="input-field" readonly style="background-color: #f1f5f9;">
                             </div>
                         </div>
+
+                        <!-- Footwear Size Selector -->
+                         <div id="sizeSelectorGroup" class="input-group hidden" style="margin-bottom: 12px;">
+                             <label class="input-label">Talla <span style="color: #ef4444; font-weight: 800;">*</span></label>
+                             <div class="size-selector" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                                 ${[37, 38, 39, 40, 41, 42, 43].map(s => `
+                                     <div class="size-option" onclick="selectSize(${s}, this)">
+                                         ${s}
+                                     </div>
+                                 `).join('')}
+                             </div>
+                         </div>
 
                         <button type="button" id="addProductBtn" class="btn btn-secondary" style="width: 100%; background: var(--primary-color); color: white; border: none;">
                             <span class="material-icons-round">add</span> Agregar Producto
@@ -120,6 +163,8 @@ export const renderForm = (container, user, state, render) => {
     const searchResults = document.getElementById('searchResults');
     const qtyInput = document.getElementById('qty');
     const priceInput = document.getElementById('price');
+    const sizeSelectorGroup = document.getElementById('sizeSelectorGroup');
+    const sizeOptions = document.querySelectorAll('.size-option');
     const addProductBtn = document.getElementById('addProductBtn');
     const addedProductsList = document.getElementById('addedProductsList');
     const totalSpan = document.getElementById('totalValue');
@@ -140,6 +185,7 @@ export const renderForm = (container, user, state, render) => {
     let selectedProducts = [];
     let tempSelectedProduct = null;
     let currentType = 'partial';
+    let selectedSize = null;
     let capturedPhoto = null;
 
     // --- Auto-save Persistence Logic ---
@@ -202,6 +248,7 @@ export const renderForm = (container, user, state, render) => {
 
         renderProductsList();
         updateTotal();
+        resetSizeSelector();
 
         reasonSelect.innerHTML = '<option value="">Seleccionar...</option>';
         (isPartial ? REASONS_PARTIAL : REASONS_TOTAL).forEach(r => {
@@ -220,7 +267,7 @@ export const renderForm = (container, user, state, render) => {
         addedProductsList.innerHTML = selectedProducts.map((p, index) => `
             <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                 <div style="flex: 1;">
-                    <div style="font-weight: 700; font-size: 14px;">${p.name}</div>
+                    <div style="font-weight: 700; font-size: 14px;">${p.name} ${p.size ? `<span style="background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Talla ${p.size}</span>` : ''}</div>
                     <div style="font-size: 12px; color: var(--text-light);">${p.quantity} x $ ${p.price.toLocaleString()} = <b>$ ${p.total.toLocaleString()}</b></div>
                 </div>
                 <button type="button" class="remove-product" data-index="${index}" style="background: #fee2e2; border: none; color: #ef4444; padding: 6px; border-radius: 6px; cursor: pointer;">
@@ -298,6 +345,11 @@ export const renderForm = (container, user, state, render) => {
             productInput.value = `${tempSelectedProduct.code} - ${tempSelectedProduct.name}`;
             priceInput.value = `$ ${tempSelectedProduct.price.toLocaleString()}`;
             searchResults.style.display = 'none';
+
+            // Footwear check - More inclusive regex for "guayo", "tenis", "futsal"
+            const isFootwear = /guayo|futsal|tenis/i.test(tempSelectedProduct.name);
+            sizeSelectorGroup.classList.toggle('hidden', !isFootwear);
+            resetSizeSelector();
         }
     };
 
@@ -306,10 +358,17 @@ export const renderForm = (container, user, state, render) => {
         const qty = parseInt(qtyInput.value) || 0;
         if (qty <= 0) return Alert.error("Ingrese una cantidad válida");
 
+        // Footwear size validation
+        const isFootwear = /guayo|futsal|tenis/i.test(tempSelectedProduct.name);
+        if (isFootwear && !selectedSize) {
+            return Alert.error("Por favor seleccione la talla del calzado");
+        }
+
         selectedProducts.push({
             ...tempSelectedProduct,
             quantity: qty,
-            total: tempSelectedProduct.price * qty
+            total: tempSelectedProduct.price * qty,
+            size: isFootwear ? selectedSize : null
         });
 
         // Reset selectors
@@ -317,6 +376,7 @@ export const renderForm = (container, user, state, render) => {
         priceInput.value = '';
         qtyInput.value = '1';
         tempSelectedProduct = null;
+        resetSizeSelector();
 
         renderProductsList();
         updateTotal();
@@ -338,6 +398,18 @@ export const renderForm = (container, user, state, render) => {
 
     evidenceCameraInput.onchange = handleEvidenceChange;
     evidenceGalleryInput.onchange = handleEvidenceChange;
+
+    // Size selector logic - Expose to window so onclick can find it
+    window.selectSize = (size, element) => {
+        selectedSize = size;
+        document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
+        element.classList.add('selected');
+    };
+
+    const resetSizeSelector = () => {
+        selectedSize = null;
+        document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
+    };
 
     form.onsubmit = async (e) => {
         e.preventDefault();
@@ -370,6 +442,7 @@ export const renderForm = (container, user, state, render) => {
                     productName: p.name,
                     quantity: p.quantity,
                     total: p.total,
+                    size: p.size,
                     submissionId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)
                 });
             });

@@ -152,7 +152,7 @@ export const initHistorial = (cache, org) => {
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700;">${r.invoice || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px;">${r.sheet || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700; color: var(--primary-color);">${r.code || '-'}</td>
-                                <td style="padding: 12px; font-size: 12px;">${r.productName || '-'}</td>
+                                <td style="padding: 12px; font-size: 12px;">${r.productName || '-'} ${r.size ? `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">Talla ${r.size}</span>` : ''}</td>
                                 <td style="padding: 12px; font-size: 12px; text-align: center;">${r.quantity}</td>
                                 <td style="padding: 12px; font-size: 11px; color: #64748b;">${r.reason}</td>
                                 <td style="padding: 12px; font-size: 13px; font-weight: 700; text-align: right;">${formatPrice(r.total)}</td>

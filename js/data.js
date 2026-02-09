@@ -970,7 +970,7 @@ export const db = {
                 route_id: returnData.routeId, invoice: returnData.invoice, sheet: returnData.sheet,
                 product_code: returnData.productCode, product_name: returnData.productName,
                 quantity: returnData.quantity, total: returnData.total, reason: returnData.reason,
-                evidence: evidenceUrl
+                evidence: evidenceUrl, size: returnData.size
             }]);
 
             if (error) {

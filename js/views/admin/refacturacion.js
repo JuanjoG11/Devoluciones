@@ -24,7 +24,7 @@ export const renderRefacturacion = (cache) => {
             <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="padding: 12px; font-weight: 700; color: var(--secondary-accent);">${r.resaleCustomerCode}</td>
                 <td style="padding: 12px;">
-                    <div style="font-weight: 600; font-size: 13px;">${r.productName}</div>
+                    <div style="font-weight: 600; font-size: 13px;">${r.productName} ${r.size ? `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">Talla ${r.size}</span>` : ''}</div>
                     <small style="color: var(--text-light);">Doc: ${r.invoice} • Cant: ${r.quantity}</small>
                 </td>
                 <td style="padding: 12px; font-weight: 600;">${r.auxiliarName}</td>
