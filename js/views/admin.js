@@ -1,7 +1,7 @@
 ﻿import { db } from '../data.js';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
-import { formatTime12h, formatPrice } from '../utils/formatters.js';
+import { formatTime12h, formatPrice, getLocalDateISO } from '../utils/formatters.js';
 import { CONFIG } from '../config.js';
 
 // Modular Sections
@@ -302,8 +302,8 @@ export const renderAdminDashboard = (container, user) => {
     const renderSection = () => {
         const contentArea = document.getElementById('admin-content');
         if (!contentArea) return;
-        const todayStr = new Date().toISOString().split('T')[0];
-        const activeRoutes = cache.routes.filter(r => r.date === todayStr)
+        const todayStr = getLocalDateISO();
+        const sortedRoutes = cache.routes.filter(r => r.date === todayStr)
             .sort((a, b) => {
                 // Active routes always on top of completed ones
                 if (a.status === 'active' && b.status === 'completed') return -1;
@@ -317,6 +317,17 @@ export const renderAdminDashboard = (container, user) => {
                 // Both Completed: Earliest finish time first ("primero que finalicen")
                 return (a.endTime || '').localeCompare(b.endTime || '');
             });
+
+        // Deduplicate: Keep only the LAST route for each user (handling duplicates if multiple routes were created)
+        const userSeen = new Set();
+        const activeRoutes = [];
+        for (const r of sortedRoutes) {
+            const key = String(r.username || r.userId).trim();
+            if (!userSeen.has(key)) {
+                activeRoutes.push(r);
+                userSeen.add(key);
+            }
+        }
 
         switch (activeSection) {
             case 'dashboard':
