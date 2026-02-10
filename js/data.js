@@ -756,10 +756,9 @@ export const db = {
                 const { data: route } = await sb.from('routes').select('user_name, username').eq('id', routeId).single();
 
                 // Determine organization
-                const tymUsernames = new Set(TYM_AUX_LIST.map(u => String(u.username).trim()));
-                const organization = tymUsernames.has(String(route?.username).trim()) ? 'TYM' : 'TAT';
+                const organization = this.isTymAccount(route?.username) ? 'TYM' : 'TAT';
 
-                await broadcastEvent('ruta-completada', { userName: route?.user_name || 'Alguien' }, organization);
+                await broadcastEvent('ruta-completada', { userName: route?.user_name || 'Alguien', organization }, organization);
             } catch (e) { console.error("Error sending realtime alert:", e); }
         }
         return !error;

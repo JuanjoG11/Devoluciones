@@ -137,16 +137,18 @@ export const renderAdminDashboard = (container, user) => {
         if (!db.sb) return;
         const userOrg = user.organization || 'TAT';
         const channel = db.sb.channel('devolucion-alerts', { config: { broadcast: { self: true } } })
-            .on('broadcast', { event: 'nueva-devolucion' }, (payload) => {
+            .on('broadcast', { event: 'nueva-devolucion' }, async (payload) => {
                 if (payload.payload?.organization === userOrg) {
                     showNotification('🔔 Nueva Devolución', 'Se ha registrado una nueva devolución');
-                    setTimeout(async () => { await fetchData(); renderSection(); }, 1000);
+                    await fetchData(true); // Force re-fetch
+                    renderSection();
                 }
             })
-            .on('broadcast', { event: 'ruta-completada' }, (payload) => {
+            .on('broadcast', { event: 'ruta-completada' }, async (payload) => {
                 if (payload.payload?.organization === userOrg) {
                     showNotification('✅ Ruta Finalizada', `La ruta de ${payload.payload?.userName || 'un auxiliar'} ha terminado`);
-                    fetchData().then(() => renderSection());
+                    await fetchData(true); // Force re-fetch
+                    renderSection();
                 }
             })
             .on('broadcast', { event: 'nueva-reventa' }, (payload) => {
@@ -305,17 +307,14 @@ export const renderAdminDashboard = (container, user) => {
         const todayStr = getLocalDateISO();
         const sortedRoutes = cache.routes.filter(r => r.date === todayStr)
             .sort((a, b) => {
-                // Active routes always on top of completed ones
-                if (a.status === 'active' && b.status === 'completed') return -1;
-                if (a.status === 'completed' && b.status === 'active') return 1;
+                // First by status: Active routes (not completed) first
+                if (a.status !== 'completed' && b.status === 'completed') return -1;
+                if (a.status === 'completed' && b.status !== 'completed') return 1;
 
-                // Both Active: Earliest start time first ("primero que inicie")
-                if (a.status === 'active' && b.status === 'active') {
-                    return (a.startTime || '').localeCompare(b.startTime || '');
-                }
-
-                // Both Completed: Earliest finish time first ("primero que finalicen")
-                return (a.endTime || '').localeCompare(b.endTime || '');
+                // Then sort by time (descending: latest at top)
+                const timeA = a.endTime || a.startTime || '00:00';
+                const timeB = b.endTime || b.startTime || '00:00';
+                return timeB.localeCompare(timeA);
             });
 
         // Deduplicate: Keep only the LAST route for each user (handling duplicates if multiple routes were created)
