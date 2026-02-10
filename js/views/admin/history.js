@@ -2,7 +2,13 @@ import { formatPrice, formatDateTime } from '../../utils/formatters.js';
 import { db } from '../../data.js';
 import { Alert } from '../../utils/ui.js';
 
-const getTodayDate = () => new Date().toLocaleDateString('en-CA');
+const getTodayDate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 let filters = {
     search: '',

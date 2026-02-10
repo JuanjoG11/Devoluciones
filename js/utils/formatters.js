@@ -55,7 +55,9 @@ export const formatDateTime = (dateStr) => {
  * Consistently uses 'en-CA' locale which provides the desired ISO format locally.
  */
 export const getLocalDateISO = (date = new Date()) => {
-    // If input is a string that might be a timestamp or a date
     const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('en-CA');
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
