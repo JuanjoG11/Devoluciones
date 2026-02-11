@@ -34,8 +34,58 @@ export const initProductos = (user, db, formatPrice, Alert) => {
 
     let debounceTimer;
 
+    const showProductModal = async (product = null) => {
+        return new Promise((resolve) => {
+            const isEdit = !!product;
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:10000; display:flex; align-items:center; justify-content:center;';
+            overlay.innerHTML = `
+                <div class="modal-card" style="background:white; padding:32px; border-radius:24px; width:100%; max-width:400px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+                    <div style="background: var(--primary-light); color: var(--primary-color); width:56px; height:56px; border-radius:18px; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
+                        <span class="material-icons-round" style="font-size:32px;">${isEdit ? 'edit' : 'add_shopping_cart'}</span>
+                    </div>
+                    <h2 style="font-size:24px; font-weight:800; margin-bottom:8px;">${isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+                    <p style="color:var(--text-light); font-size:14px; margin-bottom:24px;">Complete los datos del producto para el catálogo maestro.</p>
+                    
+                    <div style="text-align: left;">
+                        <label style="font-size: 11px; font-weight:700; color: var(--text-secondary); margin-bottom:6px; display: block; text-transform:uppercase; letter-spacing:0.5px;">Código de Producto</label>
+                        <input type="text" id="modal-code" class="input-field" value="${product?.code || ''}" ${isEdit ? 'readonly' : ''} placeholder="Ej: 102030" style="width: 100%; box-sizing: border-box; margin-bottom: 20px; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
+                        
+                        <label style="font-size: 11px; font-weight:700; color: var(--text-secondary); margin-bottom:6px; display: block; text-transform:uppercase; letter-spacing:0.5px;">Nombre del Producto</label>
+                        <input type="text" id="modal-name" class="input-field" value="${product?.name || ''}" placeholder="Ej: GUAYO FUTSAL AZUL" style="width: 100%; box-sizing: border-box; margin-bottom: 20px; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
+                        
+                        <label style="font-size: 11px; font-weight:700; color: var(--text-secondary); margin-bottom:6px; display: block; text-transform:uppercase; letter-spacing:0.5px;">Precio Unitario ($)</label>
+                        <input type="number" id="modal-price" class="input-field" value="${product?.price || ''}" placeholder="Ej: 45000" style="width: 100%; box-sizing: border-box; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
+                    </div>
+
+                    <div style="display:flex; gap:12px; margin-top:32px;">
+                        <button id="modal-cancel" style="flex:1; padding:14px; border:none; background:#f1f5f9; color:#64748b; border-radius:14px; font-weight:700; cursor:pointer; transition:all 0.2s;">Cancelar</button>
+                        <button id="modal-confirm" style="flex:1; padding:14px; border:none; background:var(--primary-color); color:white; border-radius:14px; font-weight:700; cursor:pointer; box-shadow: 0 4px 12px rgba(0, 112, 243, 0.2); transition:all 0.2s;">${isEdit ? 'Actualizar' : 'Guardar Producto'}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            document.getElementById('modal-cancel').onclick = () => { overlay.remove(); resolve(null); };
+            document.getElementById('modal-confirm').onclick = () => {
+                const code = document.getElementById('modal-code').value.trim();
+                const name = document.getElementById('modal-name').value.trim();
+                const price = parseInt(document.getElementById('modal-price').value);
+
+                if (!code || !name || isNaN(price)) {
+                    Alert.error("Todos los campos son obligatorios");
+                    return;
+                }
+
+                overlay.remove();
+                resolve({ code, name, price });
+            };
+        });
+    };
+
     const refreshTable = async (query) => {
-        if (query.length < 2) {
+        if (!query || query.length < 2) {
             container.innerHTML = `
                 <div style="padding: 100px 20px; text-align: center; color: var(--text-light); opacity: 0.6;">
                     <span class="material-icons-round" style="font-size: 80px; margin-bottom: 16px;">inventory_2</span>
@@ -58,27 +108,27 @@ export const initProductos = (user, db, formatPrice, Alert) => {
         container.innerHTML = `
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
-                    <thead style="background: rgba(0,0,0,0.02); color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #f1f5f9;">
+                    <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #f1f5f9;">
                         <tr>
-                            <th style="padding: 16px; text-align: left;">CÓDIGO</th>
-                            <th style="padding: 16px; text-align: left;">NOMBRE DEL PRODUCTO</th>
-                            <th style="padding: 16px; text-align: right;">PRECIO UNITARIO</th>
-                            <th style="padding: 16px; text-align: center; width: 150px;">ACCIONES</th>
+                            <th style="padding: 20px 16px; text-align: left; font-weight: 800;">CÓDIGO</th>
+                            <th style="padding: 20px 16px; text-align: left; font-weight: 800;">NOMBRE DEL PRODUCTO</th>
+                            <th style="padding: 20px 16px; text-align: right; font-weight: 800;">PRECIO UNITARIO</th>
+                            <th style="padding: 20px 16px; text-align: center; width: 150px; font-weight: 800;">ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${results.map(p => `
-                            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                 <td style="padding: 16px; font-weight: 800; font-size: 13px; color: var(--primary-color);">${p.code}</td>
-                                <td style="padding: 16px; font-size: 14px; font-weight: 500;">${p.name}</td>
+                                <td style="padding: 16px; font-size: 14px; font-weight: 600; color: #1e293b;">${p.name}</td>
                                 <td style="padding: 16px; text-align: right; font-weight: 800; font-size: 15px; color: var(--accent-color);">${formatPrice(p.price)}</td>
                                 <td style="padding: 16px;">
                                     <div style="display: flex; gap: 8px; justify-content: center;">
-                                        <button class="edit-prod-btn action-btn" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}" style="background: rgba(59, 130, 246, 0.1); color: #2563eb; border: none; padding: 10px; border-radius: 10px; cursor: pointer;">
-                                            <span class="material-icons-round" style="font-size: 20px;">edit</span>
+                                        <button class="edit-prod-btn action-btn-new" data-code="${p.code}" data-name="${p.name}" data-price="${p.price}" title="Editar">
+                                            <span class="material-icons-round">edit</span>
                                         </button>
-                                        <button class="delete-prod-btn action-btn" data-code="${p.code}" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; border: none; padding: 10px; border-radius: 10px; cursor: pointer;">
-                                            <span class="material-icons-round" style="font-size: 20px;">delete</span>
+                                        <button class="delete-prod-btn action-btn-new delete" data-code="${p.code}" title="Eliminar">
+                                            <span class="material-icons-round">delete</span>
                                         </button>
                                     </div>
                                 </td>
@@ -87,58 +137,47 @@ export const initProductos = (user, db, formatPrice, Alert) => {
                     </tbody>
                 </table>
             </div>
+            <style>
+                .action-btn-new {
+                    background: #f1f5f9;
+                    color: #64748b;
+                    border: none;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s;
+                }
+                .action-btn-new:hover {
+                    background: var(--primary-light);
+                    color: var(--primary-color);
+                    transform: translateY(-2px);
+                }
+                .action-btn-new.delete:hover {
+                    background: #fee2e2;
+                    color: #ef4444;
+                }
+                .action-btn-new span { font-size: 20px; }
+            </style>
         `;
 
-        // Re-bind buttons
+        // Bind buttons
         container.querySelectorAll('.edit-prod-btn').forEach(btn => {
             btn.onclick = async () => {
-                const code = btn.dataset.code;
-                const oldName = btn.dataset.name;
-                const oldPrice = btn.dataset.price;
-
-                const result = await new Promise((resolve) => {
-                    const overlay = document.createElement('div');
-                    overlay.className = 'modal-overlay';
-                    overlay.style = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:10000; display:flex; align-items:center; justify-content:center;';
-                    overlay.innerHTML = `
-                        <div class="modal-card" style="background:white; padding:32px; border-radius:24px; width:100%; max-width:400px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
-                            <div style="background: var(--primary-light); color: var(--primary-color); width:56px; height:56px; border-radius:18px; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
-                                <span class="material-icons-round" style="font-size:32px;">edit</span>
-                            </div>
-                            <h2 style="font-size:24px; font-weight:800; margin-bottom:8px;">Editar Producto</h2>
-                            <p style="color:var(--text-light); font-size:14px; margin-bottom:24px;">Código: <strong style="color:var(--primary-color);">${code}</strong></p>
-                            
-                            <div style="text-align: left;">
-                                <label style="font-size: 12px; font-weight:700; color: var(--text-secondary); margin-bottom:8px; display: block; text-transform:uppercase;">Nombre</label>
-                                <input type="text" id="edit-name" class="input-field" value="${oldName}" style="width: 100%; box-sizing: border-box; margin-bottom: 20px; height:48px;">
-                                
-                                <label style="font-size: 12px; font-weight:700; color: var(--text-secondary); margin-bottom:8px; display: block; text-transform:uppercase;">Precio ($)</label>
-                                <input type="number" id="edit-price" class="input-field" value="${oldPrice}" style="width: 100%; box-sizing: border-box; height:48px;">
-                            </div>
-
-                            <div style="display:flex; gap:12px; margin-top:32px;">
-                                <button id="edit-cancel" style="flex:1; padding:12px; border:1px solid #e2e8f0; background:white; border-radius:12px; font-weight:700; cursor:pointer; color:var(--text-secondary);">Cancelar</button>
-                                <button id="edit-confirm" style="flex:1; padding:12px; border:none; background:var(--primary-color); color:white; border-radius:12px; font-weight:700; cursor:pointer;">Guardar</button>
-                            </div>
-                        </div>
-                    `;
-                    document.body.appendChild(overlay);
-
-                    document.getElementById('edit-cancel').onclick = () => { overlay.remove(); resolve(null); };
-                    document.getElementById('edit-confirm').onclick = () => {
-                        const name = document.getElementById('edit-name').value.trim();
-                        const price = parseInt(document.getElementById('edit-price').value);
-                        overlay.remove();
-                        if (name && !isNaN(price)) resolve({ name, price });
-                        else resolve(null);
-                    };
+                const result = await showProductModal({
+                    code: btn.dataset.code,
+                    name: btn.dataset.name,
+                    price: btn.dataset.price
                 });
 
                 if (result) {
-                    if (await db.updateProduct(code, {
+                    if (await db.updateProduct(result.code, {
                         name: result.name,
                         price: result.price,
-                        search_string: `${code} ${result.name}`.toLowerCase()
+                        search_string: `${result.code} ${result.name}`.toLowerCase()
                     })) {
                         Alert.success("Producto actualizado");
                         refreshTable(prodSearch.value.trim());
@@ -152,12 +191,12 @@ export const initProductos = (user, db, formatPrice, Alert) => {
         container.querySelectorAll('.delete-prod-btn').forEach(btn => {
             btn.onclick = async () => {
                 const code = btn.dataset.code;
-                if (await Alert.confirm(`¿Seguro que deseas eliminar el producto ${code}? Esta acción no se puede deshacer.`, "Eliminar Producto")) {
+                if (await Alert.confirm(`¿Seguro que deseas eliminar el producto ${code}? Esta acción lo ocultará de todos los dispositivos.`, "Eliminar Producto")) {
                     if (await db.deleteProduct(code)) {
                         Alert.success("Producto eliminado");
                         refreshTable(prodSearch.value.trim());
                     } else {
-                        Alert.error("No se pudo eliminar el producto. Quizás tiene devoluciones vinculadas.");
+                        Alert.error("No se pudo eliminar el producto.");
                     }
                 }
             };
@@ -165,33 +204,27 @@ export const initProductos = (user, db, formatPrice, Alert) => {
     };
 
     prodSearch.oninput = (e) => {
+        const query = e.target.value.trim();
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => refreshTable(e.target.value.trim()), 400);
+        debounceTimer = setTimeout(() => refreshTable(query), 400);
     };
 
     addNewBtn.onclick = async () => {
-        const code = await Alert.prompt("Código del nuevo producto:", "Nuevo Producto");
-        if (!code) return;
-        const name = await Alert.prompt("Nombre del producto:", "Nuevo Producto");
-        if (!name) return;
-        const priceStr = await Alert.prompt("Precio del producto ($):", "Nuevo Producto");
-        if (!priceStr) return;
-
-        const price = parseInt(priceStr.replace(/\D/g, ''));
-        if (isNaN(price)) return Alert.error("Precio inválido");
+        const result = await showProductModal();
+        if (!result) return;
 
         const productData = {
-            code: code.trim(),
-            name: name.trim(),
-            price: price,
+            code: result.code,
+            name: result.name,
+            price: result.price,
             organization: user.organization || 'TAT',
-            search_string: `${code} ${name}`.toLowerCase()
+            search_string: `${result.code} ${result.name}`.toLowerCase()
         };
 
         if (await db.addProduct(productData)) {
             Alert.success("Producto agregado correctamente");
-            prodSearch.value = code; // Search for the new product
-            refreshTable(code);
+            prodSearch.value = result.code;
+            refreshTable(result.code);
         } else {
             Alert.error("No se pudo agregar el producto. ¿Quizás el código ya existe?");
         }

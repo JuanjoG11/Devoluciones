@@ -69,7 +69,12 @@ export const renderForm = (container, user, state, render) => {
                     
                     <div id="productSelectionGroup">
                         <div class="input-group" style="position: relative; margin-bottom: 12px;">
-                            <label class="input-label">Buscar Producto</label>
+                            <label class="input-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                Buscar Producto
+                                <button type="button" id="refreshCatalogBtn" title="Actualizar Catálogo" style="background:none; border:none; color:var(--primary-color); padding:0; display:flex; align-items:center; cursor:pointer;">
+                                    <span class="material-icons-round" style="font-size:18px;">sync</span>
+                                </button>
+                            </label>
                             <input type="text" id="productSearch" class="input-field" placeholder="Escribe para buscar..." autocomplete="off">
                             <ul id="searchResults" class="search-results-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:100; max-height:200px; overflow-y:auto; list-style:none; padding:0; margin:4px 0 0 0;"></ul>
                         </div>
@@ -299,6 +304,25 @@ export const renderForm = (container, user, state, render) => {
     // Initial Setup
     updateUIForType('partial');
     loadState(); // Restore draft if exists
+
+    // Register Catalog Refresh Logic
+    const refreshBtn = document.getElementById('refreshCatalogBtn');
+    if (refreshBtn) {
+        refreshBtn.onclick = async () => {
+            if (!navigator.onLine) return Alert.error("Sin conexión a internet");
+            refreshBtn.querySelector('span').classList.add('rotating');
+            Alert.info("Sincronizando catálogo...");
+            try {
+                const { syncInventory } = await import('../../data.js');
+                await syncInventory();
+                Alert.success("Catálogo actualizado");
+            } catch (e) {
+                Alert.error("Error al actualizar catálogo");
+            } finally {
+                refreshBtn.querySelector('span').classList.remove('rotating');
+            }
+        };
+    }
 
     // Listeners for auto-save
     form.invoice.oninput = form.sheet.oninput = saveState;

@@ -76,7 +76,7 @@ export const renderAuxiliarDashboard = (container, user) => {
             const setupRealtime = () => {
                 if (!db.sb) return null;
                 const userOrg = user.organization || 'TAT';
-                const channel = db.sb.channel('inventory-alerts')
+                const channel = db.sb.channel('devolucion-alerts')
                     .on('broadcast', { event: 'inventory-updated' }, (payload) => {
                         if (payload.payload?.organization === userOrg) {
                             console.log("🔔 Inventory update detected, syncing...");
