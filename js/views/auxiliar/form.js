@@ -196,7 +196,7 @@ export const renderForm = (container, user, state, render) => {
     // --- Auto-save Persistence Logic ---
     const STORAGE_KEY = `return_draft_${user.id}`;
 
-    const saveState = () => {
+    function saveState() {
         const draft = {
             invoice: form.invoice.value,
             sheet: form.sheet.value,
@@ -206,9 +206,9 @@ export const renderForm = (container, user, state, render) => {
             manualReason: manualReasonInput.value
         };
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    };
+    }
 
-    const loadState = () => {
+    function loadState() {
         const saved = sessionStorage.getItem(STORAGE_KEY);
         if (!saved) return;
         try {
@@ -237,19 +237,19 @@ export const renderForm = (container, user, state, render) => {
             // If draft is corrupt, clear it
             sessionStorage.removeItem(STORAGE_KEY);
         }
-    };
+    }
 
-    const clearState = () => sessionStorage.removeItem(STORAGE_KEY);
+    function clearState() { sessionStorage.removeItem(STORAGE_KEY); }
 
-    const resetSizeSelector = () => {
+    function resetSizeSelector() {
         selectedSize = null;
         document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
-    };
+    }
 
     const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
     const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
 
-    const updateUIForType = (type) => {
+    function updateUIForType(type) {
         currentType = type;
         const isPartial = type === 'partial';
         typeOptions.forEach(opt => opt.classList.toggle('active', opt.dataset.value === type));
@@ -274,9 +274,9 @@ export const renderForm = (container, user, state, render) => {
         });
 
         saveState();
-    };
+    }
 
-    const renderProductsList = () => {
+    function renderProductsList() {
         if (selectedProducts.length === 0) {
             addedProductsList.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 12px; font-size: 13px;">No se han agregado productos</div>';
             return;
@@ -302,9 +302,9 @@ export const renderForm = (container, user, state, render) => {
                 saveState();
             };
         });
-    };
+    }
 
-    const updateTotal = () => {
+    function updateTotal() {
         if (currentType === 'partial') {
             const total = selectedProducts.reduce((sum, p) => sum + p.total, 0);
             totalSpan.textContent = total.toLocaleString();
@@ -312,7 +312,7 @@ export const renderForm = (container, user, state, render) => {
             const val = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
             totalSpan.textContent = val.toLocaleString();
         }
-    };
+    }
 
     // Initial Setup
     updateUIForType('partial');

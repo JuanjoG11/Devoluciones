@@ -3,6 +3,7 @@ import { TYM_PRODUCTS_LIST } from './data/tym_products.js';
 import { CARNICOS_PRODUCTS_LIST } from './data/carnicos_products.js';
 import { CONFIG, getDefaultDateRange } from './config.js';
 import { compressImage } from './utils/imageCompression.js';
+console.log("DATA.JS RELOADED " + new Date().toISOString());
 
 /**
  * Data Initialization
@@ -566,16 +567,57 @@ export const db = {
     },
 
     async getRouteReturns(routeId) {
-        const { data, error } = await sb.from('return_items').select('*').eq('route_id', routeId);
-        if (error) return [];
-        return data.map(r => ({
+        // Fetch remote data
+        const { data: remoteData, error } = await sb.from('return_items').select('*').eq('route_id', routeId);
+        const mappedRemote = (remoteData || []).map(r => ({
             id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
             code: r.product_code, name: r.product_name, productName: r.product_name,
             quantity: r.quantity, total: r.total, reason: r.reason,
             evidence: r.evidence, timestamp: r.created_at,
             isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
-            verified: !!r.verified
+            verified: !!r.verified,
+            pending: false
         }));
+
+        if (error) console.error("Error fetching remote returns:", error);
+
+        // Fetch local pending data
+        const pending = await this.getPendingReturns();
+        const pendingForRoute = pending.filter(p => p.routeId === routeId).map(p => ({ ...p, pending: true }));
+
+        // Merge and De-duplicate:
+        // If an item exists in both (based on invoice/sheet/product), show the REMOTE one (synced)
+        // or prioritize Pending? Usually you want to show Pending if it's not yet synced.
+        // But if it IS synced, it appears in Remote.
+        // The issue "se registra dos veces" suggests they see both.
+        // We will filter out PENDING items that match a REMOTE item.
+
+        const finalReturns = [...mappedRemote];
+
+        pendingForRoute.forEach(pItem => {
+            const isDuplicate = mappedRemote.some(rItem =>
+                String(rItem.invoice).trim() === String(pItem.invoice).trim() &&
+                String(rItem.sheet).trim() === String(pItem.sheet).trim() &&
+                // For partials check product code, for totals (no code) just check invoice/sheet
+                (pItem.productCode ? String(rItem.code).trim() === String(pItem.productCode).trim() : true)
+            );
+
+            if (!isDuplicate) {
+                finalReturns.push(pItem);
+            } else {
+                // It's in both. This triggers when sync finished but deletePendingReturn hasn't run yet.
+                // We'll skip adding the pending one to the view to avoid the "double" effect.
+                // Optionally trigger cleanup?
+                console.log("Hiding visual duplicate (Synced but still in Pending):", pItem.invoice, pItem.sheet);
+                // We could safely delete it here if we trust remote? 
+                // Better safe: just hide it.
+                // Actually, if it's in remote, we SHOULD delete it from pending to clean up client DB.
+                this.deletePendingReturn(pItem.id);
+            }
+        });
+
+        // Sort by timestamp desc
+        return finalReturns.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     },
 
     _mapRoute(r) {
@@ -768,19 +810,29 @@ export const db = {
         if (!base64Data) return null;
         try {
             const base64Parts = base64Data.split(',');
-            const mime = base64Parts[0].match(/:(.*?);/)[1];
+            if (base64Parts.length < 2) throw new Error("Invalid base64 format");
+
+            const mimeMatch = base64Parts[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
             const byteString = atob(base64Parts[1]);
             const ab = new ArrayBuffer(byteString.length);
             const ia = new Uint8Array(ab);
             for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
             const blob = new Blob([ab], { type: mime });
+
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
             const filePath = `returns/${fileName}`;
+
             const { error } = await sb.storage.from('evidences').upload(filePath, blob, { contentType: mime });
             if (error) throw error;
+
             const { data: { publicUrl } } = sb.storage.from('evidences').getPublicUrl(filePath);
             return publicUrl;
-        } catch (e) { return null; }
+        } catch (e) {
+            console.error("Upload Photo Error:", e);
+            return null;
+        }
     },
 
     async _initOfflineDB() {
@@ -871,6 +923,9 @@ export const db = {
             }
 
             console.log(`Synced ${syncedCount} of ${pending.length} pending returns`);
+            if (syncedCount < pending.length) {
+                console.warn(`Failed to sync ${pending.length - syncedCount} items.`);
+            }
             return syncedCount;
         } catch (e) {
             console.error('Sync error:', e);
@@ -900,8 +955,6 @@ export const db = {
         }
 
         // 2. Check Database
-        // We use an exact match for invoice, sheet AND product_code if provided
-        // This is much safer than the previous OR logic which was too aggressive.
         let query = sb.from('return_items')
             .select('*')
             .eq('route_id', routeId)
@@ -926,17 +979,13 @@ export const db = {
             if (!isBatchPart) _submissionLock = true;
 
             try {
-                // Double Check for Duplicates (Local + Remote if online)
                 const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId, returnData.productCode);
-
                 if (existing) {
                     console.log("[addReturn] Duplicate return detected, skipping.");
                     return true;
                 }
-
                 const saved = await this.saveOfflineReturn(returnData);
                 if (saved) {
-                    // Trigger sync in background but don't wait for it
                     this.syncOfflineReturns().catch(console.error);
                     return true;
                 }
@@ -945,15 +994,12 @@ export const db = {
                 console.error("Error in addReturn (local):", e);
                 return false;
             } finally {
-                // Release lock after 1 second to prevent mechanical bounce
                 if (!isBatchPart) setTimeout(() => { _submissionLock = false; }, 1000);
             }
         }
 
         // 2. SYNC PATH: Background Worker (upload & insert)
         try {
-            // DEEP DUPLICATE CHECK: During sync, ONLY check the remote DB (ignoreLocal: true)
-            // to avoid flagging the item that is currently in the queue as a duplicate of itself.
             const existing = await this.checkDuplicate(returnData.invoice, returnData.sheet, returnData.routeId, returnData.productCode, true);
             if (existing) {
                 console.log("Duplicate return found in DB during sync, marking as success to remove from queue.");
@@ -963,25 +1009,41 @@ export const db = {
             let evidenceUrl = returnData.evidence;
             if (returnData.evidence && returnData.evidence.startsWith('data:image')) {
                 const uploadedUrl = await this.uploadPhoto(returnData.evidence);
-                if (uploadedUrl) evidenceUrl = uploadedUrl;
+                if (!uploadedUrl) {
+                    console.error("Upload failed for return item. Aborting sync for this item to prevent bad data.");
+                    return false; // Retry later
+                }
+                evidenceUrl = uploadedUrl;
             }
-            const { error } = await sb.from('return_items').insert([{
+
+            const payload = {
                 route_id: returnData.routeId, invoice: returnData.invoice, sheet: returnData.sheet,
                 product_code: returnData.productCode, product_name: returnData.productName,
                 quantity: returnData.quantity, total: returnData.total, reason: returnData.reason,
-                evidence: evidenceUrl, size: returnData.size
-            }]);
+                evidence: evidenceUrl
+                // size: returnData.size // Column 'size' missing in DB. Disabled to allow sync.
+            };
+
+            console.log("DEBUG: Inserting payload:", JSON.stringify(payload));
+
+
+            const { error } = await sb.from('return_items').insert([payload]);
 
             if (error) {
-                console.error("Error inserting return:", error);
+                console.error("Error inserting return. Code:", error.code, "Message:", error.message, "Details:", error.details || 'None');
+                console.warn("Payload that failed:", JSON.stringify(payload, null, 2));
+
+                // Detect Foreign Key Violation (Route missing)
+                if (error.code === '23503') {
+                    console.error("FATAL: Route ID not found in database. This return cannot be synced with the current Route ID.");
+                    // Optimization: In a real app we might try to repair the route here.
+                }
                 return false;
             }
 
             try {
-                // Determine organization from route for targeted broadcast
                 const { data: route } = await sb.from('routes').select('username').eq('id', returnData.routeId).single();
                 const organization = (route && this.isTymAccount(route.username)) ? 'TYM' : 'TAT';
-
                 await broadcastEvent('nueva-devolucion', { timestamp: new Date().toISOString() }, organization);
             } catch (e) { }
             return true;
