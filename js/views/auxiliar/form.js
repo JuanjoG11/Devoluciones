@@ -241,6 +241,11 @@ export const renderForm = (container, user, state, render) => {
 
     const clearState = () => sessionStorage.removeItem(STORAGE_KEY);
 
+    const resetSizeSelector = () => {
+        selectedSize = null;
+        document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
+    };
+
     const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
     const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
 
@@ -438,10 +443,7 @@ export const renderForm = (container, user, state, render) => {
         element.classList.add('selected');
     };
 
-    const resetSizeSelector = () => {
-        selectedSize = null;
-        document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
-    };
+
 
     form.onsubmit = async (e) => {
         e.preventDefault();
