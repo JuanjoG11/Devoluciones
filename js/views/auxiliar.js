@@ -92,7 +92,22 @@ export const renderAuxiliarDashboard = (container, user) => {
 
         } catch (err) {
             console.error("Auxiliar Render Error:", err);
-            container.innerHTML = `<div class="card m-lg text-center"><h3>Error al cargar</h3><button onclick="location.reload()" class="btn btn-primary mt-md">Reintentar</button></div>`;
+
+            // If error happened in form view, it might be due to corrupted draft state
+            if (state.view === 'form') {
+                try {
+                    sessionStorage.removeItem(`return_draft_${user.id}`);
+                    console.log("Cleared potentially corrupted draft state");
+                } catch (e) {
+                    console.error("Failed to clear storage:", e);
+                }
+            }
+
+            container.innerHTML = `<div class="card m-lg text-center">
+                <h3>Error al cargar</h3>
+                <p style="color: red; font-size: 12px; margin: 10px 0;">${err.message || 'Error desconocido'}</p>
+                <button onclick="location.reload()" class="btn btn-primary mt-md">Reintentar</button>
+            </div>`;
         }
     };
 

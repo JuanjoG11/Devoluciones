@@ -213,9 +213,13 @@ export const renderForm = (container, user, state, render) => {
         if (!saved) return;
         try {
             const draft = JSON.parse(saved);
+
+            // Validate basic structure to prevent crashes
+            if (typeof draft !== 'object' || !draft) throw new Error("Invalid draft format");
+
             form.invoice.value = draft.invoice || '';
             form.sheet.value = draft.sheet || '';
-            selectedProducts = draft.selectedProducts || [];
+            selectedProducts = Array.isArray(draft.selectedProducts) ? draft.selectedProducts : [];
             currentType = draft.currentType || 'partial';
 
             updateUIForType(currentType);
@@ -228,7 +232,11 @@ export const renderForm = (container, user, state, render) => {
 
             renderProductsList();
             updateTotal();
-        } catch (e) { console.error("Error loading draft", e); }
+        } catch (e) {
+            console.error("Error loading draft", e);
+            // If draft is corrupt, clear it
+            sessionStorage.removeItem(STORAGE_KEY);
+        }
     };
 
     const clearState = () => sessionStorage.removeItem(STORAGE_KEY);
@@ -272,8 +280,8 @@ export const renderForm = (container, user, state, render) => {
         addedProductsList.innerHTML = selectedProducts.map((p, index) => `
             <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                 <div style="flex: 1;">
-                    <div style="font-weight: 700; font-size: 14px;">${p.name} ${p.size ? `<span style="background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Talla ${p.size}</span>` : ''}</div>
-                    <div style="font-size: 12px; color: var(--text-light);">${p.quantity} x $ ${p.price.toLocaleString()} = <b>$ ${p.total.toLocaleString()}</b></div>
+                    <div style="font-weight: 700; font-size: 14px;">${p.name || 'Producto sin nombre'} ${p.size ? `<span style="background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Talla ${p.size}</span>` : ''}</div>
+                    <div style="font-size: 12px; color: var(--text-light);">${p.quantity || 0} x $ ${(p.price || 0).toLocaleString()} = <b>$ ${(p.total || 0).toLocaleString()}</b></div>
                 </div>
                 <button type="button" class="remove-product" data-index="${index}" style="background: #fee2e2; border: none; color: #ef4444; padding: 6px; border-radius: 6px; cursor: pointer;">
                     <span class="material-icons-round" style="font-size: 18px;">delete</span>
