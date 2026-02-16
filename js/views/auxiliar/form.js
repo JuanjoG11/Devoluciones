@@ -196,7 +196,9 @@ export const renderForm = (container, user, state, render) => {
     // --- Auto-save Persistence Logic ---
     const STORAGE_KEY = `return_draft_${user.id}`;
 
+    // --- Helper Functions (Hoisted) ---
     function saveState() {
+        if (!form) return;
         const draft = {
             invoice: form.invoice.value,
             sheet: form.sheet.value,
@@ -208,37 +210,6 @@ export const renderForm = (container, user, state, render) => {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     }
 
-    function loadState() {
-        const saved = sessionStorage.getItem(STORAGE_KEY);
-        if (!saved) return;
-        try {
-            const draft = JSON.parse(saved);
-
-            // Validate basic structure to prevent crashes
-            if (typeof draft !== 'object' || !draft) throw new Error("Invalid draft format");
-
-            form.invoice.value = draft.invoice || '';
-            form.sheet.value = draft.sheet || '';
-            selectedProducts = Array.isArray(draft.selectedProducts) ? draft.selectedProducts : [];
-            currentType = draft.currentType || 'partial';
-
-            updateUIForType(currentType);
-
-            if (draft.reason) {
-                reasonSelect.value = draft.reason;
-                reasonSelect.dispatchEvent(new Event('change'));
-            }
-            if (draft.manualReason) manualReasonInput.value = draft.manualReason;
-
-            renderProductsList();
-            updateTotal();
-        } catch (e) {
-            console.error("Error loading draft", e);
-            // If draft is corrupt, clear it
-            sessionStorage.removeItem(STORAGE_KEY);
-        }
-    }
-
     function clearState() { sessionStorage.removeItem(STORAGE_KEY); }
 
     function resetSizeSelector() {
@@ -246,37 +217,18 @@ export const renderForm = (container, user, state, render) => {
         document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
     }
 
-    const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
-    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
-
-    function updateUIForType(type) {
-        currentType = type;
-        const isPartial = type === 'partial';
-        typeOptions.forEach(opt => opt.classList.toggle('active', opt.dataset.value === type));
-
-        multiProductSection.classList.toggle('hidden', !isPartial);
-        totalReturnSection.classList.toggle('hidden', isPartial);
-        manualTotalInput.required = !isPartial;
-
-        // Reset inputs but preserve business identity
-        tempSelectedProduct = null;
-        productInput.value = '';
-        priceInput.value = '';
-        qtyInput.value = '1';
-
-        renderProductsList();
-        updateTotal();
-        resetSizeSelector();
-
-        reasonSelect.innerHTML = '<option value="">Seleccionar...</option>';
-        (isPartial ? REASONS_PARTIAL : REASONS_TOTAL).forEach(r => {
-            const opt = document.createElement('option'); opt.value = r; opt.textContent = r; reasonSelect.appendChild(opt);
-        });
-
-        saveState();
+    function updateTotal() {
+        if (currentType === 'partial') {
+            const total = selectedProducts.reduce((sum, p) => sum + p.total, 0);
+            totalSpan.textContent = total.toLocaleString();
+        } else {
+            const val = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
+            totalSpan.textContent = val.toLocaleString();
+        }
     }
 
     function renderProductsList() {
+        if (!addedProductsList) return;
         if (selectedProducts.length === 0) {
             addedProductsList.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 12px; font-size: 13px;">No se han agregado productos</div>';
             return;
@@ -304,17 +256,72 @@ export const renderForm = (container, user, state, render) => {
         });
     }
 
-    function updateTotal() {
-        if (currentType === 'partial') {
-            const total = selectedProducts.reduce((sum, p) => sum + p.total, 0);
-            totalSpan.textContent = total.toLocaleString();
-        } else {
-            const val = parseInt(manualTotalInput.value.replace(/\D/g, '')) || 0;
-            totalSpan.textContent = val.toLocaleString();
+    const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
+    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
+
+    function updateUIForType(type) {
+        currentType = type;
+        const isPartial = type === 'partial';
+        typeOptions.forEach(opt => opt.classList.toggle('active', opt.dataset.value === type));
+
+        if (multiProductSection) multiProductSection.classList.toggle('hidden', !isPartial);
+        if (totalReturnSection) totalReturnSection.classList.toggle('hidden', isPartial);
+        if (manualTotalInput) manualTotalInput.required = !isPartial;
+
+        // Reset inputs but preserve business identity
+        tempSelectedProduct = null;
+        if (productInput) productInput.value = '';
+        if (priceInput) priceInput.value = '';
+        if (qtyInput) qtyInput.value = '1';
+
+        renderProductsList();
+        updateTotal();
+        resetSizeSelector();
+
+        if (reasonSelect) {
+            reasonSelect.innerHTML = '<option value="">Seleccionar...</option>';
+            (isPartial ? REASONS_PARTIAL : REASONS_TOTAL).forEach(r => {
+                const opt = document.createElement('option'); opt.value = r; opt.textContent = r; reasonSelect.appendChild(opt);
+            });
+        }
+
+        saveState();
+    }
+
+    function loadState() {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+        try {
+            const draft = JSON.parse(saved);
+
+            // Validate basic structure to prevent crashes
+            if (typeof draft !== 'object' || !draft) throw new Error("Invalid draft format");
+
+            if (form) {
+                form.invoice.value = draft.invoice || '';
+                form.sheet.value = draft.sheet || '';
+            }
+            selectedProducts = Array.isArray(draft.selectedProducts) ? draft.selectedProducts : [];
+            currentType = draft.currentType || 'partial';
+
+            updateUIForType(currentType);
+
+            if (draft.reason && reasonSelect) {
+                reasonSelect.value = draft.reason;
+                reasonSelect.dispatchEvent(new Event('change'));
+            }
+            if (draft.manualReason && manualReasonInput) manualReasonInput.value = draft.manualReason;
+
+            renderProductsList();
+            updateTotal();
+        } catch (e) {
+            console.error("Error loading draft", e);
+            // If draft is corrupt, clear it
+            sessionStorage.removeItem(STORAGE_KEY);
         }
     }
 
-    // Initial Setup
+    // --- Initial Startup Calls ---
     updateUIForType('partial');
     loadState(); // Restore draft if exists
 

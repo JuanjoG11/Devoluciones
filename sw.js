@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v23'; // Updated: PWA Install Reliability Fix
+const CACHE_NAME = 'devoluciones-v24'; // Updated: Force refresh for resetSizeSelector fix
 const ASSETS = [
     '/',
     '/index.html',
