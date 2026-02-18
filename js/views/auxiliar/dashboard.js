@@ -177,14 +177,36 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
     } else {
         updateSyncUI();
         document.getElementById('endRouteBtn')?.addEventListener('click', async () => {
-            const confirmed = await Alert.confirm("¿Estás seguro de finalizar tu jornada? No podrás registrar más devoluciones.", "Finalizar Jornada");
+            const pending = await db.getPendingReturns();
+            const pendingCount = pending.filter(p => p.routeId === state.currentRouteId).length;
+
+            let msg = "¿Estás seguro de finalizar tu jornada? No podrás registrar más devoluciones.";
+            if (pendingCount > 0) {
+                msg = `Tienes ${pendingCount} registros pendientes por sincronizar. Al finalizar, intentaremos subirlos todos. ¿Deseas continuar?`;
+            }
+
+            const confirmed = await Alert.confirm(msg, "Finalizar Jornada");
             if (confirmed) {
+                const btn = document.getElementById('endRouteBtn');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="material-icons-round spinning">sync</span> SINCRONIZANDO...';
+
+                // Force sync before closing
+                try {
+                    await db.syncOfflineReturns();
+                } catch (e) {
+                    console.error("Final sync failed:", e);
+                }
+
                 const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
                 if (await db.updateRoute(state.currentRouteId, { status: 'completed', endTime: now })) {
-                    Alert.success("Jornada finalizada.");
+                    Alert.success("Jornada finalizada y sincronizada.");
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
-                    Alert.error("Error al finalizar.");
+                    Alert.error("Error al finalizar la ruta en el servidor.");
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
                 }
             }
         });

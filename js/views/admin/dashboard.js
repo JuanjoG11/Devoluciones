@@ -46,7 +46,7 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: rgba(0,34,77,0.03); color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
                         <tr>
-                            <th style="padding: 12px 16px; text-align: left;">Hora</th>
+                            <th style="padding: 12px 16px; text-align: left;">Día / Hora</th>
                             <th style="padding: 12px 16px; text-align: left;">Auxiliar</th>
                             <th style="padding: 12px 16px; text-align: left;">Producto / Factura</th>
                             <th style="padding: 12px 16px; text-align: left;">Motivo</th>
@@ -56,11 +56,11 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
                     </thead>
                     <tbody>
                         ${recentReturns.map(r => {
-    const route = routes.find(rt => rt.id === r.routeId);
+    const route = routes.find(rt => String(rt.id) === String(r.routeId));
     return `
                                 <tr style="border-bottom: 1px solid #f1f5f9;">
                                     <td style="padding: 12px 16px; color: var(--text-light); font-size: 11px;">
-                                        ${r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                                        ${r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
                                     </td>
                                     <td style="padding: 12px 16px; font-weight: 600; font-size: 12px;">${route ? route.userName : 'Desconocido'}</td>
                                     <td style="padding: 12px 16px;">

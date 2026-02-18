@@ -63,32 +63,26 @@ export const renderAdminDashboard = (container, user) => {
                 ]);
 
                 // 2. Compute stats locally for reliability
-
-                // Deduplicate routes for today before counting active ones
                 const todayRoutesRaw = (routes || []).filter(r => r.date === todayLocal || (r.date && String(r.date).startsWith(todayLocal)));
-                const uniqueLatestRoutes = new Map();
 
-                [...todayRoutesRaw].sort((a, b) => {
-                    const timeA = a.endTime || a.startTime || '00:00';
-                    const timeB = b.endTime || b.startTime || '00:00';
-                    return timeA.localeCompare(timeB);
-                }).forEach(r => {
-                    uniqueLatestRoutes.set(String(r.username || r.userId || r.id).trim(), r);
-                });
-
-                const activeCount = Array.from(uniqueLatestRoutes.values()).filter(r => {
+                // Count UNIQUE auxiliaries that have at least one ACTIVE route
+                const activeUsernames = new Set();
+                todayRoutesRaw.forEach(r => {
                     const status = String(r.status || '').toLowerCase();
-                    return status !== 'completed' && status !== 'finalizado';
-                }).length;
+                    if (status !== 'completed' && status !== 'finalizado') {
+                        activeUsernames.add(String(r.username || r.userId).trim());
+                    }
+                });
 
                 // For returns, we strictly use the local business day (en-CA -> YYYY-MM-DD)
                 const todaysReturns = (returns || []).filter(r => {
                     if (!r.timestamp) return false;
-                    return getLocalDateISO(r.timestamp) === todayLocal;
+                    const itemDate = getLocalDateISO(r.timestamp);
+                    return itemDate === todayLocal;
                 });
 
                 const stats = {
-                    active_routes_count: activeCount,
+                    active_routes_count: activeUsernames.size,
                     total_returns_count: todaysReturns.length,
                     total_returns_value: todaysReturns.reduce((sum, r) => sum + (r.total || 0), 0)
                 };
@@ -321,22 +315,17 @@ export const renderAdminDashboard = (container, user) => {
         const todayStr = getLocalDateISO();
         const todayRoutesRaw = (cache.routes || []).filter(r => r.date === todayStr || (r.date && String(r.date).startsWith(todayStr)));
 
-        const userMap = new Map();
-        [...todayRoutesRaw].sort((a, b) => {
-            const timeA = a.endTime || a.startTime || '00:00';
-            const timeB = b.endTime || b.startTime || '00:00';
-            return timeA.localeCompare(timeB);
-        }).forEach(r => {
-            userMap.set(String(r.username || r.userId || r.id).trim(), r);
-        });
-
-        const activeRoutes = Array.from(userMap.values()).sort((a, b) => {
+        const activeRoutes = [...todayRoutesRaw].sort((a, b) => {
             const statusA = String(a.status || '').toLowerCase();
             const statusB = String(b.status || '').toLowerCase();
             const isCompA = statusA === 'completed' || statusA === 'finalizado';
             const isCompB = statusB === 'completed' || statusB === 'finalizado';
+
+            // Pending/Active routes first
             if (!isCompA && isCompB) return -1;
             if (isCompA && !isCompB) return 1;
+
+            // Then sort by time (latest first)
             const timeA = a.endTime || a.startTime || '00:00';
             const timeB = b.endTime || b.startTime || '00:00';
             return timeB.localeCompare(timeA);

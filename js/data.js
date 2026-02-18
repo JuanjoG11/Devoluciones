@@ -515,27 +515,25 @@ export const db = {
         const normalizedUserId = String(userId).trim();
         console.log("[getTodaysRoute] Fetching route for userId:", normalizedUserId, "date:", today);
 
-        let query = sb.from('routes').select('*').eq('date', today);
+        let query = sb.from('routes').select('*');
 
         // STICT CHECK: UUID Pattern
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedUserId);
 
         if (!isUUID) {
-            // For TYM/Auxiliaries (Cedula as ID)
-            // ABSOLUTELY DO NOT query 'user_id' column here, as it is UUID type.
-            console.log("[getTodaysRoute] Querying by username (cedula):", normalizedUserId);
             query = query.eq('username', normalizedUserId);
         } else {
-            // For TAT/Legacy users with real DB IDs
-            console.log("[getTodaysRoute] Querying by user_id (UUID):", normalizedUserId);
             query = query.eq('user_id', normalizedUserId);
         }
 
-        // Order by created_at descending to get the most recent route first
-        // Use limit(1) + single() instead of maybeSingle() to handle multiple rows
-        query = query.order('created_at', { ascending: false }).limit(1);
+        // Try finding EXACT date first, then Fallback to any ACTIVE session
+        let { data, error } = await query.eq('date', today).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-        const { data, error } = await query.maybeSingle();
+        if (!data) {
+            console.log("[getTodaysRoute] No exact date route, searching for latest active session...");
+            const { data: activeRoute } = await query.eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle();
+            data = activeRoute;
+        }
 
         if (!data && isUUID) {
             // Fallback: If UUID didn't work but we know the user's username/cedula
@@ -765,10 +763,37 @@ export const db = {
 
         if (isUUID) {
             // 1. Normal Insert (TAT Users with real DB IDs)
+            // CHECK FOR EXISTING ACTIVE ROUTE FIRST
+            const { data: existing } = await sb.from('routes')
+                .select('*')
+                .eq('user_id', routeData.userId)
+                .eq('date', routeData.date)
+                .eq('status', 'active')
+                .limit(1)
+                .maybeSingle();
+
+            if (existing) {
+                console.log("[addRoute] Passive reuse of existing active route for UUID user.");
+                return this._mapRoute(existing);
+            }
+
             result = await doInsert(routeData.userId);
         } else {
-            // 2. TYM/Auxiliary Checks (Numeric ID / Cedula) -> REQUIRE Fallback immediately
-            // Don't even try the main ID, it will fail FK.
+            // 2. TYM/Auxiliary Checks (Numeric ID / Cedula)
+            // CHECK FOR EXISTING ACTIVE ROUTE FIRST BY USERNAME
+            const { data: existing } = await sb.from('routes')
+                .select('*')
+                .eq('username', username)
+                .eq('date', routeData.date)
+                .eq('status', 'active')
+                .limit(1)
+                .maybeSingle();
+
+            if (existing) {
+                console.log("[addRoute] Passive reuse of existing active route for Username.");
+                return this._mapRoute(existing);
+            }
+
             console.log("Non-UUID User ID detected, using Fallback...");
             result = { error: 'Require Fallback' };
         }

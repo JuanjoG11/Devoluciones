@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devoluciones-v24'; // Updated: Force refresh for resetSizeSelector fix
+const CACHE_NAME = 'devoluciones-v25'; // Updated: Resolving 404 for logo.png and favicon
 const ASSETS = [
     '/',
     '/index.html',
@@ -25,7 +25,8 @@ const ASSETS = [
     '/js/views/admin/statistics.js',
     '/js/views/admin/users.js',
     '/js/views/admin/refacturacion.js',
-    '/logo-app.png'
+    '/logo-app.png',
+    '/assets/logo.png'
 ];
 
 self.addEventListener('install', (event) => {

@@ -1,17 +1,28 @@
 import { db } from '../../data.js';
 
 export const generatePrintReport = async (routes, id) => {
-    const route = routes.find(r => r.id === id);
-    let returns = await db.getRouteReturns(id);
+    const route = routes.find(r => String(r.id) === String(id));
 
-    // Precise Daily Filtering: Use local date comparison to avoid timezone shifts
-    if (route && route.date) {
-        returns = returns.filter(r => {
-            if (!r.timestamp) return false;
-            const itemDate = new Date(r.timestamp).toLocaleDateString('en-CA');
-            return itemDate === route.date;
-        });
-    }
+    // FETCH ALL RETURNS FOR THIS USER ON THIS DAY
+    // This ensures that even if there are multiple routes, the PDF shows EVERYTHING (matching History)
+    const returns = await db.getReturns(500, 0, null, {
+        userId: route.username,
+        dateFrom: route.date,
+        dateTo: route.date
+    });
+
+    // Unified retrieval: returns are already joined and fetched by routeId in db.getRouteReturns
+
+    // DEDUPLICATION: Just in case there was a double-sync or the same item exists twice in DB
+    const seenItems = new Set();
+    const uniqueReturns = returns.filter(r => {
+        // Use a robust key: invoice + sheet + product (code or name) + qty + total + approx time
+        const timeKey = r.timestamp ? r.timestamp.substring(0, 16) : 'no-time';
+        const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${timeKey}`;
+        if (seenItems.has(key)) return false;
+        seenItems.add(key);
+        return true;
+    });
 
     // FORCED ISOLATION: Always ensure printArea is a direct child of body and clear it
     let printArea = document.getElementById('printArea');
@@ -22,8 +33,8 @@ export const generatePrintReport = async (routes, id) => {
     document.body.appendChild(printArea);
 
     // Split returns
-    const partialReturns = returns.filter(r => r.productName !== 'DEVOLUCIÓN TOTAL');
-    const totalReturns = returns.filter(r => r.productName === 'DEVOLUCIÓN TOTAL');
+    const partialReturns = uniqueReturns.filter(r => r.productName !== 'DEVOLUCIÓN TOTAL');
+    const totalReturns = uniqueReturns.filter(r => r.productName === 'DEVOLUCIÓN TOTAL');
 
     // Calculate totals
     const partialTotalValue = partialReturns.reduce((sum, r) => sum + (r.total || 0), 0);
@@ -87,18 +98,20 @@ export const generatePrintReport = async (routes, id) => {
             <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
                 <thead>
                     <tr style="background: #f4f4f4;">
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 10%;">DÍA</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">OK</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 12%;">FACTURA</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 10%;">PLANILLA</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 30%;">PRODUCTO</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 18%;">MOTIVO</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 11%;">FACTURA</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 9%;">PLANILLA</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 25%;">PRODUCTO</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 17%;">MOTIVO</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 18%;">TOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${partialReturns.map(r => `
                         <tr>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '—'}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 10pt; font-weight: 900; color: #15803d;">${(r.verified || route.verified) ? '✓' : ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
@@ -109,7 +122,7 @@ export const generatePrintReport = async (routes, id) => {
                         </tr>
                     `).join('')}
                     <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                        <td colspan="5" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL PARCIAL:</td>
+                        <td colspan="6" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL PARCIAL:</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 8pt; font-weight: 800;">${partialTotalItems}</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">$ ${partialTotalValue.toLocaleString()}</td>
                     </tr>
@@ -126,10 +139,11 @@ export const generatePrintReport = async (routes, id) => {
             <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
                 <thead>
                     <tr style="background: #f4f4f4;">
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 10%;">DÍA</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">OK</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">FACTURA</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 15%;">PLANILLA</th>
-                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 40%;">MOTIVO</th>
+                        <th style="border: 1px solid black; padding: 6px 4px; text-align: left; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 30%;">MOTIVO</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 5%;">CANT</th>
                         <th style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 800; text-transform: uppercase; width: 20%;">TOTAL</th>
                     </tr>
@@ -137,6 +151,7 @@ export const generatePrintReport = async (routes, id) => {
                 <tbody>
                     ${totalReturns.map(r => `
                         <tr>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '—'}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 10pt; font-weight: 900; color: #15803d;">${(r.verified || route.verified) ? '✓' : ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
@@ -146,7 +161,7 @@ export const generatePrintReport = async (routes, id) => {
                         </tr>
                     `).join('')}
                     <tr style="background-color: #f9f9f9; border-top: 2px solid black;">
-                        <td colspan="4" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL:</td>
+                        <td colspan="5" style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">TOTAL:</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: center; font-size: 8pt; font-weight: 800;">${totalTotalItems}</td>
                         <td style="border: 1px solid black; padding: 8px 6px; text-align: right; font-size: 8pt; font-weight: 800;">$ ${totalTotalValue.toLocaleString()}</td>
                     </tr>
