@@ -53,7 +53,7 @@ export const initProductos = (user, db, formatPrice, Alert) => {
                         <input type="text" id="modal-code" class="input-field" value="${product?.code || ''}" ${isEdit ? 'readonly' : ''} placeholder="Ej: 102030" style="width: 100%; box-sizing: border-box; margin-bottom: 20px; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
                         
                         <label style="font-size: 11px; font-weight:700; color: var(--text-secondary); margin-bottom:6px; display: block; text-transform:uppercase; letter-spacing:0.5px;">Nombre del Producto</label>
-                        <input type="text" id="modal-name" class="input-field" value="${product?.name || ''}" placeholder="Ej: GUAYO FUTSAL AZUL" style="width: 100%; box-sizing: border-box; margin-bottom: 20px; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
+                        <input type="text" id="modal-name" class="input-field" value="${product?.name || ''}" placeholder="Ej: Bonyurt..." style="width: 100%; box-sizing: border-box; margin-bottom: 20px; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
                         
                         <label style="font-size: 11px; font-weight:700; color: var(--text-secondary); margin-bottom:6px; display: block; text-transform:uppercase; letter-spacing:0.5px;">Precio Unitario ($)</label>
                         <input type="number" id="modal-price" class="input-field" value="${product?.price || ''}" placeholder="Ej: 45000" style="width: 100%; box-sizing: border-box; height:48px; border-radius:12px; border:2px solid #e2e8f0; font-weight:600;">
