@@ -12,6 +12,7 @@ const getTodayDate = () => {
 
 let filters = {
     search: '',
+    product: '',
     dateFrom: getTodayDate(),
     dateTo: getTodayDate(),
     userId: '',
@@ -42,7 +43,8 @@ export const renderHistorial = (cache) => {
             </header>
             <div class="card" style="margin-bottom: 24px; padding: 20px;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
-                    <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Búsqueda</label><input type="text" id="historial-search" value="${filters.search}" placeholder="Factura, planilla o producto..." class="input-field" style="width: 100%;"></div>
+                    <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Búsqueda Gral</label><input type="text" id="historial-search" value="${filters.search}" placeholder="Factura o planilla..." class="input-field" style="width: 100%;"></div>
+                    <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Producto</label><input type="text" id="historial-product" value="${filters.product}" placeholder="Nombre o código..." class="input-field" style="width: 100%;"></div>
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Desde</label><input type="date" id="historial-date-from" value="${filters.dateFrom}" class="input-field" style="width: 100%;"></div>
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label><input type="date" id="historial-date-to" value="${filters.dateTo}" class="input-field" style="width: 100%;"></div>
                     <div><label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Auxiliar</label><select id="historial-user" class="input-field" style="width: 100%;"><option value="">Todos</option>${cache.users.filter(u => u.role === 'auxiliar').map(u => `<option value="${u.username}" ${filters.userId === u.username ? 'selected' : ''}>${u.name}</option>`).join('')}</select></div>
@@ -254,6 +256,7 @@ export const initHistorial = (cache, org) => {
 
     // Main setup
     const searchInput = document.getElementById('historial-search');
+    const productInput = document.getElementById('historial-product');
     const dateFromInput = document.getElementById('historial-date-from');
     const dateToInput = document.getElementById('historial-date-to');
     const userSelect = document.getElementById('historial-user');
@@ -268,6 +271,14 @@ export const initHistorial = (cache, org) => {
         };
     }
 
+    if (productInput) {
+        let productDebounce;
+        productInput.oninput = (e) => {
+            clearTimeout(productDebounce);
+            productDebounce = setTimeout(() => { filters.product = e.target.value; applyFilters(); }, 400);
+        };
+    }
+
     if (dateFromInput) dateFromInput.onchange = (e) => { filters.dateFrom = e.target.value; applyFilters(); };
     if (dateToInput) dateToInput.onchange = (e) => { filters.dateTo = e.target.value; applyFilters(); };
     if (userSelect) userSelect.onchange = (e) => { filters.userId = e.target.value; applyFilters(); };
@@ -276,8 +287,9 @@ export const initHistorial = (cache, org) => {
     if (clearBtn) {
         clearBtn.onclick = () => {
             const today = getTodayDate();
-            filters = { search: '', dateFrom: today, dateTo: today, userId: '', reason: '' };
+            filters = { search: '', product: '', dateFrom: today, dateTo: today, userId: '', reason: '' };
             if (searchInput) searchInput.value = '';
+            if (productInput) productInput.value = '';
             if (dateFromInput) dateFromInput.value = today;
             if (dateToInput) dateToInput.value = today;
             if (userSelect) userSelect.value = '';

@@ -694,6 +694,10 @@ export const db = {
             const s = `%${filters.search}%`;
             query = query.or(`invoice.ilike.${s},sheet.ilike.${s},product_name.ilike.${s},product_code.ilike.${s}`);
         }
+        if (filters.product) {
+            const p = `%${filters.product}%`;
+            query = query.or(`product_name.ilike.${p},product_code.ilike.${p}`);
+        }
 
         const { data, error } = await query.range(offset, offset + limit - 1);
         if (error) {
