@@ -666,38 +666,7 @@ export const db = {
             .select('*, routes!inner(username, user_name)')
             .order('created_at', { ascending: false });
 
-        // 1. Organization Filter
-        if (organization) {
-            const tymUsernames = TYM_AUX_LIST.map(u => String(u.username).trim());
-            if (organization === 'TYM') {
-                query = query.in('routes.username', tymUsernames);
-            } else {
-                query = query.not('routes.username', 'in', `(${tymUsernames.join(',')})`);
-            }
-        }
-
-        // 2. Advanced Filters (Server-side)
-        if (filters.userId) {
-            query = query.eq('routes.username', filters.userId);
-        }
-        if (filters.reason) {
-            query = query.eq('reason', filters.reason);
-        }
-        if (filters.dateFrom) {
-            query = query.gte('created_at', filters.dateFrom);
-        }
-        if (filters.dateTo) {
-            // Include full day until 23:59:59
-            query = query.lte('created_at', filters.dateTo + 'T23:59:59');
-        }
-        if (filters.search) {
-            const s = `%${filters.search}%`;
-            query = query.or(`invoice.ilike.${s},sheet.ilike.${s},product_name.ilike.${s},product_code.ilike.${s}`);
-        }
-        if (filters.product) {
-            const p = `%${filters.product}%`;
-            query = query.or(`product_name.ilike.${p},product_code.ilike.${p}`);
-        }
+        this._applyReturnFilters(query, organization, filters);
 
         const { data, error } = await query.range(offset, offset + limit - 1);
         if (error) {
@@ -715,6 +684,72 @@ export const db = {
             auxiliarUsername: Array.isArray(r.routes) ? r.routes[0]?.username : r.routes?.username,
             verified: !!r.verified
         }));
+    },
+
+    async getReturnsSummary(organization = null, filters = {}) {
+        // Fetch more columns to allow deduplication (same as history.js)
+        let query = sb.from('return_items')
+            .select('invoice, sheet, product_code, product_name, quantity, total, created_at, routes!inner(username)', { count: 'exact' });
+
+        this._applyReturnFilters(query, organization, filters);
+
+        // Fetch enough to be reasonably sure we get everything for the period
+        // Increased to 6000 to avoid the 1000/4000 cap that caused discrepancies
+        const { data, count, error } = await query.limit(6000);
+        
+        if (error) {
+            console.error("Error fetching returns summary:", error);
+            return { count: 0, total: 0 };
+        }
+
+        // Apply same deduplication logic as History and Reports
+        const seenItems = new Set();
+        const uniqueData = (data || []).filter(r => {
+            const timeKey = r.created_at ? r.created_at.substring(0, 16) : 'no-time';
+            // IMPORTANT: Key must be identical across data.js, history.js and statistics.js
+            const key = `${r.invoice}-${r.sheet}-${r.product_code || r.product_name}-${r.quantity}-${r.total}-${timeKey}`;
+            if (seenItems.has(key)) return false;
+            seenItems.add(key);
+            return true;
+        });
+
+        const totalSum = uniqueData.reduce((acc, curr) => acc + (curr.total || 0), 0);
+        return { count: uniqueData.length, total: totalSum, totalRawCount: count };
+    },
+
+    _applyReturnFilters(query, organization, filters) {
+        // 1. Organization Filter
+        if (organization) {
+            const tymUsernames = TYM_AUX_LIST.map(u => String(u.username).trim());
+            if (organization === 'TYM') {
+                query.in('routes.username', tymUsernames);
+            } else {
+                query.not('routes.username', 'in', tymUsernames);
+            }
+        }
+
+        // 2. Advanced Filters (Server-side)
+        if (filters.userId) {
+            query.eq('routes.username', filters.userId);
+        }
+        if (filters.reason) {
+            query.eq('reason', filters.reason);
+        }
+        if (filters.dateFrom) {
+            query.gte('created_at', filters.dateFrom);
+        }
+        if (filters.dateTo) {
+            query.lte('created_at', filters.dateTo + 'T23:59:59');
+        }
+        if (filters.search) {
+            const s = `%${filters.search}%`;
+            query.or(`invoice.ilike.${s},sheet.ilike.${s},product_name.ilike.${s},product_code.ilike.${s}`);
+        }
+        if (filters.product) {
+            const p = `%${filters.product}%`;
+            query.or(`product_name.ilike.${p},product_code.ilike.${p}`);
+        }
+        return query;
     },
 
     async updateReturnVerification(id, verified) {
@@ -982,7 +1017,10 @@ export const db = {
                 p.routeId === routeId &&
                 String(p.invoice || '').trim() === cleanInvoice &&
                 String(p.sheet || '').trim() === cleanSheet &&
-                (cleanProductCode ? String(p.productCode || '').trim() === cleanProductCode : true)
+                (cleanProductCode 
+                    ? String(p.productCode || '').trim() === cleanProductCode 
+                    : (!p.productCode || String(p.productCode).trim() === '')
+                )
             );
             if (localDuplicate) return localDuplicate;
         }
@@ -996,6 +1034,9 @@ export const db = {
 
         if (cleanProductCode) {
             query = query.eq('product_code', cleanProductCode);
+        } else {
+            // Strictly check for existing 'Total Returns' which have NULL product_code
+            query = query.is('product_code', null);
         }
 
         const { data } = await query.limit(1);

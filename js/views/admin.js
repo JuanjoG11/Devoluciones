@@ -1,4 +1,4 @@
-﻿import { db } from '../data.js';
+import { db } from '../data.js';
 import { auth } from '../auth.js';
 import { Alert } from '../utils/ui.js';
 import { formatTime12h, formatPrice, getLocalDateISO } from '../utils/formatters.js';
@@ -54,15 +54,25 @@ export const renderAdminDashboard = (container, user) => {
                 const todayLocal = getLocalDateISO();
                 const org = user.organization || 'TAT';
 
-                // 1. Fetch main data sets with individual catch to avoid Promise.all fail-all
-                const [routes, returns, users, resales] = await Promise.all([
+                // 1. Fetch main data sets
+                let [routes, returns, users, resales] = await Promise.all([
                     db.getRoutes(org).catch(e => { console.error("getRoutes error:", e); return []; }),
                     db.getReturns(CONFIG.PERFORMANCE.DASHBOARD_RETURNS_LIMIT, 0, org).catch(e => { console.error("getReturns error:", e); return []; }),
                     db.getUsers(org).catch(e => { console.error("getUsers error:", e); return []; }),
                     db.getResoldReturns(org).catch(e => { console.error("getResoldReturns error:", e); return []; })
                 ]);
 
-                // 2. Compute stats locally for reliability
+                // 2. DEDUPLICATION: Critically important to avoid "double counting" in dashboard and stats
+                const seenItems = new Set();
+                returns = (returns || []).filter(r => {
+                    const timeKey = r.timestamp ? String(r.timestamp).substring(0, 16) : 'no-time';
+                    const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${timeKey}`;
+                    if (seenItems.has(key)) return false;
+                    seenItems.add(key);
+                    return true;
+                });
+
+                // 3. Compute stats locally for reliability
                 const todayRoutesRaw = (routes || []).filter(r => r.date === todayLocal || (r.date && String(r.date).startsWith(todayLocal)));
 
                 // Count UNIQUE auxiliaries that have at least one ACTIVE route

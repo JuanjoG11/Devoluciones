@@ -110,7 +110,7 @@ export const initProductos = (user, db, formatPrice, Alert) => {
                 <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
                     <thead style="background: #f8fafc; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #f1f5f9;">
                         <tr>
-                            <th style="padding: 20px 16px; text-align: left; font-weight: 800;">CÓDIGO</th>
+                            <th style="padding: 20px 16px; text-align: t; font-weight: 800;">CÓDIGO</th>
                             <th style="padding: 20px 16px; text-align: left; font-weight: 800;">NOMBRE DEL PRODUCTO</th>
                             <th style="padding: 20px 16px; text-align: right; font-weight: 800;">PRECIO UNITARIO</th>
                             <th style="padding: 20px 16px; text-align: center; width: 150px; font-weight: 800;">ACCIONES</th>

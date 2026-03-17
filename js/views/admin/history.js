@@ -61,6 +61,8 @@ export const renderHistorial = (cache) => {
 export const initHistorial = (cache, org) => {
     let hasMore = true;
     let isLoading = false;
+    let totalInDb = 0;
+    let totalValueInDb = 0;
 
     const applyFilters = async (isLoadMore = false) => {
         if (isLoading) return;
@@ -74,12 +76,21 @@ export const initHistorial = (cache, org) => {
         const offset = filteredReturns.length;
         const limit = PAGE_SIZE;
 
-        const results = await db.getReturns(limit, offset, org, filters);
+        // Fetch both data and summary for accurate KPIs
+        const [results, summary] = await Promise.all([
+            db.getReturns(limit, offset, org, filters),
+            !isLoadMore ? db.getReturnsSummary(org, filters) : Promise.resolve(null)
+        ]);
 
         if (isLoadMore) {
             filteredReturns = [...filteredReturns, ...results];
         } else {
             filteredReturns = results;
+            // Store total count in cache/global if needed, or just pass to render
+            if (summary) {
+                totalInDb = summary.count;
+                totalValueInDb = summary.total;
+            }
         }
 
         // DEDUPLICATION: Just in case there was a double-sync or the same item exists twice in DB
@@ -114,20 +125,17 @@ export const initHistorial = (cache, org) => {
         const statsContainer = document.getElementById('historial-stats');
         if (!container || !statsContainer) return;
 
-        // Note: Stats here only represent LOADED data.
-        // For full stats, we would need a separate RPC, but for history visibility, this matches the user request.
-        const totalValue = filteredReturns.reduce((sum, r) => sum + (r.total || 0), 0);
-        const totalCount = filteredReturns.length;
-
+        // Display results from DB summary, not just loaded data
         statsContainer.innerHTML = `
             <div style="display: flex; gap: 24px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 200px; background: var(--grad-electric); padding: 20px; border-radius: 12px; color: white; box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Mostrando Registros</div>
-                    <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${totalCount}</div>
+                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Total Registros (Periodo)</div>
+                    <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${totalInDb}</div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">Vista actual: ${filteredReturns.length}</div>
                 </div>
                 <div style="flex: 1; min-width: 200px; background: var(--grad-lava); padding: 20px; border-radius: 12px; color: white; box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Valor de Vista</div>
-                    <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${formatPrice(totalValue)}</div>
+                    <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Valor Total (Periodo)</div>
+                    <div style="font-size: 32px; font-weight: 900; margin-top: 4px;">${formatPrice(totalValueInDb)}</div>
                 </div>
             </div>
         `;

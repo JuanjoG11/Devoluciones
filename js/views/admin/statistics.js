@@ -1,4 +1,5 @@
 import { formatPrice, formatNumber, getLocalDateISO } from '../../utils/formatters.js';
+import { db } from '../../data.js';
 
 export const renderStatistics = (returns, routes, stats) => {
     const isDataEmpty = returns.length === 0;
@@ -61,10 +62,10 @@ export const renderStatistics = (returns, routes, stats) => {
                 <div class="kpi-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.02) 100%); padding: 30px; border-radius: 24px; border: 1px solid rgba(99, 102, 241, 0.2); backdrop-filter: blur(10px);">
                     <div style="color: #6366f1; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 15px;">Volumen Total</div>
                     <div id="statTotalItems" style="font-size: 52px; font-weight: 950; color: #fff; line-height: 1;">0</div>
-                    <div style="margin-top: 15px; font-size: 13px; color: #94a3b8;">Items procesados en el periodo</div>
+                    <div style="margin-top: 15px; font-size: 13px; color: #94a3b8;">Items procesados en <b id="statTotalSheets">0</b> planillas</div>
                 </div>
                 <div class="kpi-card" style="background: linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(244, 63, 94, 0.02) 100%); padding: 30px; border-radius: 24px; border: 1px solid rgba(244, 63, 94, 0.2); backdrop-filter: blur(10px);">
-                    <div style="color: #f43f5e; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 15px;">Costo Devolución</div>
+                    <div style="color: #f43f5e; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 15px;">Monto Total</div>
                     <div id="statTotalValue" style="font-size: 52px; font-weight: 950; color: #fff; line-height: 1;">$0</div>
                     <div style="margin-top: 15px; font-size: 13px; color: #94a3b8;">Pérdida operativa detectada</div>
                 </div>
@@ -75,6 +76,7 @@ export const renderStatistics = (returns, routes, stats) => {
                 </div>
             </div>
 
+            <!-- Charts Section -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
                 <!-- Main Trend -->
                 <div style="background: rgba(255,255,255,0.02); padding: 32px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05);">
@@ -84,7 +86,7 @@ export const renderStatistics = (returns, routes, stats) => {
                     <div style="height: 350px;"><canvas id="statsTrendChart"></canvas></div>
                 </div>
                 
-                <!-- Auxiliary Ranking (Largest to Smallest) -->
+                <!-- Auxiliary Ranking -->
                 <div style="background: rgba(255,255,255,0.02); padding: 32px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05);">
                     <h3 style="font-size: 18px; font-weight: 900; color: #f1f5f9; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
                         <span class="material-icons-round" style="color: #00aeef;">format_list_numbered</span> RANKING DE AUXILIARES
@@ -93,22 +95,34 @@ export const renderStatistics = (returns, routes, stats) => {
                 </div>
             </div>
 
-            <!-- Botton Section -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+            <!-- Management Composition & Causals -->
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 32px; margin-bottom: 40px;">
+                <div style="background: rgba(255,255,255,0.02); padding: 32px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05);">
+                    <h3 style="font-size: 18px; font-weight: 900; color: #f1f5f9; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
+                        <span class="material-icons-round" style="color: #10b981;">pie_chart</span> TIPO DE GESTIÓN
+                    </h3>
+                    <div style="height: 250px;"><canvas id="statsTypeChart"></canvas></div>
+                    <div id="statsTypeLegend" style="margin-top: 20px; display: flex; justify-content: space-around;"></div>
+                </div>
+
                 <div style="background: rgba(255,255,255,0.02); padding: 32px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05);">
                     <h3 style="font-size: 18px; font-weight: 900; color: #f1f5f9; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
                         <span class="material-icons-round" style="color: #f59e0b;">donut_large</span> SEGMENTACIÓN POR CAUSAL
                     </h3>
-                    <div style="height: 320px;"><canvas id="statsCausalChart"></canvas></div>
-                    <div id="statsCausalLegend" style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;"></div>
-                </div>
-                
-                <div style="background: rgba(255,255,255,0.02); padding: 32px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; text-align: center;">
-                    <span class="material-icons-round" style="font-size: 100px; color: rgba(255,255,255,0.05); margin-bottom: 20px;">query_stats</span>
-                    <h4 style="font-size: 20px; font-weight: 900; color: #6366f1; margin-bottom: 10px;">Predictor Inteligente</h4>
-                    <p style="color: #64748b; font-size: 15px; max-width: 350px; margin: 0 auto; line-height: 1.6;">Basado en las tendencias de este mes, se estima un volumen total de <b id="statsPrediction">...</b> devoluciones para el cierre del periodo.</p>
+                    <div style="height: 250px;"><canvas id="statsCausalChart"></canvas></div>
+                    <div id="statsCausalLegend" style="margin-top: 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;"></div>
                 </div>
             </div>
+
+            <!-- Prediction Footer -->
+            <div style="background: linear-gradient(to right, rgba(99, 102, 241, 0.1), rgba(0, 174, 239, 0.1)); padding: 24px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; gap: 30px;">
+                <span class="material-icons-round" style="font-size: 48px; color: #6366f1; opacity: 0.5;">insights</span>
+                <div style="text-align: left;">
+                    <h4 style="font-size: 18px; font-weight: 900; color: #f1f5f9; margin: 0;">Predictor Inteligente del Periodo</h4>
+                    <p style="color: #94a3b8; font-size: 14px; margin: 4px 0 0 0;">Basado en las tendencias actuales, se estima cerrar con un volumen de <b id="statsPrediction" style="color: #6366f1;">...</b> items.</p>
+                </div>
+            </div>
+        </div>
         </div>
         
         <style>
@@ -124,9 +138,43 @@ export const renderStatistics = (returns, routes, stats) => {
 let chartInstances = {};
 
 export const initStatisticsCharts = (originalData, routes) => {
-    let currentData = [...originalData];
     let filteringMonth = 'all';
     let filteringCausal = 'all';
+    let org = originalData.length > 0 && originalData[0].organization ? originalData[0].organization : null;
+    let lastSummary = null;
+
+    const mainReasons = [
+        "Producto averiado", "Error de despacho", "Rechazo del cliente", 
+        "Sin dinero", "Error de facturación", "Error de vendedor", 
+        "Faltante", "Negocio cerrado", "Fuera de ruta"
+    ];
+
+    const cleanData = (rawData) => {
+        const seenItems = new Set();
+        return rawData
+            .filter(r => {
+                // Same deduplication logic as History, Reports and Data Summary
+            // Case-sensitive deduplication to match data.js/history.js
+            const timeKey = r.timestamp ? String(r.timestamp).substring(0, 16) : 'no-time';
+            const keyCol = (r.product_code || r.product_name) ? (r.product_code || r.product_name) : (r.code || r.productName);
+            const key = `${r.invoice}-${r.sheet}-${keyCol}-${r.quantity}-${r.total}-${timeKey}`;
+            if (seenItems.has(key)) return false;
+            seenItems.add(key);
+            return true;
+            })
+            .map(r => {
+                let reason = (r.reason || 'Otros').trim();
+                const matched = mainReasons.find(m => m.toLowerCase() === reason.toLowerCase());
+                if (matched && !reason.toLowerCase().includes('otro')) {
+                    reason = matched;
+                } else {
+                    reason = 'Otros';
+                }
+                return { ...r, reason };
+            });
+    };
+
+    let currentData = cleanData(originalData);
 
     const getStatsArea = () => {
         let filtered = [...currentData];
@@ -139,27 +187,101 @@ export const initStatisticsCharts = (originalData, routes) => {
         return filtered;
     };
 
-    const runAnalytics = () => {
-        const data = getStatsArea();
+    const loadFullMonthData = async (month) => {
         const dashboard = document.getElementById('statsDashboard');
-        const empty = document.getElementById('statsEmpty');
-        if (dashboard) dashboard.style.display = 'block';
-        if (empty) empty.style.display = 'none';
+        const loader = document.getElementById('statsMainLoader');
+        if (loader) loader.style.display = 'block';
+        if (dashboard) dashboard.style.opacity = '0.3';
+        
+        let filters = {};
+        if (month !== 'all') {
+            filters.dateFrom = `${month}-01`;
+            const [y, m] = month.split('-').map(Number);
+            const lastDay = new Date(y, m, 0).getDate();
+            filters.dateTo = `${month}-${lastDay}`;
+        }
+        
+        try {
+            // Parallel fetch for speed: Details (for charts) and Summary (total truth)
+            const [fullData, summary] = await Promise.all([
+                db.getReturns(6000, 0, org, filters),
+                db.getReturnsSummary(org, filters)
+            ]);
+            
+            currentData = cleanData(fullData || []);
+            lastSummary = summary;
+            
+            if (loader) loader.style.display = 'none';
+            if (dashboard) dashboard.style.opacity = '1';
+            
+            // Re-populate months dropdown if new months are found in full data
+            updateMonthsDropdown();
+            
+            setupSelectors();
+            runAnalytics(lastSummary);
+        } catch (e) {
+            console.error("Error loading stats data:", e);
+            if (loader) loader.style.display = 'none';
+            if (dashboard) dashboard.style.opacity = '1';
+        }
+    };
+
+    const updateMonthsDropdown = () => {
+        const monthSel = document.getElementById('statsMonthFilter');
+        if (!monthSel) return;
+        
+        const foundMonths = [...new Set(currentData.map(r => {
+            const date = new Date(r.timestamp);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }))].sort().reverse();
+        
+        const currentVal = monthSel.value;
+        const existingOptions = Array.from(monthSel.options).map(o => o.value);
+        
+        let needsUpdate = false;
+        foundMonths.forEach(m => {
+            if (!existingOptions.includes(m)) needsUpdate = true;
+        });
+        
+        if (needsUpdate) {
+            const allMonths = [...new Set([...existingOptions.filter(m => m !== 'all'), ...foundMonths])].sort().reverse();
+            monthSel.innerHTML = '<option value="all">Histórico Total</option>' + 
+                allMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+            monthSel.value = currentVal;
+            console.log("Updated months dropdown with new data:", allMonths);
+        }
+    };
+
+    const runAnalytics = (summary = null) => {
+        if (summary) lastSummary = summary;
+        const s = lastSummary;
+        
+        const data = getStatsArea();
+        
+        const dashboard = document.getElementById('statsDashboard');
 
         // Destroy previous charts
         Object.values(chartInstances).forEach(c => c.destroy());
         chartInstances = {};
 
-        // KPIs
-        const totalValue = data.reduce((sum, r) => sum + (r.total || 0), 0);
+        // KPIs: Use server-side summary if available, otherwise fallback to local reduction
+        // CRITICAL: summary.total is now deduplicated in data.js
+        const totalValue = (s && filteringCausal === 'all') ? s.total : data.reduce((sum, r) => sum + (r.total || 0), 0);
+        const recordCount = (s && filteringCausal === 'all') ? s.count : data.length;
+        
+        // Items vs Records: We want to show the sum of physical quantities if possible
+        const totalPhysicalItems = data.reduce((sum, r) => sum + (parseInt(r.quantity) || 1), 0);
+        
         const verifiedCount = data.filter(r => r.verified).length;
         const efficiency = data.length > 0 ? Math.round((verifiedCount / data.length) * 100) : 0;
+        const uniqueSheets = new Set(data.map(r => r.sheet || r.invoice)).size;
 
         const animateKPI = (id, target, prefix = '') => {
             const el = document.getElementById(id);
             if (!el) return;
             let start = 0;
             const step = target / 30;
+            if (target === 0) { el.textContent = prefix + '0'; return; }
             const timer = setInterval(() => {
                 start += step;
                 if (start >= target) {
@@ -171,8 +293,13 @@ export const initStatisticsCharts = (originalData, routes) => {
             }, 20);
         };
 
-        animateKPI('statTotalItems', data.length);
+        // If we have a summary, use it for the big numbers to be 100% real
+        animateKPI('statTotalItems', summary ? summary.count : totalPhysicalItems);
         animateKPI('statTotalValue', totalValue, '$');
+        
+        const sheetsEl = document.getElementById('statTotalSheets');
+        if (sheetsEl) sheetsEl.textContent = formatNumber(uniqueSheets);
+
         const effText = document.getElementById('statEfficiency');
         if (effText) effText.textContent = efficiency + '%';
         const effBar = document.getElementById('statEfficiencyBar');
@@ -243,11 +370,42 @@ export const initStatisticsCharts = (originalData, routes) => {
             });
         }
 
-        // Causal Chart
+        // Type Composition (Partial vs Total)
+        const partials = data.filter(r => !String(r.productName || '').toUpperCase().includes('TOTAL'));
+        const totals = data.filter(r => String(r.productName || '').toUpperCase().includes('TOTAL'));
+        const typeCtx = document.getElementById('statsTypeChart');
+        if (typeCtx) {
+            chartInstances.type = new Chart(typeCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Parciales', 'Totales'],
+                    datasets: [{
+                        data: [partials.length, totals.length],
+                        backgroundColor: ['#6366f1', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+            const typeLeg = document.getElementById('statsTypeLegend');
+            if (typeLeg) {
+                typeLeg.innerHTML = `
+                    <div style="font-size: 12px; color: #94a3b8; font-weight: 700;"><span style="color: #6366f1;">●</span> Parciales: ${partials.length}</div>
+                    <div style="font-size: 12px; color: #94a3b8; font-weight: 700;"><span style="color: #10b981;">●</span> Totales: ${totals.length}</div>
+                `;
+            }
+        }
+
+        // Causal Chart (Now uses pre-processed clean data)
         const causalCounts = {};
-        data.forEach(r => { causalCounts[r.reason || 'Otras'] = (causalCounts[r.reason || 'Otras'] || 0) + 1; });
-        const sortedCausals = Object.entries(causalCounts).sort((a,b) => b[1] - a[1]).slice(0, 6);
-        const colors = ['#6366f1', '#00aeef', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6'];
+        data.forEach(r => { 
+            causalCounts[r.reason] = (causalCounts[r.reason] || 0) + 1; 
+        });
+        const sortedCausals = Object.entries(causalCounts).sort((a,b) => b[1] - a[1]);
+        const colors = ['#6366f1', '#00aeef', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#64748b'];
 
         const causalCtx = document.getElementById('statsCausalChart');
         if (causalCtx) {
@@ -274,7 +432,7 @@ export const initStatisticsCharts = (originalData, routes) => {
                 leg.innerHTML = sortedCausals.map((c, i) => `
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: ${colors[i%colors.length]};"></span>
-                        <div style="font-size: 11px; color: #94a3b8; font-weight: 700;">${c[0]} <span style="color: #64748b;">(${c[1]})</span></div>
+                        <div style="font-size: 11px; color: #94a3b8; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">${c[0]} <span style="color: #64748b;">(${c[1]})</span></div>
                     </div>
                 `).join('');
             }
@@ -282,21 +440,27 @@ export const initStatisticsCharts = (originalData, routes) => {
 
         // Prediction
         const predicEl = document.getElementById('statsPrediction');
-        if (predicEl) predicEl.textContent = Math.round(data.length * 1.3);
+        if (predicEl) predicEl.textContent = formatNumber(Math.round(data.length * 1.3));
     };
 
     const setupSelectors = () => {
         const monthSel = document.getElementById('statsMonthFilter');
         const causalSel = document.getElementById('statsCausalFilter');
 
-        // Populate Causal Filter with all unique causes from data
+        // Populate Causal Filter with already cleaned data
         if (causalSel) {
-            const uniqueCausals = [...new Set(currentData.map(r => r.reason))].filter(Boolean).sort();
+            const uniqueCausals = [...new Set(currentData.map(r => r.reason))].sort();
+            
             causalSel.innerHTML = '<option value="all">Todas las causales</option>' + 
                 uniqueCausals.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            causalSel.value = filteringCausal; // Keep the current causal filter selection
         }
 
-        if (monthSel) monthSel.onchange = (e) => { filteringMonth = e.target.value; runAnalytics(); };
+        if (monthSel) monthSel.onchange = (e) => { 
+            filteringMonth = e.target.value; 
+            loadFullMonthData(filteringMonth); 
+        };
         if (causalSel) causalSel.onchange = (e) => { filteringCausal = e.target.value; runAnalytics(); };
     };
 
@@ -304,7 +468,18 @@ export const initStatisticsCharts = (originalData, routes) => {
         if (typeof Chart === 'undefined') return;
         
         setupSelectors();
-        if (currentData.length > 0) runAnalytics();
+
+        // Automatically load full data for the current month on start
+        const now = new Date();
+        const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const monthSel = document.getElementById('statsMonthFilter');
+        if (monthSel) {
+            monthSel.value = currentMonthStr;
+            filteringMonth = currentMonthStr;
+            loadFullMonthData(currentMonthStr);
+        } else if (currentData.length > 0) {
+            runAnalytics();
+        }
 
         const demoBtn = document.getElementById('activateDemoBtn');
         if (demoBtn) {
@@ -321,6 +496,7 @@ export const initStatisticsCharts = (originalData, routes) => {
                         total: 20000 + Math.random() * 150000,
                         reason: reasons[Math.floor(Math.random() * reasons.length)],
                         auxiliarName: aus[Math.floor(Math.random() * aus.length)],
+                        productName: Math.random() > 0.3 ? "Producto X" : "DEVOLUCIÓN TOTAL",
                         verified: Math.random() > 0.4
                     });
                 }
