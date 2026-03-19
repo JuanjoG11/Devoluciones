@@ -138,7 +138,7 @@ export const initProductos = (user, db, formatPrice, Alert) => {
                 </table>
             </div>
             <style>
-                .action-btn-new {
+                .action-btn-new {g
                     background: #f1f5f9;
                     color: #64748b;
                     border: none;
