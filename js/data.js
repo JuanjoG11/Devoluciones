@@ -734,7 +734,9 @@ export const db = {
 
         console.log(`[getReturnsSummary] Fetched ${allData.length} raw rows, ${uniqueData.length} unique after dedup`);
         const totalSum = uniqueData.reduce((acc, curr) => acc + (curr.total || 0), 0);
-        return { count: uniqueData.length, total: totalSum, totalRawCount: allData.length };
+        // Compute unique sheets (planillas) from ALL paginated data — not just the first 1000
+        const uniqueSheets = new Set(uniqueData.map(r => r.sheet || r.invoice)).size;
+        return { count: uniqueData.length, total: totalSum, totalRawCount: allData.length, uniqueSheets };
     },
 
     async getAvailableMonths(organization = null) {

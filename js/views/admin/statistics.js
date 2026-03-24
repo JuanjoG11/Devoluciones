@@ -280,6 +280,8 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         const verifiedCount = data.filter(r => r.verified).length;
         const efficiency = data.length > 0 ? Math.round((verifiedCount / data.length) * 100) : 0;
         const uniqueSheets = new Set(data.map(r => r.sheet || r.invoice)).size;
+        // Use paginated summary for sheets count when no causal filter (same logic as count/total)
+        const totalSheets = (s && s.uniqueSheets && filteringCausal === 'all') ? s.uniqueSheets : uniqueSheets;
 
         const animateKPI = (id, target, prefix = '') => {
             const el = document.getElementById(id);
@@ -303,7 +305,7 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         animateKPI('statTotalValue', totalValue, '$');
         
         const sheetsEl = document.getElementById('statTotalSheets');
-        if (sheetsEl) sheetsEl.textContent = formatNumber(uniqueSheets);
+        if (sheetsEl) sheetsEl.textContent = formatNumber(totalSheets);
 
         const effText = document.getElementById('statEfficiency');
         if (effText) effText.textContent = efficiency + '%';
