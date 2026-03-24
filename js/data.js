@@ -667,7 +667,8 @@ export const db = {
             .select('*, routes!inner(username, user_name)')
             .order('created_at', { ascending: false });
 
-        this._applyReturnFilters(query, organization, filters);
+        // IMPORTANT: _applyReturnFilters returns a NEW query object (Supabase builder is immutable)
+        query = this._applyReturnFilters(query, organization, filters);
 
         const { data, error } = await query.range(offset, offset + limit - 1);
         if (error) {
@@ -688,24 +689,41 @@ export const db = {
     },
 
     async getReturnsSummary(organization = null, filters = {}) {
-        // Fetch more columns to allow deduplication (same as history.js)
-        let query = sb.from('return_items')
-            .select('invoice, sheet, product_code, product_name, quantity, total, created_at, routes!inner(username)', { count: 'exact' });
+        // Paginate to bypass the 1000-row PostgREST default limit
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let page = 0;
+        let fetchMore = true;
 
-        this._applyReturnFilters(query, organization, filters);
+        while (fetchMore) {
+            let query = sb.from('return_items')
+                .select('invoice, sheet, product_code, product_name, quantity, total, created_at, routes!inner(username)');
 
-        // Fetch enough to be reasonably sure we get everything for the period
-        // Increased to 6000 to avoid the 1000/4000 cap that caused discrepancies
-        const { data, count, error } = await query.limit(6000);
-        
-        if (error) {
-            console.error("Error fetching returns summary:", error);
-            return { count: 0, total: 0 };
+            // IMPORTANT: must use the returned query (Supabase builder is immutable)
+            query = this._applyReturnFilters(query, organization, filters);
+
+            const { data, error } = await query
+                .order('created_at', { ascending: false })
+                .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+            if (error) {
+                console.error("Error fetching returns summary page", page, ":", error);
+                break;
+            }
+
+            allData = allData.concat(data || []);
+
+            // If we got fewer than PAGE_SIZE, we've reached the end
+            if (!data || data.length < PAGE_SIZE) {
+                fetchMore = false;
+            } else {
+                page++;
+            }
         }
 
         // Apply same deduplication logic as History and Reports
         const seenItems = new Set();
-        const uniqueData = (data || []).filter(r => {
+        const uniqueData = allData.filter(r => {
             const timeKey = r.created_at ? r.created_at.substring(0, 16) : 'no-time';
             // IMPORTANT: Key must be identical across data.js, history.js and statistics.js
             const key = `${r.invoice}-${r.sheet}-${r.product_code || r.product_name}-${r.quantity}-${r.total}-${timeKey}`;
@@ -714,41 +732,45 @@ export const db = {
             return true;
         });
 
+        console.log(`[getReturnsSummary] Fetched ${allData.length} raw rows, ${uniqueData.length} unique after dedup`);
         const totalSum = uniqueData.reduce((acc, curr) => acc + (curr.total || 0), 0);
-        return { count: uniqueData.length, total: totalSum, totalRawCount: count };
+        return { count: uniqueData.length, total: totalSum, totalRawCount: allData.length };
     },
 
     _applyReturnFilters(query, organization, filters) {
+        // CRITICAL: Supabase query builder is IMMUTABLE - each method returns a NEW object.
+        // Always chain from the returned value, never call on the same variable.
+        
         // 1. Organization Filter
         if (organization) {
             const tymUsernames = TYM_AUX_LIST.map(u => String(u.username).trim());
             if (organization === 'TYM') {
-                query.in('routes.username', tymUsernames);
+                query = query.in('routes.username', tymUsernames);
             } else {
-                query.not('routes.username', 'in', tymUsernames);
+                query = query.not('routes.username', 'in', tymUsernames);
             }
         }
 
         // 2. Advanced Filters (Server-side)
         if (filters.userId) {
-            query.eq('routes.username', filters.userId);
+            query = query.eq('routes.username', filters.userId);
         }
         if (filters.reason) {
-            query.eq('reason', filters.reason);
+            query = query.eq('reason', filters.reason);
         }
         if (filters.dateFrom) {
-            query.gte('created_at', filters.dateFrom);
+            query = query.gte('created_at', filters.dateFrom);
         }
         if (filters.dateTo) {
-            query.lte('created_at', filters.dateTo + 'T23:59:59');
+            query = query.lte('created_at', filters.dateTo + 'T23:59:59');
         }
         if (filters.search) {
             const s = `%${filters.search}%`;
-            query.or(`invoice.ilike.${s},sheet.ilike.${s},product_name.ilike.${s},product_code.ilike.${s}`);
+            query = query.or(`invoice.ilike.${s},sheet.ilike.${s},product_name.ilike.${s},product_code.ilike.${s}`);
         }
         if (filters.product) {
             const p = `%${filters.product}%`;
-            query.or(`product_name.ilike.${p},product_code.ilike.${p}`);
+            query = query.or(`product_name.ilike.${p},product_code.ilike.${p}`);
         }
         return query;
     },

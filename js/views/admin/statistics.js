@@ -45,8 +45,8 @@ export const renderStatistics = (returns, routes, stats) => {
             <div class="spinner" style="margin: 0 auto; border-color: rgba(255,255,255,0.1); border-top-color: #6366f1;"></div>
         </div>
 
-        ${isDataEmpty ? `
-            <div id="statsEmpty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; text-align: center; background: rgba(255,255,255,0.02); border-radius: 40px; border: 2px dashed rgba(255,255,255,0.05);">
+        <!-- Initially hide empty state; it will appear only if no data loads -->
+        <div id="statsEmpty" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; text-align: center; background: rgba(255,255,255,0.02); border-radius: 40px; border: 2px dashed rgba(255,255,255,0.05);">
                 <div style="width: 100px; height: 100px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
                     <span class="material-icons-round" style="font-size: 50px; color: #6366f1;">bar_chart</span>
                 </div>
@@ -54,9 +54,8 @@ export const renderStatistics = (returns, routes, stats) => {
                 <p style="color: #64748b; max-width: 500px; margin-bottom: 32px; font-size: 16px; line-height: 1.6;">No hemos encontrado datos suficientes para este periodo. Activa el modo demostración para previsualizar las herramientas de análisis.</p>
                 <button id="activateDemoBtn" style="background: linear-gradient(135deg, #00aeef, #6366f1); color: white; padding: 18px 45px; border-radius: 20px; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); font-size: 16px; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">CARGAR DATOS DE MUESTRA</button>
             </div>
-        ` : ''}
 
-        <div id="statsDashboard" style="${isDataEmpty ? 'display: none;' : ''}">
+        <div id="statsDashboard">
             <!-- Top Section: KPIs -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
                 <div class="kpi-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.02) 100%); padding: 30px; border-radius: 24px; border: 1px solid rgba(99, 102, 241, 0.2); backdrop-filter: blur(10px);">
@@ -137,10 +136,10 @@ export const renderStatistics = (returns, routes, stats) => {
 
 let chartInstances = {};
 
-export const initStatisticsCharts = (originalData, routes) => {
+export const initStatisticsCharts = (originalData, routes, organization = null) => {
     let filteringMonth = 'all';
     let filteringCausal = 'all';
-    let org = originalData.length > 0 && originalData[0].organization ? originalData[0].organization : null;
+    const org = organization;  // Use directly from caller (admin user's org)
     let lastSummary = null;
 
     const mainReasons = [
@@ -213,6 +212,12 @@ export const initStatisticsCharts = (originalData, routes) => {
             
             if (loader) loader.style.display = 'none';
             if (dashboard) dashboard.style.opacity = '1';
+
+            // Show/hide empty state based on whether we actually got data
+            const emptyEl = document.getElementById('statsEmpty');
+            const hasFreshData = currentData.length > 0;
+            if (emptyEl) emptyEl.style.display = hasFreshData ? 'none' : 'flex';
+            if (dashboard) dashboard.style.display = hasFreshData ? 'block' : 'none';
             
             // Re-populate months dropdown if new months are found in full data
             updateMonthsDropdown();

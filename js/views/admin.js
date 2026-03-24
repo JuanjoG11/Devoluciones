@@ -352,7 +352,7 @@ export const renderAdminDashboard = (container, user) => {
                 break;
             case 'estadisticas':
                 contentArea.innerHTML = renderStatistics(cache.returns, cache.routes, cache.stats);
-                initStatisticsCharts(cache.returns, cache.routes);
+                initStatisticsCharts(cache.returns, cache.routes, user.organization || 'TAT');
                 break;
             case 'historial':
                 contentArea.innerHTML = renderHistorial(cache);
