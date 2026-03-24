@@ -201,14 +201,16 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         }
         
         try {
-            // Parallel fetch for speed: Details (for charts) and Summary (total truth)
-            const [fullData, summary] = await Promise.all([
-                db.getReturns(6000, 0, org, filters),
-                db.getReturnsSummary(org, filters)
-            ]);
+            // Only fetch details. getReturns now handles full paginated data, so we don't need a separate summary call!
+            const fullData = await db.getReturns(6000, 0, org, filters);
             
+            // cleanData perfectly deduplicates data
             currentData = cleanData(fullData || []);
-            lastSummary = summary;
+            lastSummary = {
+                count: currentData.length,
+                total: currentData.reduce((sum, r) => sum + (r.total || 0), 0),
+                uniqueSheets: new Set(currentData.map(r => r.sheet || r.invoice)).size
+            };
             
             if (loader) loader.style.display = 'none';
             if (dashboard) dashboard.style.opacity = '1';
@@ -476,10 +478,10 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         
         setupSelectors();
 
-        // Step 1: Load all available historical months from DB (lightweight query)
         const monthSel = document.getElementById('statsMonthFilter');
-        try {
-            const availableMonths = await db.getAvailableMonths(org);
+        
+        // Asynchronous non-blocking fetch for historical months
+        db.getAvailableMonths(org).then(availableMonths => {
             if (monthSel && availableMonths.length > 0) {
                 const currentVal = monthSel.value;
                 const existingOptions = new Set(Array.from(monthSel.options).map(o => o.value));
@@ -500,12 +502,13 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
                     .sort((a, b) => b.value.localeCompare(a.value));
                 monthSel.innerHTML = '<option value="all">Histórico Total</option>' +
                     allOptions.map(o => `<option value="${o.value}">${o.value}</option>`).join('');
+                
+                // Keep the selected value
+                monthSel.value = currentVal;
             }
-        } catch(e) {
-            console.warn('[Stats] Could not load historical months:', e);
-        }
+        }).catch(e => console.warn('[Stats] Could not load historical months:', e));
 
-        // Step 2: Auto-load current month data
+        // Auto-load current month data IMMEDIATELY, don't wait for historical months!
         const now = new Date();
         const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         if (monthSel) {
