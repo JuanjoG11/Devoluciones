@@ -741,32 +741,44 @@ export const db = {
 
     async getAvailableMonths(organization = null) {
         try {
-            // Lightweight query: only created_at field, no joins needed for months
-            // Fetch up to 5000 rows just to extract unique months
-            let query = sb.from('return_items')
-                .select('created_at, routes!inner(username)')
-                .order('created_at', { ascending: false })
-                .limit(5000);
+            // Paginate through all records to find months across the full history
+            // Very lightweight query: only created_at field
+            const PAGE_SIZE = 1000;
+            const allMonths = new Set();
+            let page = 0;
+            let fetchMore = true;
+            const tymUsernames = organization ? TYM_AUX_LIST.map(u => String(u.username).trim()) : null;
 
-            if (organization) {
-                const tymUsernames = TYM_AUX_LIST.map(u => String(u.username).trim());
-                if (organization === 'TYM') {
-                    query = query.in('routes.username', tymUsernames);
+            while (fetchMore) {
+                let query = sb.from('return_items')
+                    .select('created_at, routes!inner(username)')
+                    .order('created_at', { ascending: false })
+                    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+                if (organization && tymUsernames) {
+                    if (organization === 'TYM') {
+                        query = query.in('routes.username', tymUsernames);
+                    } else {
+                        query = query.not('routes.username', 'in', tymUsernames);
+                    }
+                }
+
+                const { data, error } = await query;
+                if (error || !data) break;
+
+                data.forEach(r => {
+                    const d = new Date(r.created_at);
+                    allMonths.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                });
+
+                if (data.length < PAGE_SIZE) {
+                    fetchMore = false;
                 } else {
-                    query = query.not('routes.username', 'in', tymUsernames);
+                    page++;
                 }
             }
 
-            const { data, error } = await query;
-            if (error || !data) return [];
-
-            // Extract unique YYYY-MM strings
-            const months = [...new Set(data.map(r => {
-                const d = new Date(r.created_at);
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            }))].sort().reverse();
-
-            return months;
+            return [...allMonths].sort().reverse();
         } catch (e) {
             console.error('[getAvailableMonths] Error:', e);
             return [];
