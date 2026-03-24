@@ -663,20 +663,37 @@ export const db = {
     },
 
     async getReturns(limit = 100, offset = 0, organization = null, filters = {}) {
-        let query = sb.from('return_items')
-            .select('*, routes!inner(username, user_name)')
-            .order('created_at', { ascending: false });
+        let allData = [];
+        let fetched = 0;
+        let currentOffset = offset;
+        const PAGE_SIZE = 1000;
 
-        // IMPORTANT: _applyReturnFilters returns a NEW query object (Supabase builder is immutable)
-        query = this._applyReturnFilters(query, organization, filters);
+        while (fetched < limit) {
+            const fetchSize = Math.min(PAGE_SIZE, limit - fetched);
+            let query = sb.from('return_items')
+                .select('*, routes!inner(username, user_name)')
+                .order('created_at', { ascending: false });
 
-        const { data, error } = await query.range(offset, offset + limit - 1);
-        if (error) {
-            console.error("Error fetching returns:", error);
-            return [];
+            // IMPORTANT: _applyReturnFilters returns a NEW query object (Supabase builder is immutable)
+            query = this._applyReturnFilters(query, organization, filters);
+
+            const { data, error } = await query.range(currentOffset, currentOffset + fetchSize - 1);
+            if (error) {
+                console.error("Error fetching returns:", error);
+                break;
+            }
+
+            allData = allData.concat(data);
+            fetched += data.length;
+            currentOffset += data.length;
+
+            // If we got fewer results than requested, history is exhausted
+            if (data.length < fetchSize) {
+                break;
+            }
         }
 
-        return data.map(r => ({
+        return allData.map(r => ({
             id: r.id, routeId: r.route_id, invoice: r.invoice, sheet: r.sheet,
             code: r.product_code, name: r.product_name, productName: r.product_name,
             quantity: r.quantity, total: r.total, reason: r.reason,
