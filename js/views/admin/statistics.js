@@ -469,15 +469,43 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         if (causalSel) causalSel.onchange = (e) => { filteringCausal = e.target.value; runAnalytics(); };
     };
 
-    setTimeout(() => {
+    setTimeout(async () => {
         if (typeof Chart === 'undefined') return;
         
         setupSelectors();
 
-        // Automatically load full data for the current month on start
+        // Step 1: Load all available historical months from DB (lightweight query)
+        const monthSel = document.getElementById('statsMonthFilter');
+        try {
+            const availableMonths = await db.getAvailableMonths(org);
+            if (monthSel && availableMonths.length > 0) {
+                const currentVal = monthSel.value;
+                const existingOptions = new Set(Array.from(monthSel.options).map(o => o.value));
+                
+                // Add months not already in dropdown
+                availableMonths.forEach(m => {
+                    if (!existingOptions.has(m)) {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        monthSel.appendChild(opt);
+                    }
+                });
+
+                // Sort options: "Histórico Total" first, then months desc
+                const allOptions = Array.from(monthSel.options)
+                    .filter(o => o.value !== 'all')
+                    .sort((a, b) => b.value.localeCompare(a.value));
+                monthSel.innerHTML = '<option value="all">Histórico Total</option>' +
+                    allOptions.map(o => `<option value="${o.value}">${o.value}</option>`).join('');
+            }
+        } catch(e) {
+            console.warn('[Stats] Could not load historical months:', e);
+        }
+
+        // Step 2: Auto-load current month data
         const now = new Date();
         const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const monthSel = document.getElementById('statsMonthFilter');
         if (monthSel) {
             monthSel.value = currentMonthStr;
             filteringMonth = currentMonthStr;
