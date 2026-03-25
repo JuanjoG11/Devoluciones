@@ -156,7 +156,7 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
             // Case-sensitive deduplication to match data.js/history.js
             const timeKey = r.timestamp ? String(r.timestamp).substring(0, 16) : 'no-time';
             const keyCol = (r.product_code || r.product_name) ? (r.product_code || r.product_name) : (r.code || r.productName);
-            const key = `${r.invoice}-${r.sheet}-${keyCol}-${r.quantity}-${r.total}-${timeKey}`;
+            const key = `${r.invoice}-${r.sheet}-${keyCol}-${r.quantity}-${r.total}-${!!r.isResale}-${timeKey}`;
             if (seenItems.has(key)) return false;
             seenItems.add(key);
             return true;

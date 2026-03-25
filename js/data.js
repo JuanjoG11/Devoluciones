@@ -108,7 +108,8 @@ const TYM_AUX_LIST = [
     { username: '1053837988', name: 'DANIEL RENDON' },
     { username: '1038926903', name: 'DIORLAN FLOREZ' },
     { username: '1038768016', name: 'ANDRES FELIPE RIOS' },
-    { username: '1089380738', name: 'JUANJO' }
+    { username: '1089380738', name: 'JUANJO' },
+    { username: '1123141444', name: 'CRISTIAN CAMACHO' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
 
 const TAT_AUX_LIST = [
@@ -671,7 +672,7 @@ export const db = {
         while (fetched < limit) {
             const fetchSize = Math.min(PAGE_SIZE, limit - fetched);
             let query = sb.from('return_items')
-                .select('*, routes!inner(username, user_name)')
+                .select('*, routes(username, user_name)')
                 .order('created_at', { ascending: false });
 
             // IMPORTANT: _applyReturnFilters returns a NEW query object (Supabase builder is immutable)
@@ -714,7 +715,7 @@ export const db = {
 
         while (fetchMore) {
             let query = sb.from('return_items')
-                .select('invoice, sheet, product_code, product_name, quantity, total, created_at, routes!inner(username)');
+                .select('invoice, sheet, product_code, product_name, quantity, total, created_at, resale_timestamp, is_resale, routes(username)');
 
             // IMPORTANT: must use the returned query (Supabase builder is immutable)
             query = this._applyReturnFilters(query, organization, filters);
@@ -743,7 +744,7 @@ export const db = {
         const uniqueData = allData.filter(r => {
             const timeKey = r.created_at ? r.created_at.substring(0, 16) : 'no-time';
             // IMPORTANT: Key must be identical across data.js, history.js and statistics.js
-            const key = `${r.invoice}-${r.sheet}-${r.product_code || r.product_name}-${r.quantity}-${r.total}-${timeKey}`;
+            const key = `${r.invoice}-${r.sheet}-${r.product_code || r.product_name}-${r.quantity}-${r.total}-${!!r.is_resale}-${timeKey}`;
             if (seenItems.has(key)) return false;
             seenItems.add(key);
             return true;
@@ -824,10 +825,11 @@ export const db = {
             query = query.eq('reason', filters.reason);
         }
         if (filters.dateFrom) {
-            query = query.gte('created_at', filters.dateFrom);
-        }
-        if (filters.dateTo) {
-            query = query.lte('created_at', filters.dateTo + 'T23:59:59');
+            const dFrom = filters.dateFrom;
+            const dTo = (filters.dateTo || filters.dateFrom) + 'T23:59:59';
+            // Search in both creation date and resale date (if resold)
+            query = query.or(`created_at.gte.${dFrom},and(is_resale.eq.true,resale_timestamp.gte.${dFrom})`);
+            query = query.or(`created_at.lte.${dTo},and(is_resale.eq.true,resale_timestamp.lte.${dTo})`);
         }
         if (filters.search) {
             const s = `%${filters.search}%`;
@@ -1318,7 +1320,7 @@ export const db = {
 
     async getResoldReturns(organization = null) {
         let query = sb.from('return_items')
-            .select('*, routes!inner(username, user_name)')
+            .select('*, routes(username, user_name)')
             .eq('is_resale', true)
             .order('resale_timestamp', { ascending: false });
 

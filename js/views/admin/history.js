@@ -98,7 +98,7 @@ export const initHistorial = (cache, org) => {
         filteredReturns = filteredReturns.filter(r => {
             // Use a robust key: invoice + sheet + product (code or name) + qty + total + approx time
             const timeKey = r.timestamp ? r.timestamp.substring(0, 16) : 'no-time';
-            const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${timeKey}`;
+            const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${r.isResale}-${timeKey}`;
             if (seenItems.has(key)) return false;
             seenItems.add(key);
             return true;
@@ -179,9 +179,19 @@ export const initHistorial = (cache, org) => {
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700;">${r.invoice || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px;">${r.sheet || '-'}</td>
                                 <td style="padding: 12px; font-size: 12px; font-weight: 700; color: var(--primary-color);">${r.code || '-'}</td>
-                                <td style="padding: 12px; font-size: 12px;">${r.productName || '-'} ${r.size ? `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">Talla ${r.size}</span>` : ''}</td>
+                                <td style="padding: 12px; font-size: 12px; min-width: 200px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                        <span style="font-weight: 600;">${r.productName || '-'}</span>
+                                        ${r.isResale ? `<span style="background: var(--success-color); color: white; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; box-shadow: 0 2px 4px rgba(34,197,94,0.2);">REVENTA</span>` : ''}
+                                    </div>
+                                    <div style="margin-top: 4px; display: flex; gap: 4px;">
+                                        ${r.size ? `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">Talla ${r.size}</span>` : ''}
+                                    </div>
+                                </td>
                                 <td style="padding: 12px; font-size: 12px; text-align: center;">${r.quantity}</td>
-                                <td style="padding: 12px; font-size: 11px; color: #64748b;">${r.reason}</td>
+                                <td style="padding: 12px; font-size: 11px; color: #64748b;">
+                                    ${r.isResale ? `<div style="color: var(--success-color); font-weight: 800; font-size: 12px;">NUEVO CLIENTE: ${r.resaleCustomerCode}</div>` : r.reason}
+                                </td>
                                 <td style="padding: 12px; font-size: 13px; font-weight: 700; text-align: right;">${formatPrice(r.total)}</td>
                                 <td style="padding: 12px; text-align: center;">
                                     ${r.evidence ? `<button class="view-photo-btn" data-photo="${r.evidence}" style="background: rgba(0,174,239,0.1); border: none; color: var(--accent-color); padding: 8px; border-radius: 8px; cursor: pointer;"><span class="material-icons-round" style="font-size: 18px;">image</span></button>` : '-'}

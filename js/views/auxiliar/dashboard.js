@@ -94,7 +94,7 @@ export const renderDashboard = (container, user, state, returns, currentRoute, r
                                  data-id="${r.id}" 
                                  data-resold="${isResold}"
                                  data-is-total="${isTotal}"
-                                 style="padding: 12px; border-radius: 12px; cursor: ${isResold || (isSelecting && isTotal) ? 'default' : 'pointer'}; border: 2px solid ${isSelected ? 'var(--secondary-accent)' : 'transparent'}; transition: all 0.2s ease; opacity: ${isResold || (isSelecting && isTotal) ? '0.75' : '1'}; background: ${isResold ? 'rgba(34, 197, 94, 0.03)' : 'white'};">
+                                 style="padding: 12px; border-radius: 12px; cursor: ${isResold || (isSelecting && isTotal) ? 'default' : 'pointer'}; border: 2px solid ${isSelected ? 'var(--secondary-accent)' : 'transparent'}; border-left: ${isResold ? '8px solid var(--success-color)' : '2px solid transparent'}; transition: all 0.2s ease; opacity: ${isResold || (isSelecting && isTotal) ? '0.75' : '1'}; background: ${isResold ? 'linear-gradient(to right, rgba(34, 197, 94, 0.08), white)' : 'white'};">
                                 ${isSelecting && !isResold ? `
                                     <div style="margin-right: 12px; display: flex; align-items: center;">
                                         <span class="material-icons-round" style="color: ${isTotal ? '#f1f5f9' : (isSelected ? 'var(--secondary-accent)' : '#ddd')}; font-size: 24px;">
