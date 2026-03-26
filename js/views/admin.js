@@ -66,7 +66,7 @@ export const renderAdminDashboard = (container, user) => {
                 const seenItems = new Set();
                 returns = (returns || []).filter(r => {
                     const timeKey = r.timestamp ? String(r.timestamp).substring(0, 16) : 'no-time';
-                    const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${timeKey}`;
+                    const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${r.isResale}-${timeKey}`;
                     if (seenItems.has(key)) return false;
                     seenItems.add(key);
                     return true;
@@ -84,11 +84,11 @@ export const renderAdminDashboard = (container, user) => {
                     }
                 });
 
-                // For returns, we strictly use the local business day (en-CA -> YYYY-MM-DD)
+                // For returns, we count both original returns (created_at) and resales handled today
                 const todaysReturns = (returns || []).filter(r => {
-                    if (!r.timestamp) return false;
-                    const itemDate = getLocalDateISO(r.timestamp);
-                    return itemDate === todayLocal;
+                    const returnDate = r.timestamp ? getLocalDateISO(r.timestamp) : null;
+                    const resaleDate = r.resaleTimestamp ? getLocalDateISO(r.resaleTimestamp) : null;
+                    return returnDate === todayLocal || (r.isResale && resaleDate === todayLocal);
                 });
 
                 const stats = {
@@ -344,8 +344,9 @@ export const renderAdminDashboard = (container, user) => {
         switch (activeSection) {
             case 'dashboard':
                 const todaysReturns = cache.returns.filter(r => {
-                    if (!r.timestamp) return false;
-                    return getLocalDateISO(r.timestamp) === todayStr;
+                    const returnDate = r.timestamp ? getLocalDateISO(r.timestamp) : null;
+                    const resaleDate = r.resaleTimestamp ? getLocalDateISO(r.resaleTimestamp) : null;
+                    return returnDate === todayStr || (r.isResale && resaleDate === todayStr);
                 });
                 contentArea.innerHTML = renderDashboard(activeRoutes, todaysReturns, cache.routes, cache.users, cache.stats, cache.hasMoreReturns, user);
                 initDashboardCharts(todaysReturns, cache.routes);

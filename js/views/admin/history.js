@@ -171,7 +171,9 @@ export const initHistorial = (cache, org) => {
                     <tbody>
                         ${filteredReturns.map(r => `
                             <tr style="border-bottom: 1px solid #e2e8f0; background: ${r.verified ? 'rgba(34, 197, 94, 0.03)' : 'transparent'};">
-                                <td style="padding: 12px; font-size: 11px; white-space: nowrap;">${formatDateTime(r.timestamp)}</td>
+                                <td style="padding: 12px; font-size: 11px; white-space: nowrap;">
+                                    ${(r.isResale && r.resaleTimestamp) ? '<span style="color: var(--success-color); font-weight: 800;">(REVENTA)</span><br/>' + formatDateTime(r.resaleTimestamp) : formatDateTime(r.timestamp)}
+                                </td>
                                 <td style="padding: 12px; text-align: center;">
                                     <input type="checkbox" class="verify-return-check" data-id="${r.id}" ${r.verified ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--success-color);">
                                 </td>

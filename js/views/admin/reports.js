@@ -5,10 +5,10 @@ export const generatePrintReport = async (routes, id) => {
 
     // FETCH ALL RETURNS FOR THIS USER ON THIS DAY
     // This ensures that even if there are multiple routes, the PDF shows EVERYTHING (matching History)
-    const returns = await db.getReturns(500, 0, null, {
-        userId: route.username,
-        dateFrom: route.date,
-        dateTo: route.date
+    // FORCE ISOLATION: Use the specific routeId ONLY
+    // This removes data from other days/routes for the same user, preventing "10+ pages" reports.
+    const returns = await db.getReturns(1000, 0, null, {
+        routeId: route.id
     });
 
     // Unified retrieval: returns are already joined and fetched by routeId in db.getRouteReturns
@@ -18,7 +18,7 @@ export const generatePrintReport = async (routes, id) => {
     const uniqueReturns = returns.filter(r => {
         // Use a robust key: invoice + sheet + product (code or name) + qty + total + approx time
         const timeKey = r.timestamp ? r.timestamp.substring(0, 16) : 'no-time';
-        const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${timeKey}`;
+        const key = `${r.invoice}-${r.sheet}-${r.code || r.productName}-${r.quantity}-${r.total}-${r.isResale}-${timeKey}`;
         if (seenItems.has(key)) return false;
         seenItems.add(key);
         return true;
@@ -111,12 +111,22 @@ export const generatePrintReport = async (routes, id) => {
                 <tbody>
                     ${partialReturns.map(r => `
                         <tr>
-                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '—'}</td>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">
+                                ${r.isResale ? '<div style="color: #16a34a; font-weight: 800;">' : ''}
+                                ${ (r.isResale && r.resaleTimestamp) 
+                                    ? new Date(r.resaleTimestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) 
+                                    : (r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '—') }
+                                ${r.isResale ? '</div>' : ''}
+                            </td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 10pt; font-weight: 900; color: #15803d;">${(r.verified || route.verified) ? '✓' : ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${(r.code || 'N/A')} - ${(r.productName || r.name || 'N/A').toUpperCase()}</td>
-                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.reason || ''}</td>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">
+                                ${r.isResale ? '<span style="color: #16a34a; font-weight: 950; border: 1px solid #16a34a; padding: 1px 3px; border-radius: 4px; margin-right: 4px; font-size: 6pt;">REVENTA</span>' : ''}
+                                ${r.reason || ''}
+                                ${r.resaleCustomerCode ? `<br/><span style="font-size: 5pt; color: #16a34a;">Cliente: ${r.resaleCustomerCode}</span>` : ''}
+                            </td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 700;">${r.quantity}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
                         </tr>
@@ -151,11 +161,21 @@ export const generatePrintReport = async (routes, id) => {
                 <tbody>
                     ${totalReturns.map(r => `
                         <tr>
-                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '—'}</td>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">
+                                ${r.isResale ? '<div style="color: #16a34a; font-weight: 800;">' : ''}
+                                ${ (r.isResale && r.resaleTimestamp) 
+                                    ? new Date(r.resaleTimestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) 
+                                    : (r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '—') }
+                                ${r.isResale ? '</div>' : ''}
+                            </td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 10pt; font-weight: 900; color: #15803d;">${(r.verified || route.verified) ? '✓' : ''}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt; font-weight: 700;">${r.invoice}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.sheet || 'N/A'}</td>
-                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">${r.reason ? r.reason.toUpperCase() : 'DEVOLUCIÓN TOTAL'}</td>
+                            <td style="border: 1px solid black; padding: 6px 4px; font-size: 7pt;">
+                                ${r.isResale ? '<span style="color: #16a34a; font-weight: 950; border: 1px solid #16a34a; padding: 1px 3px; border-radius: 4px; margin-right: 4px; font-size: 6pt;">REVENTA</span>' : ''}
+                                ${r.reason || 'DEVOLUCIÓN TOTAL'}
+                                ${r.resaleCustomerCode ? `<br/><span style="font-size: 5pt; color: #16a34a;">Cliente: ${r.resaleCustomerCode}</span>` : ''}
+                            </td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: center; font-size: 7pt; font-weight: 700;">${r.quantity}</td>
                             <td style="border: 1px solid black; padding: 6px 4px; text-align: right; font-size: 7pt; font-weight: 700;">$ ${(r.total || 0).toLocaleString()}</td>
                         </tr>

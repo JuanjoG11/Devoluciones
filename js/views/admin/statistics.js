@@ -238,7 +238,8 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         if (!monthSel) return;
         
         const foundMonths = [...new Set(currentData.map(r => {
-            const date = new Date(r.timestamp);
+            const opDate = (r.isResale && r.resaleTimestamp) ? r.resaleTimestamp : r.timestamp;
+            const date = new Date(opDate);
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         }))].sort().reverse();
         
@@ -350,8 +351,12 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
         }
 
         // Trend Chart
-        const dates = [...new Set(data.map(r => getLocalDateISO(r.timestamp)))].sort();
-        const dailyCounts = dates.map(d => data.filter(r => getLocalDateISO(r.timestamp) === d).length);
+        const getOpDateStr = (r) => {
+            const date = (r.isResale && r.resaleTimestamp) ? r.resaleTimestamp : r.timestamp;
+            return getLocalDateISO(date);
+        };
+        const dates = [...new Set(data.map(r => getOpDateStr(r)))].sort();
+        const dailyCounts = dates.map(d => data.filter(r => getOpDateStr(r) === d).length);
         
         const trendCtx = document.getElementById('statsTrendChart');
         if (trendCtx) {

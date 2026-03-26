@@ -700,6 +700,7 @@ export const db = {
             quantity: r.quantity, total: r.total, reason: r.reason,
             evidence: r.evidence, timestamp: r.created_at,
             isResale: !!r.is_resale, resaleCustomerCode: r.resale_customer_code,
+            resaleTimestamp: r.resale_timestamp,
             auxiliarName: Array.isArray(r.routes) ? r.routes[0]?.user_name : r.routes?.user_name,
             auxiliarUsername: Array.isArray(r.routes) ? r.routes[0]?.username : r.routes?.username,
             verified: !!r.verified
@@ -818,6 +819,9 @@ export const db = {
         }
 
         // 2. Advanced Filters (Server-side)
+        if (filters.routeId) {
+            query = query.eq('route_id', filters.routeId);
+        }
         if (filters.userId) {
             query = query.eq('routes.username', filters.userId);
         }
@@ -1291,7 +1295,8 @@ export const db = {
                         total: resaleItem.total,
                         is_resale: true,
                         resale_customer_code: resaleData.customerCode,
-                        resale_timestamp: resaleData.timestamp
+                        resale_timestamp: resaleData.timestamp,
+                        route_id: resaleData.routeId // Link to current route for reports/dashboard
                     };
                     delete newResaleRecord.id;
                     delete newResaleRecord.created_at;
