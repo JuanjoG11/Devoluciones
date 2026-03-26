@@ -671,8 +671,12 @@ export const db = {
 
         while (fetched < limit) {
             const fetchSize = Math.min(PAGE_SIZE, limit - fetched);
+            const selectStr = (organization || filters.userId) 
+                ? '*, routes!inner(username, user_name)' 
+                : '*, routes(username, user_name)';
+
             let query = sb.from('return_items')
-                .select('*, routes(username, user_name)')
+                .select(selectStr)
                 .order('created_at', { ascending: false });
 
             // IMPORTANT: _applyReturnFilters returns a NEW query object (Supabase builder is immutable)
@@ -715,10 +719,10 @@ export const db = {
         let fetchMore = true;
 
         while (fetchMore) {
-            let query = sb.from('return_items')
-                .select('invoice, sheet, product_code, product_name, quantity, total, created_at, resale_timestamp, is_resale, routes(username)');
-
-            // IMPORTANT: must use the returned query (Supabase builder is immutable)
+            const selectCols = 'invoice, sheet, product_code, product_name, quantity, total, created_at, resale_timestamp, is_resale, routes(username, user_name)';
+            const selectStr = (organization || filters.userId) ? `*, routes!inner(${selectCols.split('routes(')[1]}` : selectCols;
+            
+            let query = sb.from('return_items').select(selectStr);
             query = this._applyReturnFilters(query, organization, filters);
 
             const { data, error } = await query
@@ -831,9 +835,8 @@ export const db = {
         if (filters.dateFrom) {
             const dFrom = filters.dateFrom;
             const dTo = (filters.dateTo || filters.dateFrom) + 'T23:59:59';
-            // Search in both creation date and resale date (if resold)
-            query = query.or(`created_at.gte.${dFrom},and(is_resale.eq.true,resale_timestamp.gte.${dFrom})`);
-            query = query.or(`created_at.lte.${dTo},and(is_resale.eq.true,resale_timestamp.lte.${dTo})`);
+            // Explicit range search: (Returns created in range) OR (Resales performed in range)
+            query = query.or(`and(created_at.gte.${dFrom},created_at.lte.${dTo}),and(resale_timestamp.gte.${dFrom},resale_timestamp.lte.${dTo})`);
         }
         if (filters.search) {
             const s = `%${filters.search}%`;

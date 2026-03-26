@@ -145,7 +145,8 @@ export const initStatisticsCharts = (originalData, routes, organization = null) 
     const mainReasons = [
         "Producto averiado", "Error de despacho", "Rechazo del cliente", 
         "Sin dinero", "Error de facturación", "Error de vendedor", 
-        "Faltante", "Negocio cerrado", "Fuera de ruta"
+        "Faltante", "Negocio cerrado", "Fuera de ruta",
+        "Incompleto", "No era de la ruta", "Hospitalizado"
     ];
 
     const cleanData = (rawData) => {

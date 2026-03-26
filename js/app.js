@@ -7,6 +7,7 @@ import { renderAuxiliarDashboard } from './views/auxiliar.js';
 const app = document.getElementById('app');
 
 const init = async () => {
+    console.log("%c DevolucionesApp v26 ", "background: #00aeef; color: #fff; font-weight: bold; padding: 4px; border-radius: 4px;");
     window.auth = auth;
     window.handleLogout = () => auth.logout();
 

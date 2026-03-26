@@ -60,7 +60,9 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
     return `
                                 <tr style="border-bottom: 1px solid #f1f5f9;">
                                     <td style="padding: 12px 16px; color: var(--text-light); font-size: 11px;">
-                                        ${r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                                        ${ (r.isResale && r.resaleTimestamp) 
+                                            ? new Date(r.resaleTimestamp).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
+                                            : (r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : '—') }
                                     </td>
                                     <td style="padding: 12px 16px; font-weight: 600; font-size: 12px;">${route ? route.userName : 'Desconocido'}</td>
                                     <td style="padding: 12px 16px;">
@@ -68,7 +70,10 @@ export const renderDashboard = (activeRoutes, recentReturns, routes, users, stat
                                         <small style="color: var(--text-light); font-size: 11px;">Doc: ${r.invoice}</small>
                                     </td>
                                     <td style="padding: 12px 16px;">
-                                        <span style="background: rgba(0,34,77,0.05); color: var(--text-secondary); padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">${r.reason}</span>
+                                        ${r.isResale ? `<span style="background: var(--success-color); color: white; display: inline-block; font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-bottom: 4px; box-shadow: 0 2px 4px rgba(34,197,94,0.1);">REVENTA</span><br/>` : ''}
+                                        <span style="background: rgba(0,34,77,0.05); color: var(--text-secondary); padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;">
+                                            ${r.isResale ? `NUEVO CTE: ${r.resaleCustomerCode || 'N/A'}` : r.reason}
+                                        </span>
                                     </td>
                                     <td style="padding: 12px 16px; text-align: right; font-weight: 700; font-size: 13px; color: var(--primary-color);">
                                         ${formatPrice(r.total)}

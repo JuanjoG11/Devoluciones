@@ -130,10 +130,6 @@ export const renderForm = (container, user, state, render) => {
                     <select name="reason" id="reasonSelect" class="input-field" required></select>
                 </div>
 
-                <div id="manualReasonGroup" class="input-group hidden">
-                    <label class="input-label">Especifique el motivo</label>
-                    <input type="text" id="manualReasonInput" class="input-field" placeholder="Escriba la razón..." autocomplete="off">
-                </div>
 
                 <div class="input-group">
                     <label class="input-label">Evidencia <span style="color: #ef4444; font-weight: 800;">(OBLIGATORIO)</span></label>
@@ -256,8 +252,8 @@ export const renderForm = (container, user, state, render) => {
         });
     }
 
-    const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
-    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Otro"];
+    const REASONS_PARTIAL = ["Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero", "Error de facturación", "Error de vendedor", "Faltante", "Incompleto", "No era de la ruta", "Hospitalizado", "Otro"];
+    const REASONS_TOTAL = ["Negocio cerrado", "Sin dinero", "Fuera de ruta", "Error de facturación", "Error de vendedor", "Faltante", "Incompleto", "Hospitalizado", "Otro"];
 
     function updateUIForType(type) {
         currentType = type;
@@ -356,10 +352,6 @@ export const renderForm = (container, user, state, render) => {
     typeOptions.forEach(opt => opt.addEventListener('click', () => updateUIForType(opt.dataset.value)));
 
     reasonSelect.addEventListener('change', (e) => {
-        const isOtro = e.target.value === 'Otro';
-        manualReasonGroup.classList.toggle('hidden', !isOtro);
-        manualReasonInput.required = isOtro;
-        if (!isOtro) manualReasonInput.value = '';
         saveState();
     });
 
@@ -460,7 +452,6 @@ export const renderForm = (container, user, state, render) => {
         const invoice = fd.get('invoice').trim();
         const sheet = fd.get('sheet').trim();
         let reason = fd.get('reason');
-        if (reason === 'Otro') reason = manualReasonInput.value.trim();
 
         // Validation
         if (!invoice || !sheet) return Alert.error("Factura y Planilla son obligatorias");

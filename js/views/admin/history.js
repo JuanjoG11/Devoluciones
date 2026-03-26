@@ -25,10 +25,10 @@ const PAGE_SIZE = 50;
 export const renderHistorial = (cache) => {
     const allReasons = [
         "Producto averiado", "Error de despacho", "Rechazo del cliente", "Sin dinero",
-        "Error de facturación", "Error de vendedor", "Faltante", "Otro",
-        "Negocio cerrado", "Fuera de ruta"
+        "Error de facturación", "Error de vendedor", "Faltante", "Incompleto", 
+        "No era de la ruta", "Hospitalizado", "Negocio cerrado", "Fuera de ruta", "Otro"
     ];
-    const uniqueReasons = [...new Set([...allReasons, ...cache.returns.map(r => r.reason)])].filter(Boolean).sort();
+    const uniqueReasons = allReasons.sort();
 
     // We don't apply filters here, we just return the shell. 
     // The initHistorial will take care of the first run.

@@ -1,32 +1,31 @@
-const CACHE_NAME = 'devoluciones-v25'; // Updated: Resolving 404 for logo.png and favicon
+const CACHE_NAME = 'devoluciones-v26';
 const ASSETS = [
     '/',
-    '/index.html',
-    '/css/styles.css',
-    '/css/components.css',
-    '/css/ui.css',
-    '/css/variables.css',
-    '/js/app.js',
-    '/js/data.js',
-    '/js/auth.js',
-    '/js/supabase.js',
-    '/js/seed_data.js',
-    '/js/utils/ui.js',
-    '/js/utils/formatters.js',
-    '/js/views/login.js',
-    '/js/views/admin.js',
-    '/js/views/auxiliar.js',
-    '/js/views/auxiliar/dashboard.js',
-    '/js/views/auxiliar/form.js',
-    '/js/views/auxiliar/resale.js',
-    '/js/views/admin/dashboard.js',
-    '/js/views/admin/history.js',
-    '/js/views/admin/reports.js',
-    '/js/views/admin/statistics.js',
-    '/js/views/admin/users.js',
-    '/js/views/admin/refacturacion.js',
-    '/logo-app.png',
-    '/assets/logo.png'
+    'index.html',
+    'css/styles.css',
+    'css/components.css',
+    'css/ui.css',
+    'css/variables.css',
+    'js/app.js',
+    'js/data.js',
+    'js/auth.js',
+    'js/supabase.js',
+    'js/seed_data.js',
+    'js/utils/ui.js',
+    'js/utils/formatters.js',
+    'js/views/login.js',
+    'js/views/admin.js',
+    'js/views/auxiliar.js',
+    'js/views/auxiliar/dashboard.js',
+    'js/views/auxiliar/form.js',
+    'js/views/auxiliar/resale.js',
+    'js/views/admin/dashboard.js',
+    'js/views/admin/history.js',
+    'js/views/admin/reports.js',
+    'js/views/admin/statistics.js',
+    'js/views/admin/users.js',
+    'js/views/admin/refacturacion.js',
+    'logo-app.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -36,7 +35,6 @@ self.addEventListener('install', (event) => {
             return cache.addAll(ASSETS);
         })
     );
-    // Force immediate activation
     self.skipWaiting();
 });
 
@@ -48,10 +46,9 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    // Take control of all clients immediately
     self.clients.claim();
-
-    // Notify all clients to reload
+    
+    // Broadcast reload to all clients after activation of NEW version
     self.clients.matchAll().then(clients => {
         clients.forEach(client => {
             client.postMessage({ type: 'RELOAD_PAGE' });
@@ -60,41 +57,28 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Skip external or special requests
     if (!event.request.url.startsWith('http')) return;
     if (event.request.url.includes('supabase.co')) return;
 
-    // Network-First strategy for index.html (ensure latest entry point)
-    if (event.request.mode === 'navigate' || event.request.url.includes('index.html')) {
-        event.respondWith(
-            fetch(event.request)
-                .then((response) => {
-                    return caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, response.clone());
-                        return response;
-                    });
-                })
-                .catch(() => caches.match(event.request))
-        );
-        return;
-    }
-
+    // STRATEGY: Stale-While-Revalidate for most assets
+    // This allows immediate load from cache but fetches update in background
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request).then((fetchRes) => {
-                return caches.open(CACHE_NAME).then((cache) => {
-                    if (event.request.method === 'GET' &&
-                        (event.request.url.includes('.js') ||
-                            event.request.url.includes('.css') ||
-                            event.request.url.includes('.png'))) {
-                        cache.put(event.request, fetchRes.clone());
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.match(event.request).then((cachedResponse) => {
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    // Cache the new version for next time
+                    if (event.request.method === 'GET' && networkResponse.ok) {
+                        cache.put(event.request, networkResponse.clone());
                     }
-                    return fetchRes;
+                    return networkResponse;
+                }).catch(() => {
+                    // Offline - nothing more we can do
                 });
+
+                // Return cached response immediately if available, or wait for network
+                return cachedResponse || fetchPromise;
             });
-        }).catch(() => {
-            if (event.request.mode === 'navigate') {
-                return caches.match('/index.html');
-            }
         })
     );
 });
