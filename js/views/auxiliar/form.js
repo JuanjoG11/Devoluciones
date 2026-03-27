@@ -177,8 +177,6 @@ export const renderForm = (container, user, state, render) => {
     const evidenceStatus = document.getElementById('evidenceStatus');
     const evidencePreview = document.getElementById('evidencePreview');
     const reasonSelect = document.getElementById('reasonSelect');
-    const manualReasonGroup = document.getElementById('manualReasonGroup');
-    const manualReasonInput = document.getElementById('manualReasonInput');
     const typeOptions = document.querySelectorAll('.type-option');
     const submitBtn = document.getElementById('submitBtn');
 
@@ -200,8 +198,7 @@ export const renderForm = (container, user, state, render) => {
             sheet: form.sheet.value,
             selectedProducts,
             currentType,
-            reason: reasonSelect.value,
-            manualReason: manualReasonInput.value
+            reason: reasonSelect ? reasonSelect.value : ''
         };
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     }
@@ -306,7 +303,6 @@ export const renderForm = (container, user, state, render) => {
                 reasonSelect.value = draft.reason;
                 reasonSelect.dispatchEvent(new Event('change'));
             }
-            if (draft.manualReason && manualReasonInput) manualReasonInput.value = draft.manualReason;
 
             renderProductsList();
             updateTotal();
@@ -354,8 +350,6 @@ export const renderForm = (container, user, state, render) => {
     reasonSelect.addEventListener('change', (e) => {
         saveState();
     });
-
-    manualReasonInput.oninput = saveState;
 
     productInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
