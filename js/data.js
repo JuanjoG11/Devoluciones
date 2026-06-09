@@ -102,6 +102,7 @@ const TYM_AUX_LIST = [
     { username: '9862197', name: 'GUSTAVO ADOLFO MORALES TIRADO' },
     { username: '1006296150', name: 'JHONATAN MENA GALLEGO' },
     { username: '10005257', name: 'OSCAR MAURICIO GUARUMO CLAVIJO' },
+    { username: '1064310724', name: 'JUAN JOSE CONTRERAS' },
     { username: '1089380738', name: 'JUANJO' }
 ].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
 
