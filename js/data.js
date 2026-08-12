@@ -104,10 +104,9 @@ const TYM_AUX_LIST = [
     { username: '10005257', name: 'OSCAR MAURICIO GUARUMO CLAVIJO' },
     { username: '1064310724', name: 'JUAN JOSE CONTRERAS' },
     { username: '1089380738', name: 'JUANJO' },
-    { username: '1088352440', name: 'ESTEBAN GALLEGO' }
-].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
-
-const TAT_AUX_LIST = [
+    { username: '1088352440', name: 'ESTEBAN GALLEGO' },
+    // Ex-auxiliares TAT migrados a TYM
+    { username: '10275966', name: 'LUIS FERNANDO LOPEZ MARIN' },
     { username: '1193105349', name: 'MICHAEL CONTRERAS HURTADO' },
     { username: '75071571', name: 'LUIS ALFONSO RIOS GONZALEZ' },
     { username: '1088017580', name: 'JOHN ANDRES CASTILLO GIRALDO' },
@@ -128,7 +127,9 @@ const TAT_AUX_LIST = [
     { username: '1085717552', name: 'DANIEL ANDRES OLAYA PEREZ' },
     { username: '1053849016', name: 'YHONY ALEXANDER LOPEZ LOPEZ' },
     { username: '1076350176', name: 'DANIELA CASTIBLANCO RAMIREZ' }
-].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TAT' }));
+].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TYM' }));
+
+const TAT_AUX_LIST = [].map(u => ({ ...u, password: '123', role: 'auxiliar', organization: 'TAT' }));
 
 /**
  * List of usernames (Cedulas) that belong to the Carnicos Team.

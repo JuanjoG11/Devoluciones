@@ -44,10 +44,8 @@ export const TYM_AUX_LIST = [
     { username: '1087559558', name: 'JUAN ALEJANDRO FRANCO MARIN' },
     { username: '1057304668', name: 'JUAN ESTEBAN ALZATE VASQUEZ' },
     { username: '1088308341', name: 'JUAN DAVID QUINTERO' },
-    { username: '1057758040', name: 'ALEJANDRO RAMIREZ' }
-];
-
-export const TAT_AUX_LIST = [
+    { username: '1057758040', name: 'ALEJANDRO RAMIREZ' },
+    // Ex-auxiliares TAT migrados a TYM
     { username: '1193105349', name: 'MICHAEL CONTRERAS HURTADO' },
     { username: '75071571', name: 'LUIS ALFONSO RIOS GONZALEZ' },
     { username: '1088017580', name: 'JOHN ANDRES CASTILLO GIRALDO' },
@@ -69,6 +67,8 @@ export const TAT_AUX_LIST = [
     { username: '1053849016', name: 'YHONY ALEXANDER LOPEZ LOPEZ' },
     { username: '1076350176', name: 'DANIELA CASTIBLANCO RAMIREZ' }
 ];
+
+export const TAT_AUX_LIST = [];
 
 export const TYM_USERNAMES = new Set([
     'admin_tym',
