@@ -105,6 +105,7 @@ const TYM_AUX_LIST = [
     { username: '1064310724', name: 'JUAN JOSE CONTRERAS' },
     { username: '1089380738', name: 'JUANJO' },
     { username: '1088352440', name: 'ESTEBAN GALLEGO' },
+    { username: '1004680120', name: 'VALENTINA GARCIA' },
     // Ex-auxiliares TAT migrados a TYM
     { username: '10275966', name: 'LUIS FERNANDO LOPEZ MARIN' },
     { username: '1193105349', name: 'MICHAEL CONTRERAS HURTADO' },
@@ -667,8 +668,8 @@ export const db = {
 
         while (fetched < limit) {
             const fetchSize = Math.min(PAGE_SIZE, limit - fetched);
-            const selectStr = (organization || filters.userId) 
-                ? '*, routes!inner(username, user_name)' 
+            const selectStr = (organization || filters.userId)
+                ? '*, routes!inner(username, user_name)'
                 : '*, routes(username, user_name)';
 
             let query = sb.from('return_items')
@@ -717,7 +718,7 @@ export const db = {
         while (fetchMore) {
             const selectCols = 'invoice, sheet, product_code, product_name, quantity, total, created_at, resale_timestamp, is_resale, routes(username, user_name)';
             const selectStr = (organization || filters.userId) ? `*, routes!inner(${selectCols.split('routes(')[1]}` : selectCols;
-            
+
             let query = sb.from('return_items').select(selectStr);
             query = this._applyReturnFilters(query, organization, filters);
 
@@ -807,7 +808,7 @@ export const db = {
     _applyReturnFilters(query, organization, filters) {
         // CRITICAL: Supabase query builder is IMMUTABLE - each method returns a NEW object.
         // Always chain from the returned value, never call on the same variable.
-        
+
         // 1. Organization Filter
         if (organization) {
             const tymUsernames = TYM_AUX_LIST.map(u => String(u.username).trim());
@@ -1110,8 +1111,8 @@ export const db = {
                 p.routeId === routeId &&
                 String(p.invoice || '').trim() === cleanInvoice &&
                 String(p.sheet || '').trim() === cleanSheet &&
-                (cleanProductCode 
-                    ? String(p.productCode || '').trim() === cleanProductCode 
+                (cleanProductCode
+                    ? String(p.productCode || '').trim() === cleanProductCode
                     : (!p.productCode || String(p.productCode).trim() === '')
                 )
             );
