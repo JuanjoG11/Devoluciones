@@ -106,6 +106,7 @@ const TYM_AUX_LIST = [
     { username: '1089380738', name: 'JUANJO' },
     { username: '1088352440', name: 'ESTEBAN GALLEGO' },
     { username: '1004680120', name: 'VALENTINA GARCIA' },
+    { username: '1064723579', name: 'CARLOS JIMENEZ' },
     // Ex-auxiliares TAT migrados a TYM
     { username: '10275966', name: 'LUIS FERNANDO LOPEZ MARIN' },
     { username: '1193105349', name: 'MICHAEL CONTRERAS HURTADO' },
