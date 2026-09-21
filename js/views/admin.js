@@ -371,6 +371,49 @@ export const renderAdminDashboard = (container, user) => {
                 break;
             case 'config':
                 contentArea.innerHTML = renderConfig();
+                document.getElementById('cleanup-evidences-btn')?.addEventListener('click', async () => {
+                    const btn = document.getElementById('cleanup-evidences-btn');
+                    const statusEl = document.getElementById('cleanup-status');
+
+                    const confirmed = confirm('¿Eliminar todas las fotos de evidencia con más de 2 meses? Esta acción no se puede deshacer.');
+                    if (!confirmed) return;
+
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="material-icons-round" style="font-size:18px; animation: spin 1s linear infinite;">sync</span> Limpiando...';
+                    statusEl.style.display = 'none';
+
+                    try {
+                        const result = await db.cleanupOldEvidences();
+
+                        if (result.deleted === 0 && result.failed === 0) {
+                            statusEl.style.background = '#f0fdf4';
+                            statusEl.style.color = '#166534';
+                            statusEl.style.border = '1px solid #bbf7d0';
+                            statusEl.innerHTML = '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;">check_circle</span>No había fotos antiguas para eliminar.';
+                        } else if (result.failed === 0) {
+                            statusEl.style.background = '#f0fdf4';
+                            statusEl.style.color = '#166534';
+                            statusEl.style.border = '1px solid #bbf7d0';
+                            statusEl.innerHTML = `<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;">check_circle</span>Se eliminaron <strong>${result.deleted}</strong> foto${result.deleted !== 1 ? 's' : ''} correctamente.`;
+                        } else {
+                            statusEl.style.background = '#fffbeb';
+                            statusEl.style.color = '#92400e';
+                            statusEl.style.border = '1px solid #fde68a';
+                            statusEl.innerHTML = `<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;">warning</span>Eliminadas: <strong>${result.deleted}</strong> &nbsp;|&nbsp; Con error: <strong>${result.failed}</strong>`;
+                        }
+                        statusEl.style.display = 'block';
+                    } catch (e) {
+                        statusEl.style.background = '#fef2f2';
+                        statusEl.style.color = '#991b1b';
+                        statusEl.style.border = '1px solid #fecaca';
+                        statusEl.innerHTML = '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;">error</span>Error inesperado al limpiar. Revisa la consola.';
+                        statusEl.style.display = 'block';
+                        console.error('cleanupOldEvidences error:', e);
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">delete_sweep</span> Eliminar fotos antiguas';
+                    }
+                });
                 break;
         }
         attachEventListeners();

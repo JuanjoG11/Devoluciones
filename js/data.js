@@ -107,6 +107,7 @@ const TYM_AUX_LIST = [
     { username: '1088352440', name: 'ESTEBAN GALLEGO' },
     { username: '1004680120', name: 'VALENTINA GARCIA' },
     { username: '1064723579', name: 'CARLOS JIMENEZ' },
+    { username: '1004776445', name: 'CRISTIAN MENDOZA' },
     // Ex-auxiliares TAT migrados a TYM
     { username: '10275966', name: 'LUIS FERNANDO LOPEZ MARIN' },
     { username: '1193105349', name: 'MICHAEL CONTRERAS HURTADO' },
@@ -143,7 +144,8 @@ const CARNICOS_USERNAMES = new Set([
     '1112776419', // JAMMES ALBERTO RAMIREZ NIETO
     '1098724347', // SEBASTIAN SALAZAR HENAO
     '1089601941', // FELIPE MONTES RIVERA
-    '10033035'    // CESAR AUGUSTO CASTILLO LONDOÑO
+    '10033035',   // CESAR AUGUSTO CASTILLO LONDOÑO
+    '1004776445'  // CRISTIAN MENDOZA
 ]);
 
 /**
@@ -1487,6 +1489,72 @@ export const db = {
             console.error("Error deleting product:", e);
             return false;
         }
+    },
+
+    /**
+     * Deletes evidence photos older than 2 months from the 'evidences' bucket.
+     * File names are prefixed with a Unix timestamp (ms), e.g. "1767973689127_abc.jpg",
+     * so we can determine age without any extra DB query.
+     *
+     * @returns {{ deleted: number, failed: number, errors: string[] }}
+     */
+    async cleanupOldEvidences() {
+        const BATCH_SIZE = 100; // Supabase list() max per page
+        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000; // 60 days in ms
+        const cutoff = Date.now() - TWO_MONTHS_MS;
+
+        let deleted = 0;
+        let failed = 0;
+        const errors = [];
+        let offset = 0;
+        let keepListing = true;
+
+        while (keepListing) {
+            // List files in the 'returns/' folder, paginated
+            const { data: files, error: listError } = await sb.storage
+                .from('evidences')
+                .list('returns', { limit: BATCH_SIZE, offset, sortBy: { column: 'name', order: 'asc' } });
+
+            if (listError) {
+                errors.push(`Error listing files at offset ${offset}: ${listError.message}`);
+                break;
+            }
+
+            if (!files || files.length === 0) {
+                keepListing = false;
+                break;
+            }
+
+            // Filter files whose timestamp prefix is older than the cutoff
+            const toDelete = files
+                .filter(f => {
+                    const ts = parseInt(f.name.split('_')[0], 10);
+                    return !isNaN(ts) && ts < cutoff;
+                })
+                .map(f => `returns/${f.name}`);
+
+            if (toDelete.length > 0) {
+                const { error: removeError } = await sb.storage
+                    .from('evidences')
+                    .remove(toDelete);
+
+                if (removeError) {
+                    failed += toDelete.length;
+                    errors.push(`Error deleting batch: ${removeError.message}`);
+                } else {
+                    deleted += toDelete.length;
+                }
+            }
+
+            // If we got fewer results than the page size, we've reached the end
+            if (files.length < BATCH_SIZE) {
+                keepListing = false;
+            } else {
+                offset += BATCH_SIZE;
+            }
+        }
+
+        return { deleted, failed, errors };
     }
 };
 
