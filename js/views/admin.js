@@ -375,7 +375,7 @@ export const renderAdminDashboard = (container, user) => {
                     const btn = document.getElementById('cleanup-evidences-btn');
                     const statusEl = document.getElementById('cleanup-status');
 
-                    const confirmed = confirm('¿Eliminar todas las fotos de evidencia con más de 2 meses? Esta acción no se puede deshacer.');
+                    const confirmed = confirm('¿Eliminar todas las fotos de evidencia con más de 30 días? Esta acción no se puede deshacer.');
                     if (!confirmed) return;
 
                     btn.disabled = true;

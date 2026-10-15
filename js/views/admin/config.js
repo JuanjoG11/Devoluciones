@@ -12,7 +12,7 @@ export const renderConfig = () => `
                 <div>
                     <h3 style="margin: 0 0 4px 0; font-size: 16px;">Limpiar fotos antiguas</h3>
                     <p style="margin: 0; color: #64748b; font-size: 14px;">
-                        Elimina las fotos de evidencia con más de 2 meses de antigüedad del almacenamiento en la nube.
+                        Elimina las fotos de evidencia con más de 30 días de antigüedad del almacenamiento en la nube.
                         Los registros de devoluciones <strong>no se borran</strong>, solo las imágenes.
                     </p>
                 </div>

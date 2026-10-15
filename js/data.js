@@ -1492,7 +1492,7 @@ export const db = {
     },
 
     /**
-     * Deletes evidence photos older than 2 months from the 'evidences' bucket.
+     * Deletes evidence photos older than 30 days from the 'evidences' bucket.
      * File names are prefixed with a Unix timestamp (ms), e.g. "1767973689127_abc.jpg",
      * so we can determine age without any extra DB query.
      *
@@ -1500,8 +1500,8 @@ export const db = {
      */
     async cleanupOldEvidences() {
         const BATCH_SIZE = 100; // Supabase list() max per page
-        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000; // 60 days in ms
-        const cutoff = Date.now() - TWO_MONTHS_MS;
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
+        const cutoff = Date.now() - THIRTY_DAYS_MS;
 
         let deleted = 0;
         let failed = 0;
